@@ -19,6 +19,8 @@ In order to enable physics on the scene, please use the ``Enable Physics`` check
 
 |
 
+.. _static_physics:
+
 Static Physics Type
 ===================
 
@@ -54,6 +56,8 @@ Also, there are material physics settings in this panel. The following settings 
 
 The ``Collision Group`` field corresponds to the physics group which the material belongs to. The ``Collision Mask`` field defines all physics groups with which this material will interact.
 
+.. _dynamic_physics:
+
 Dynamic Physics Type
 ====================
 
@@ -83,6 +87,8 @@ The ``Collision Mask`` field defines all physics groups with which this object w
 
 For the camera object the ``Physics Type`` = ``Dynamic`` parameter must be used, and the ``Object Physics`` checkbox must be enabled.
 
+.. _physics_constraints:
+
 Constraints
 ===========
 
@@ -102,6 +108,7 @@ Adding a physical constraint (``Rigid Body Joint``) to the object can be perform
    
 |
 
+.. _wheeled_vehicles:
 
 Wheeled Vehicles
 ================
@@ -153,6 +160,7 @@ We can additionally tweak the ``Damping`` of ``Translation`` and ``Rotation``. T
 
 The friction and elasticity of the road surface material do not influence the vehicle's behavior.
 
+.. _floating_objects:
 
 Floating Objects
 ================
@@ -178,6 +186,8 @@ Floating Object Settings
 
 *Water Rotation Damping*
     Rotation damping when the object is on the water surface (or under water). When the object is not in water, the physics settings are used.
+
+.. _watercrafts:
 
 Floating Vehicles aka Watercrafts
 =================================
@@ -208,8 +218,10 @@ Watercraft Settings
 *Water Rotation Damping*
     Rotation damping when the object is on the water surface (or under water). When the object is not in water, the physics settings are used.
 
-Character Objects
-=================
+.. _characters:
+
+Characters
+==========
 
 .. image:: src_images/physics/physics_character_object_example.png
    :align: center
@@ -217,7 +229,7 @@ Character Objects
 
 This feature can be activated by clicking the ``Character`` check-box in the title of the eponymous tab on the ``Physics`` panel.
 
-From the engine standpoint, the character itself is a proper physical object that can collide with other physical objects or be influenced by physical forces such as gravity and bouyant force.
+From the engine standpoint, the character itself is a proper physical object that can collide with other physical objects or be influenced by physical forces such as gravity and buoyant force.
 
 Character object can be easily controlled using several API methods with a `character` keyword in their names. All such methods reside in the :b4wmod:`physics` API module.
 
@@ -254,6 +266,226 @@ All the settings listed here become available after activating the ``Character``
     This parameter sets up the waterline for the character object. The waterline is measured from the center of the physical shape of the object (not the object's mesh). If an object is submerged into the water below this line, it will float. Its value can vary from -2 to 2.
 
     It is set to zero by default.
+
+Basic Character
+---------------
+
+Blend4Web engine has an option to quickly set up a user-controlled first-person character. Such character will only have very basic functionality, but can be set up without any programming.
+
+To set up a basic character, follow these steps:
+
+#. Select an object you intend to use as a character.
+#. Enable physics for the selected object and set physics type to ``Dynamic`` or ``Rigid Body``.
+#. Enable Character option for the object.
+#. Create a new Camera or select an existing one and set its type to ``Eye``.
+
+Now a basic character with an attached camera will be present in your scene.
+
+The character can be controlled in mostly the same way as a regular ``Eye`` type camera:
+
+* WASD keys move the character.
+* Camera angles are controlled by arrow keys or moving the mouse while holding its left button.
+* Pressing the C key toggles fly mode (enabled by default).
+
+.. note::
+    Only one basic character can be present in the scene. If a scene has multiple characters, the engine will use the first of them as the basic character and ignore the others.
+
+Controlling Characters with API
+-------------------------------
+
+Basic character described above can only provide generic functionality. If you need more control over character behavior, you should use methods from the :b4wmod:`fps` module.
+
+The most important of them is the :b4wref:`fps.enable_fps_controls()` method which, as its name suggests, is used to initialize characters in the scene. It can be used as follows:
+
+.. code-block:: javascript
+
+    var m_fps = require("fps");
+
+    m_fps.enable_fps_controls();
+
+This method should be used at the start of the application (in the **load_cb** function) to enable character controls.
+
+.. note::
+
+    This method may conflict with the :b4wref:`app.enable_camera_controls()` method which is used to enable basic character described in the previous section. These two methods should not be used simultaneously.
+
+The method also has the following optional parameters:
+
+    ``character`` sets the character object. The link to the character can be retrieved by calling the :b4wref:`scenes.get_first_character()` method. Should be used if more then one character is present in the scene.
+
+    ``element`` specifies the HTML element to which the method adds listeners.
+
+    ``motion_cb`` specifies the callback function that is called when character changes its direction.
+
+    ``gamepad_id`` specifies the ID of the gamepad plugged to the system.
+
+    ``forward_sens``, ``backward_sens``, ``right_sens``, ``left_sens``, ``jump_sens``, ``fly_sens`` - these parameters are used to set arrays of sensor types for specific character action like walking in different directions, jumping and so on.
+
+    ``rotation_cb`` specifies the callback function that is called when a character or camera rotates.
+
+    ``lock_camera`` - setting this parameter to ``true`` will parent the scene camera to the character.
+
+Other important methods are :b4wref:`fps.set_cam_sensitivity()` and :b4wref:`fps.set_cam_smooth_factor()`. The first one of them sets the sensitivity of the camera (defined by a numeric value in the range from zero to 100). The second method defines how smooth the camera moves (defined by a value in the range from 0 to 1.0).
+
+Character States
+................
+
+Character states are constant values that represent current behavior of the character (does it currently walk or fly or do anything else). Every character present in a scene always have one and only one state.
+
+Available character states:
+
+    :b4wref:`fps.CS_CLIMB` - a character is climbing.
+
+    :b4wref:`fps.CS_FLY` - a character is flying.
+
+    :b4wref:`fps.CS_RUN` - a character is running.
+
+    :b4wref:`fps.CS_STAY` - a character does not move.
+
+    :b4wref:`fps.CS_WALK` - a character is walking.
+
+Current state of a specific character can be retrieved using the :b4wref:`fps.get_character_state()` method, while a specific state can be assigned to a character with the :b4wref:`fps.switch_state()` method. The following example shows how these two methods can be used:
+
+.. code-block:: javascript
+
+    var m_fps = require("fps");
+
+    var current_state = m_fps.get_character_state();
+    
+    if (current_state == m_fps.CS_FLY)
+        m_fps.switch_state(m_fps.CS_WALK);
+
+Action Binding
+..............
+
+The :b4wmod:`fps` module also provides means for binding various actions to character events. The :b4wref:`fps.bind_action()` method is used for this:
+
+.. code-block:: javascript
+
+    var m_fps = require("fps");
+    var m_ctl = require("controls");
+
+    var action_cb = function(value) {
+        console.log("Q key pressed.");
+    }
+
+    m_fps.bind_action(m_fps.AT_PRESSED, [m_ctl.KEY_Q], action_cb);
+
+This method features the following parameters:
+
+    * the first parameter is the type of action:
+
+      :b4wref:`fps.AT_CONTINUOUS` - an input type that detects a continuous user action such as mouse movement, keyboard key held down, gamepad stick tilt etc.
+
+      :b4wref:`fps.AT_PRESSED` - this input type detects a discrete user action, e.g. pressing a button.
+
+      :b4wref:`fps.AT_RELEASED` - an input type that detects button (mouse, gamepad or keyboard) being released.
+
+    * the second parameter defines an array of sensor types (such as keyboard keys, gamepad buttons or mouse actions).
+    * **action_cb** is a callback function that will be called each time user performs action defined by the first parameter.
+
+
+Navigation Meshes
+=================
+
+Navigation meshes (commonly abbreviated *navmeshes*) are mesh objects that are used to make pathfinding simpler by eliminating the need for additional calculations such as collisions.
+
+.. image:: src_images/physics/physics_pathfinding_example.png
+   :align: center
+   :width: 100%
+
+In this example (taken from Code Snippets), navigation mesh is used to build a path through the labyrinth.
+
+Creating Navigation Meshes
+--------------------------
+
+To make a navmesh out of an object, turn on the ``Object Physics`` parameter on the ``Physics`` panel and select ``Navigation Mesh`` from the ``Physics Type`` list.
+
+.. image:: src_images/physics/physics_navmesh.png
+   :align: center
+   :width: 100%
+
+Navigation meshes can either be created manually or generated automatically using a specific tool.
+
+.. image:: src_images/physics/physics_navmesh_generator.png
+   :align: center
+   :width: 100%
+
+.. note::
+    This tool is native to Blender and not a part of the Blend4Web engine.
+
+This Navigation Mesh generation interface can be found on a dedicated panel under the ``Scene`` tab, but, as this feature is intended for real-time applications, it only appears if the Engine type is set to ``Blend4Web`` or ``Blender Game`` (Blender Internal, Cycles or any other rendering engine won’t do).
+
+The main tool on this panel is the ``Build Navigation Mesh`` button. As the title suggests, it is used for building navigation meshes based on the currently selected object. The navmesh is created as a separate object placed above the selected object, thus leaving that object intact.
+
+Aside from this button, the ``Navigation Mesh`` panel offers users several groups of parameters to fine-tune the navmesh that will be generated.
+
+``Rasterization`` group of parameters:
+
+*Cell Size*
+    Rasterized cell size. Greater values lead to bigger navmesh polygons. The highest possible value is 1.0. Default value is 0.3.
+
+*Cell Height*
+    Rasterized cell height (the distance between the navmesh and the object from which it was generated). Default value is 0.2.
+
+``Agent`` group of parameters:
+
+*Height*
+    Minimum height where the agent can still walk. Default value is 2.0.
+
+*Radius*
+    The radius of the agent. Default value is 0.6.
+
+*Max Slope*
+    Maximum angle of a slope agent can walk on. Measured in degrees. Default value is 45.
+
+*Max Climb*
+    The maximum height between grid cells the agent can climb. Default value is 0.9.
+
+``Region`` group of parameters:
+
+*Min Region Size*
+    The minimum size of a region (smaller regions will be deleted). Default value is 8.0.
+
+*Merged Region Size*
+    The minimum size of a region (smaller regions will be merged). Default value is 20.0.
+
+*Partitioning*
+    The method used to partition the navigation mesh. Supported methods are:
+
+    ``Monotone`` is the fastest method. Using it may generate long thin polygons.
+
+    ``Layers`` — a slower, but still reasonably fast method that produces better triangulations than Monotone partitioning.
+
+    ``Watershed`` — classic Recast partitioning method that generates the nicest tessellation. This option is selected by default.
+
+``Polygonization`` group of parameters:
+
+*Max Edge Length*
+    The maximum length of a contour edge. Default value is 12.0.
+
+*Max Edge Error*
+    The maximum error of the distance from the contour to the cells. Default value is 1.3.
+
+*Verts Per Poly*
+    The maximum number of vertices per polygon. Default value is 6.
+
+``Detail Mesh`` group of parameters:
+
+*Sample Distance*
+    Detail mesh sample spacing. Default value is 6.0.
+
+*Max Sample Error*
+    Maximum error of the mesh simplification. Default value is 1.00.
+
+Using Navigation Meshes
+-----------------------
+
+After a navmesh is created, it then can be used in the application for calculating trajectories between two points. This can be done using two methods from the :b4wmod:`physics` module, :b4wref:`physics.navmesh_get_island()` and :b4wref:`physics.navmesh_find_path()`. The former is used to retrieve a link to the current island (closest independent segment of the navmesh), while the latter returns the actual path in the form of an array of coordinates.
+
+An example of using navigation meshes for pathfinding can be viewed in the :ref:`Code Snippets <code_snippets>` (the corresponding snippet is named ``Pathfinding``).
+
+.. _using_physics:
 
 Use in Applications
 ===================

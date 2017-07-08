@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -25,11 +24,11 @@
  */
 b4w.module["__util"] = function(exports, require) {
 
-var m_bounds= require("__boundings");
 var m_mat3  = require("__mat3");
 var m_mat4  = require("__mat4");
 var m_math  = require("__math");
 var m_print = require("__print");
+var m_tbn   = require("__tbn");
 var m_tsr   = require("__tsr");
 var m_quat  = require("__quat");
 var m_vec3  = require("__vec3");
@@ -38,16 +37,22 @@ var m_vec4  = require("__vec4");
 var _unique_counter = 0;
 var _unique_name_counters = {};
 
-var PROPER_EULER_ANGLES_LIST = [XYX, YZY, ZXZ, YXY, ZYZ];
-
 // for internal usage
 var _vec3_tmp = new Float32Array(3);
 var _vec3_tmp2 = new Float32Array(3);
+var _vec3_tmp3 = new Float32Array(3);
+var _vec3_tmp4 = new Float32Array(3);
+var _vec3_tmp5 = new Float32Array(3);
+var _vec3_tmp6 = new Float32Array(3);
+var _vec3_tmp7 = new Float32Array(3);
+var _vec3_tmp8 = new Float32Array(3);
 var _vec4_tmp = new Float32Array(4);
 var _vec4_tmp2 = new Float32Array(4);
 var _mat3_tmp = new Float32Array(9);
 var _mat4_tmp = new Float32Array(16);
 var _mat4_tmp2 = new Float32Array(16);
+var _quat_tmp = m_quat.create();
+var _quat_tmp2 = m_quat.create();
 
 var _hash_buffer_in = new Float64Array(1);
 var _hash_buffer_out = new Uint32Array(_hash_buffer_in.buffer);
@@ -77,13 +82,13 @@ var XZY = 9;
 var YXZ = 10;
 var ZYX = 11;
 
+var PROPER_EULER_ANGLES_LIST = [XYX, YZY, ZXZ, YXY, ZYZ];
+
 var DEFAULT_SEED = 50000;
 var RAND_A = 48271;
 var RAND_M = 2147483647;
 var RAND_R = RAND_M % RAND_A;
 var RAND_Q = Math.floor(RAND_M / RAND_A);
-
-var MIN_CLAMPING_INTERVAL = 0.001;
 
 // view matrixes representing 6 cube sides
 var INV_CUBE_VIEW_MATRS =
@@ -123,6 +128,16 @@ exports.ZYX = ZYX;
 
 exports.INV_CUBE_VIEW_MATRS = INV_CUBE_VIEW_MATRS;
 
+var BYTE_SIZE = 1;
+var SHORT_SIZE = 2;
+var FLOAT_SIZE = 4;
+var INT_SIZE = 4;
+
+exports.BYTE_SIZE = BYTE_SIZE;
+exports.SHORT_SIZE = SHORT_SIZE;
+exports.FLOAT_SIZE = FLOAT_SIZE;
+exports.INT_SIZE = INT_SIZE;
+
 exports.isdef = function(v) {
     return (typeof v != "undefined");
 }
@@ -138,6 +153,10 @@ function keyfind(key, value, array) {
             results.push(obj);
     }
     return results;
+}
+
+exports.f32 = function(arr) {
+    return new Float32Array(arr);
 }
 
 /**
@@ -164,7 +183,7 @@ exports.uint32_concat = function(first, second) {
 }
 
 /**
- * @returns {Boolean} True if we have a little-endian architecture.
+ * @returns {boolean} True if we have a little-endian architecture.
  */
 exports.check_endians = function() {
 
@@ -197,7 +216,7 @@ exports.array_intersect = function(arr1, arr2) {
 
 /**
  * Taken from http://stackoverflow.com/questions/7624920/number-sign-in-javascript
- * @returns {Number} Signum function from argument
+ * @returns {number} Signum function from argument
  */
 exports.sign = sign;
 function sign(value) {
@@ -289,7 +308,7 @@ exports.check_uniqueness = function(array) {
 exports.trans_matrix = function(x, y, z, dest) {
 
     if (!dest)
-        var dest = new Float32Array(16);
+        dest = new Float32Array(16);
 
     m_mat4.identity(dest);
 
@@ -344,27 +363,16 @@ exports.init_rand_r_seed = function(seed_number, dest) {
 }
 
 /**
- * <p>Translate GL euler to GL quat
+ * <p>Translate BLENDER euler to BLENDER quat
  */
 exports.euler_to_quat = function(euler, quat) {
+    // reorder angles from XYZ to ZYX
+    var angles = _vec3_tmp;
+    angles[0] = euler[2];
+    angles[1] = euler[1];
+    angles[2] = euler[0];
 
-    if (!quat)
-        quat = new Float32Array(4);
-
-    var c1 = Math.cos(euler[1]/2);
-    var c2 = Math.cos(euler[2]/2);
-    var c3 = Math.cos(euler[0]/2);
-
-    var s1 = Math.sin(euler[1]/2);
-    var s2 = Math.sin(euler[2]/2);
-    var s3 = Math.sin(euler[0]/2);
-
-    // xyz
-    quat[0] = c1 * c2 * s3 + s1 * s2 * c3;
-    quat[1] = s1 * c2 * c3 + c1 * s2 * s3;
-    quat[2] = c1 * s2 * c3 - s1 * c2 * s3;
-    // w
-    quat[3] = c1 * c2 * c3 - s1 * s2 * s3;
+    ordered_angles_to_quat(angles, ZYX, quat);
 
     return quat;
 }
@@ -374,7 +382,8 @@ exports.euler_to_quat = function(euler, quat) {
  * Translate Euler angles in the intrinsic rotation sequence to quaternion
  * Source: Appendix A of http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770024290.pdf
  */
-exports.ordered_angles_to_quat = function(angles, order, quat){
+exports.ordered_angles_to_quat = ordered_angles_to_quat;
+function ordered_angles_to_quat(angles, order, quat) {
     var alpha   = angles[0];
     var beta    = angles[1];
     var gamma   = angles[2];
@@ -478,7 +487,8 @@ exports.ordered_angles_to_quat = function(angles, order, quat){
  * Source: Appendix A of http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770024290.pdf
  * quat must be normalized
  */
-exports.quat_to_ordered_angles = function(q, order, angles) {
+exports.quat_to_ordered_angles = quat_to_ordered_angles;
+function quat_to_ordered_angles(q, order, angles) {
     var x = q[0], y = q[1], z = q[2], w = q[3];
 
     switch(order) {
@@ -518,9 +528,20 @@ exports.quat_to_ordered_angles = function(q, order, angles) {
         angles[2] = Math.atan2(2 * (z * w - x * y), 1 - 2 * (y * y + z * z));
         break;
     case YZX:
-        angles[0] = Math.atan2(2 * (y * w - x * z), 1 - 2 * (y * y + z * z));
-        angles[1] = Math.asin(2 * (x * y + z * w));
-        angles[2] = Math.atan2(2 * (x * w - y * z), 1 - 2 * (x * x + z * z));
+        var test = x * y + z * w;
+        if (test > 0.499999) {
+            angles[0] = 0;
+            angles[1] = Math.PI / 2;
+            angles[2] = 2 * Math.atan2(x, w);
+        } else if (test < -0.499999) {
+            angles[0] = 0;
+            angles[1] = -Math.PI / 2;
+            angles[2] = -2 * Math.atan2(x, w);
+        } else {
+            angles[0] = Math.atan2(2 * (y * w - x * z), 1 - 2 * (y * y + z * z));
+            angles[1] = Math.asin(2 * (x * y + z * w));
+            angles[2] = Math.atan2(2 * (x * w - y * z), 1 - 2 * (x * x + z * z));
+        }
         break;
     case ZXY:
         angles[0] = Math.atan2(2 * (z * w - x * y), 1 - 2 * (x * x + z * z));
@@ -538,9 +559,20 @@ exports.quat_to_ordered_angles = function(q, order, angles) {
         angles[2] = Math.atan2(2 * (x * y + z * w), 1 - 2 * (x * x + z * z));
         break;
     case ZYX:
-        angles[0] = Math.atan2(2 * (x * y + z * w), 1 - 2 * (y * y + z * z));
-        angles[1] = Math.asin(2 * (y * w - x * z));
-        angles[2] = Math.atan2(2 * (x * w + y * z), 1 - 2 * (x * x + y * y));
+        var test = y * w - x * z;
+        if (test > 0.499999) {
+            angles[0] = 0;
+            angles[1] = Math.PI / 2;
+            angles[2] = -2 * Math.atan2(z, w);
+        } else if (test < -0.499999) {
+            angles[0] = 0;
+            angles[1] = -Math.PI / 2;
+            angles[2] = 2 * Math.atan2(z, w);
+        } else {
+            angles[0] = Math.atan2(2 * (x * y + z * w), 1 - 2 * (y * y + z * z));
+            angles[1] = Math.asin(2 * (y * w - x * z));
+            angles[2] = Math.atan2(2 * (x * w + y * z), 1 - 2 * (x * x + y * y));
+        }
         break;
     }
     // TODO: add check the orientation is far a singularity.
@@ -566,7 +598,6 @@ exports.quat_to_ordered_angles = function(q, order, angles) {
 exports.euler_to_rotation_matrix = function(euler) {
 
     var matrix = m_mat3.create();
-
     var cosX = Math.cos(euler[0]);
     var cosY = Math.cos(euler[1]);
     var cosZ = Math.cos(euler[2]);
@@ -593,38 +624,15 @@ exports.euler_to_rotation_matrix = function(euler) {
 
     return matrix;
 }
-/**
- * @see http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/index.htm
- */
+
+// Engine uses ZYX intrinsic rotation sequence
 exports.quat_to_euler = function(quat, euler) {
-    //var quat = new Float32Array([quat[0], quat[2], quat[1], quat[3]])
-    //var quat_rot = [-0.7071, 0, 0, 0.7071];
-    //var quat = m_quat.multiply(quat_rot, quat, []);
+    var angles = quat_to_ordered_angles(quat, ZYX, _vec3_tmp);
 
-    var qx = quat[0];
-    var qy = quat[1];
-    var qz = quat[2];
-    var qw = quat[3]; // last for glsl
-
-    var qw2 = qw * qw;
-    var qx2 = qx * qx;
-    var qy2 = qy * qy;
-    var qz2 = qz * qz;
-    var test = qx * qy + qz * qw;
-
-    if (test > 0.499999) {
-        euler[0] = 0;
-        euler[1] = 2 * Math.atan2(qx, qw);
-        euler[2] = Math.PI / 2;
-    } else if (test < -0.499999) {
-        euler[0] = 0;
-        euler[1] = -2 * Math.atan2(qx, qw);
-        euler[2] = -Math.PI / 2;
-    } else {
-        euler[0] = Math.atan2(2 * qx * qw - 2 * qy * qz, 1 - 2 * qx2 - 2 * qz2);
-        euler[1] = Math.atan2(2 * qy * qw - 2 * qx * qz, 1 - 2 * qy2 - 2 * qz2);
-        euler[2] = Math.asin (2 * qx * qy + 2 * qz * qw);
-    }
+    // reorder angles from XYZ to ZYX
+    euler[0] = angles[2];
+    euler[1] = angles[1];
+    euler[2] = angles[0];
 
     return euler;
 }
@@ -632,9 +640,10 @@ exports.quat_to_euler = function(quat, euler) {
 /**
  * Convert quaternion to directional vector.
  */
-exports.quat_to_dir = function(quat, ident, dest) {
+exports.quat_to_dir = quat_to_dir;
+function quat_to_dir(quat, ident, dest) {
     if (!dest)
-        var dest = new Float32Array(3);
+        dest = new Float32Array(3);
 
     m_vec3.transformQuat(ident, quat, dest);
     return dest;
@@ -645,9 +654,9 @@ exports.quat_to_dir = function(quat, ident, dest) {
  */
 exports.dir_to_quat = function(dir, ident, dest) {
     if (!dest)
-        var dest = new Float32Array(4);
+        dest = new Float32Array(4);
 
-    var dir = m_vec3.normalize(dir, _vec3_tmp);
+    dir = m_vec3.normalize(dir, _vec3_tmp);
 
     var dot = m_vec3.dot(ident, dir);
     var A = m_vec3.cross(ident, dir, _vec3_tmp2);
@@ -664,7 +673,7 @@ exports.dir_to_quat = function(dir, ident, dest) {
 
 exports.trans_quat_to_plane = function(trans, quat, ident, dest) {
     if (!dest)
-        var dest = new Float32Array(4);
+        dest = new Float32Array(4);
 
     m_vec3.transformQuat(ident, quat, dest);
     dest[3] = -m_vec3.dot(trans, dest);
@@ -752,7 +761,7 @@ function blend_arrays(a1, a2, f, dest) {
  */
 exports.unique_id = function() {
     _unique_counter++;
-    return _unique_counter.toString(16);
+    return _unique_counter.toString(10);
 }
 
 
@@ -772,50 +781,16 @@ exports.unique_name = function(name_base) {
 exports.create_empty_va_frame = function() {
     var va_frame = {
         "a_position": new Float32Array(0),
-        "a_tangent": new Float32Array(0),
-        "a_normal": new Float32Array(0)
+        "a_tbn": m_tbn.create(0)
     }
 
     return va_frame;
 }
 
-exports.create_empty_submesh = function(name) {
-
-    var va_common = {
-        "a_influence": new Float32Array(0),
-        "a_color": new Float32Array(0),
-        "a_texcoord": new Float32Array(0)
-    };
-
-    return {
-        name: name,
-        // number of vertices per frame
-        base_length: 0,
-        indices: null,
-        va_frames: [],
-        va_common: va_common,
-        shape_keys: [],
-        submesh_bd: {
-            bb_world : m_bounds.zero_bounding_box(),
-            be_world : m_bounds.zero_bounding_ellipsoid(),
-            bb_local : m_bounds.zero_bounding_box(),
-            be_local : m_bounds.zero_bounding_ellipsoid()
-        },
-        instanced_array_data: null
-    };
-}
-
-/**
- * Clone object using JSON.stringify() than JSON.parse().
- * Safest, but not working for objects with links/buffers.
- */
-exports.clone_object_json = function(obj) {
-    return JSON.parse(JSON.stringify(obj));
-}
-
 /**
  * Clone object recursively
- * operation is dangerous because of possible cyclic links
+ * NOTE: operation is dangerous because of possible cyclic links
+ * NOTE: leads to code deoptimizations
  */
 exports.clone_object_r = function(obj) {
     if (!(obj instanceof Object)) {
@@ -829,6 +804,7 @@ exports.clone_object_r = function(obj) {
     switch (Constructor) {
     case Int8Array:
     case Uint8Array:
+    case Uint8ClampedArray:
     case Int16Array:
     case Uint16Array:
     case Int32Array:
@@ -848,7 +824,8 @@ exports.clone_object_r = function(obj) {
         obj_clone = new Constructor();
 
         for (var prop in obj)
-            obj_clone[prop] = exports.clone_object_r(obj[prop]);
+            if (obj.hasOwnProperty(prop))
+                obj_clone[prop] = exports.clone_object_r(obj[prop]);
 
         break;
     }
@@ -857,37 +834,41 @@ exports.clone_object_r = function(obj) {
 }
 
 /**
- * Clone object non-recursively
+ * Clone object non-recursively.
+ * NOTE: leads to code deoptimizations
  */
 exports.clone_object_nr = function(obj) {
 
     var new_obj = (obj instanceof Array) ? [] : {};
 
     for (var prop in obj) {
-        if (obj[prop] instanceof Object) {
+        if (obj.hasOwnProperty(prop)) {
+            if (obj[prop] instanceof Object) {
 
-            var Constructor = obj[prop].constructor;
+                var Constructor = obj[prop].constructor;
 
-            switch (Constructor) {
-            case Int8Array:
-            case Uint8Array:
-            case Int16Array:
-            case Uint16Array:
-            case Int32Array:
-            case Uint32Array:
-            case Float32Array:
-            case Float64Array:
-                new_obj[prop] = new Constructor(obj[prop]);
-                break;
-            case Array:
-                new_obj[prop] = obj[prop].slice(0);
-                break;
-            default:
+                switch (Constructor) {
+                case Int8Array:
+                case Uint8Array:
+                case Uint8ClampedArray:
+                case Int16Array:
+                case Uint16Array:
+                case Int32Array:
+                case Uint32Array:
+                case Float32Array:
+                case Float64Array:
+                    new_obj[prop] = new Constructor(obj[prop]);
+                    break;
+                case Array:
+                    new_obj[prop] = obj[prop].slice(0);
+                    break;
+                default:
+                    new_obj[prop] = obj[prop];
+                    break;
+                }
+            } else
                 new_obj[prop] = obj[prop];
-                break;
-            }
-        } else
-            new_obj[prop] = obj[prop];
+        }
     }
 
     return new_obj;
@@ -901,7 +882,7 @@ exports.matrix_to_quat = matrix_to_quat;
  */
 function matrix_to_quat(matrix, dest) {
     if (!dest)
-        var dest = new Float32Array(4);
+        dest = new Float32Array(4);
 
     m_mat3.fromMat4(matrix, _mat3_tmp);
 
@@ -947,7 +928,7 @@ function matrix_to_quat(matrix, dest) {
  */
 exports.matrix_to_trans = function(matrix, dest) {
     if (!dest)
-        var dest = new Float32Array(3);
+        dest = new Float32Array(3);
 
     dest[0] = matrix[12];
     dest[1] = matrix[13];
@@ -1041,11 +1022,11 @@ function normalize_plane(plane) {
  */
 exports.sphere_is_out_of_frustum = function(pt, planes, radius) {
 
-    if (radius < -m_math.point_plane_dist(pt, planes.left) ||
+    if (radius < -m_math.point_plane_dist(pt, planes.near) ||
+        radius < -m_math.point_plane_dist(pt, planes.left) ||
         radius < -m_math.point_plane_dist(pt, planes.right) ||
         radius < -m_math.point_plane_dist(pt, planes.top) ||
         radius < -m_math.point_plane_dist(pt, planes.bottom) ||
-        radius < -m_math.point_plane_dist(pt, planes.near) ||
         radius < -m_math.point_plane_dist(pt, planes.far))
         return true;
     else
@@ -1059,9 +1040,9 @@ exports.ellipsoid_is_out_of_frustum = function(pt, planes,
                                                axis_x, axis_y, axis_z) {
 
     // effective radius - far/near plane
-    dot_nx = m_vec3.dot(axis_x, planes.far);
-    dot_ny = m_vec3.dot(axis_y, planes.far);
-    dot_nz = m_vec3.dot(axis_z, planes.far);
+    var dot_nx = m_vec3.dot(axis_x, planes.far);
+    var dot_ny = m_vec3.dot(axis_y, planes.far);
+    var dot_nz = m_vec3.dot(axis_z, planes.far);
     var r_far = Math.sqrt(dot_nx * dot_nx + dot_ny * dot_ny + dot_nz * dot_nz);
 
     // near and far effective radiuses coincide (far is parallel to near)
@@ -1071,9 +1052,9 @@ exports.ellipsoid_is_out_of_frustum = function(pt, planes,
     }
 
     // effective radius - left plane
-    var dot_nx = m_vec3.dot(axis_x, planes.left);
-    var dot_ny = m_vec3.dot(axis_y, planes.left);
-    var dot_nz = m_vec3.dot(axis_z, planes.left);
+    dot_nx = m_vec3.dot(axis_x, planes.left);
+    dot_ny = m_vec3.dot(axis_y, planes.left);
+    dot_nz = m_vec3.dot(axis_z, planes.left);
     var r_left = Math.sqrt(dot_nx * dot_nx + dot_ny * dot_ny + dot_nz * dot_nz);
     if (r_left  < -m_math.point_plane_dist(pt, planes.left)) {
         return true;
@@ -1118,7 +1099,7 @@ exports.positions_multiply_matrix = function(positions, matrix, new_positions,
         dest_offset) {
 
     if (!dest_offset)
-        var dest_offset = 0;
+        dest_offset = 0;
 
     var len = positions.length;
 
@@ -1148,7 +1129,7 @@ exports.vectors_multiply_matrix = function(vectors, matrix, new_vectors,
         dest_offset) {
 
     if (!dest_offset)
-        var dest_offset = 0;
+        dest_offset = 0;
 
     var len = vectors.length;
 
@@ -1166,32 +1147,28 @@ exports.vectors_multiply_matrix = function(vectors, matrix, new_vectors,
     return new_vectors;
 }
 
-/**
- * Translate 4 comp tangent vectors by matrix.
- * Optimized function, uses preallocated arrays (Array or Float32Array).
- * Works only for uniform-scaled matrices.
- * optional destination offset in values (not vectors, not bytes)
- */
-exports.tangents_multiply_matrix = function(vectors, matrix, new_vectors,
+exports.quats_multiply_quat = function(vectors, quat, new_vectors,
         dest_offset) {
-
-    if (!dest_offset)
-        var dest_offset = 0;
+    dest_offset = dest_offset || 0;
 
     var len = vectors.length;
-
+    var new_quat = _quat_tmp;
     for (var i = 0; i < len; i+=4) {
-        var x = vectors[i];
-        var y = vectors[i+1];
-        var z = vectors[i+2];
 
-        // ignore matrix translation part
-        new_vectors[dest_offset + i] = matrix[0] * x + matrix[4] * y + matrix[8] * z;
-        new_vectors[dest_offset + i + 1] = matrix[1] * x + matrix[5] * y + matrix[9] * z;
-        new_vectors[dest_offset + i + 2] = matrix[2] * x + matrix[6] * y + matrix[10] * z;
+        new_quat[0] = vectors[i];
+        new_quat[1] = vectors[i+1];
+        new_quat[2] = vectors[i+2];
+        new_quat[3] = vectors[i+3];
 
-        // just save exact sign
-        new_vectors[dest_offset + i + 3] = vectors[i + 3];
+        var is_righthand = new_quat[3] > 0;
+        m_quat.multiply(quat, new_quat, new_quat);
+        if (is_righthand && new_quat[3] < 0 || !is_righthand && new_quat[3] > 0)
+            m_vec4.scale(new_quat, -1, new_quat);
+
+        new_vectors[dest_offset + i] = new_quat[0];
+        new_vectors[dest_offset + i + 1] = new_quat[1];
+        new_vectors[dest_offset + i + 2] = new_quat[2];
+        new_vectors[dest_offset + i + 3] = new_quat[3];
     }
 
     return new_vectors;
@@ -1202,7 +1179,7 @@ exports.tangents_multiply_matrix = function(vectors, matrix, new_vectors,
  */
 exports.vecdir_multiply_matrix = function(vec, matrix, dest) {
     if (!dest)
-        var dest = new Float32Array(3);
+        dest = new Float32Array(3);
 
     var v4 = _vec4_tmp;
 
@@ -1233,7 +1210,7 @@ exports.flatten = function(array, dest) {
         panic("flatten(): Wrong or empty subarray");
 
     if (!dest)
-        var dest = new Float32Array(len * len0);
+        dest = new Float32Array(len * len0);
 
     for (var i = 0; i < len; i++)
         for (var j = 0; j < len0; j++)
@@ -1247,7 +1224,7 @@ exports.flatten = function(array, dest) {
 exports.vectorize = function(array, dest) {
 
     if (!dest)
-        var dest = [];
+        dest = [];
 
     for (var i = 0; i < array.length; i+=3) {
         var v3 = new Float32Array([array[i], array[i+1], array[i+2]]);
@@ -1310,7 +1287,7 @@ exports.cmp_arr_float = function(arr_1, arr_2, precision) {
  */
 exports.scale_mat4 = function(matrix, scale, dest) {
     if (!dest)
-        var dest = new Float32Array(16);
+        dest = new Float32Array(16);
 
     for (var i = 0; i < 12; i++)
         dest[i] = matrix[i] * scale;
@@ -1328,7 +1305,7 @@ exports.scale_mat4 = function(matrix, scale, dest) {
  */
 exports.transform_mat4 = function(matrix, scale, quat, trans, dest) {
     if (!dest)
-        var dest = new Float32Array(16);
+        dest = new Float32Array(16);
     var m = m_mat4.fromRotationTranslation(quat, trans, _mat4_tmp);
 
     m_mat4.multiply(m, matrix, dest);
@@ -1340,7 +1317,7 @@ exports.transform_mat4 = function(matrix, scale, quat, trans, dest) {
  */
 exports.transform_vec3 = function(vec, scale, quat, trans, dest) {
     if (!dest)
-        var dest = new Float32Array(3);
+        dest = new Float32Array(3);
 
     var m1 = m_mat4.fromRotationTranslation(quat, trans, _mat4_tmp);
     if (scale !== 1) {
@@ -1359,7 +1336,7 @@ exports.transform_vec3 = function(vec, scale, quat, trans, dest) {
  */
 exports.transform_vec4 = function(vec, scale, quat, trans, dest) {
     if (!dest)
-        var dest = new Float32Array(4);
+        dest = new Float32Array(4);
     var m = m_mat4.fromRotationTranslation(quat, trans, _mat4_tmp);
 
     m_vec4.transformMat4(vec, m, dest);
@@ -1372,7 +1349,7 @@ exports.transform_vec4 = function(vec, scale, quat, trans, dest) {
  */
 exports.inverse_transform_vec3 = function(vec, scale, quat, trans, dest) {
     if (!dest)
-        var dest = new Float32Array(3);
+        dest = new Float32Array(3);
     var m = m_mat4.fromRotationTranslation(quat, trans, _mat4_tmp);
     m_mat4.invert(m, m);
     m_vec3.transformMat4(vec, m, dest);
@@ -1382,7 +1359,7 @@ exports.inverse_transform_vec3 = function(vec, scale, quat, trans, dest) {
 
 exports.transcale_quat_to_matrix = function(trans, quat, dest) {
     if (!dest)
-        var dest = new Float32Array(16);
+        dest = new Float32Array(16);
 
     m_mat4.fromRotationTranslation(quat, trans, dest);
 
@@ -1396,7 +1373,7 @@ exports.transcale_quat_to_matrix = function(trans, quat, dest) {
 exports.matrix_to_transcale_quat = function(matrix, dest_transcale, dest_quat) {
     exports.matrix_to_trans(matrix, dest_transcale);
     dest_transcale[3] = exports.matrix_to_scale(matrix);
-    exports.matrix_to_quat(matrix, dest_quat);
+    matrix_to_quat(matrix, dest_quat);
 }
 
 /**
@@ -1413,7 +1390,7 @@ exports.array_stringify = function(array) {
 
 exports.rotate_point_pivot = function(point, pivot, quat, dest) {
     if (!dest)
-        var dest = new Float32Array(3);
+        dest = new Float32Array(3);
 
     var point_rel = _vec3_tmp;
 
@@ -1479,7 +1456,8 @@ exports.generate_inv_cubemap_matrices = function() {
 }
 
 /**
- * Calculate id for strongly typed variables (batch, render, ...)
+ * Calculate id for strongly typed variables (batch, render, slink, ...).
+ * init_val parameter is a sort of seed.
  */
 exports.calc_variable_id = function(a, init_val) {
     return hash_code(a, init_val);
@@ -1490,45 +1468,58 @@ function hash_code(a, init_val) {
     var hash = init_val;
 
     switch (typeof a) {
-    case "number":
-        return hash_code_number(a, hash);
-    case "string":
-        return hash_code_string(a, hash);
-    case "boolean":
-        return hash_code_number(a | 0, hash);
-    case "function":
-    case "undefined":
-        return hash_code_number(0, hash);
     case "object":
         if (a) {
             // NOTE: some additional props could be added to GL-type objs
             // so don't build hash code for them
             switch (a.constructor) {
+            case Object:
+                for (var prop in a)
+                    hash = hash_code(a[prop], hash);
+                break;
+            case Int8Array:
+            case Uint8Array:
+            case Uint8ClampedArray:
+            case Int16Array:
+            case Uint16Array:
+            case Int32Array:
+            case Uint32Array:
+            case Float32Array:
+            case Float64Array:
+                for (var i = 0; i < a.length; i++)
+                    hash = hash_code_number(a[i], hash);
+                break;
+            case Array:
+                for (var i = 0; i < a.length; i++)
+                    hash = hash_code(a[i], hash);
+                break;
             case WebGLUniformLocation:
             case WebGLProgram:
             case WebGLShader:
             case WebGLFramebuffer:
+            case WebGLRenderbuffer:
             case WebGLTexture:
             case WebGLBuffer:
-                return hash_code_number(0, hash);
+                hash = hash_code_number(0, hash);
+                break;
+            default:
+                panic("Wrong object constructor:", a.constructor);
+                break;
             }
-
-            var is_typed_arr = a.buffer instanceof ArrayBuffer
-                    && a.byteLength !== "undefined";
-
-            if (is_typed_arr)
-                for (var i = 0; i < a.length; i++)
-                    hash = hash_code_number(a[i], hash);
-            else if (a instanceof Array)
-                for (var i = 0; i < a.length; i++)
-                    hash = hash_code(a[i], hash);
-            else
-                for (var prop in a)
-                    hash = hash_code(a[prop], hash);
         } else
             hash = hash_code_number(0, hash);
+
+        return hash;
+    case "number":
+        return hash_code_number(a, hash);
+    case "boolean":
+        return hash_code_number(a | 0, hash);
+    case "string":
+        return hash_code_string(a, hash);
+    case "function":
+    case "undefined":
+        return hash_code_number(0, hash);
     }
-    return hash;
 }
 
 function hash_code_number(num, init_val) {
@@ -1787,7 +1778,7 @@ exports.cellular2x2 = function(P) {
 exports.quat_project = function(quat, quat_ident_dir,
         plane, plane_ident_dir, dest) {
     if (!dest)
-        var dest = new Float32Array(4);
+        dest = new Float32Array(4);
 
     var to = m_vec3.transformQuat(quat_ident_dir, quat, _vec3_tmp);
 
@@ -1818,11 +1809,11 @@ exports.quat_project = function(quat, quat_ident_dir,
 exports.cam_quat_to_mesh_quat = function(cam_quat, dest) {
 
     if (!dest)
-        var dest = new Float32Array(4);
+        dest = new Float32Array(4);
 
     var quat_offset = _vec4_tmp;
     var quat_offset_x = _vec4_tmp2;
-    quat_offset = m_quat.setAxisAngle([0,1,0], Math.PI, m_quat.create());
+    quat_offset = m_quat.setAxisAngle([0,0,1], Math.PI, m_quat.create());
     quat_offset_x = m_quat.setAxisAngle([1,0,0], Math.PI/2, m_quat.create());
 
     m_quat.multiply(quat_offset, quat_offset_x, quat_offset);
@@ -1836,17 +1827,16 @@ exports.cleanup = function() {
     _unique_name_counters = {};
 }
 
-exports.clamp = function(value, min, max) {
-    return Math.min(Math.max(value, min), max);
+exports.clamp = clamp;
+function clamp(value, min, max) {
+    // NOTE: optimized for intensive usage, much faster than Math.min/Math.max
+    if (value < min)
+        value = min;
+    if (value > max)
+        value = max;
+    return value;
 }
 
-/**
- * Perform exponential smoothing.
- * @param curr Current value.
- * @param last Last smoothed value.
- * @param delta Time delta.
- * @param pariod Mean lifetime for avaraging.
- */
 exports.smooth = function(curr, last, delta, period) {
     var e = Math.exp(-delta/period);
 
@@ -1911,23 +1901,18 @@ exports.correct_cam_quat_up = function(quat, up_only) {
     // convenient to get 3x3 matrix
     var rmat = m_mat3.fromQuat(quat, _mat3_tmp);
 
-    var y_world = _vec3_tmp2;
-    y_world[0] = 0;
-    y_world[1] = 1;
-    y_world[2] = 0;
+    // local camera Z in world space
+    var z_cam_world = _vec3_tmp;
+    z_cam_world[0] = rmat[6];
+    z_cam_world[1] = rmat[7];
+    z_cam_world[2] = rmat[8];
 
-    // local camera Y in world space
-    var y_cam_world = _vec3_tmp;
-    y_cam_world[0] = rmat[3];
-    y_cam_world[1] = rmat[4];
-    y_cam_world[2] = rmat[5];
-
-    var x_cam_world_new = m_vec3.cross(y_world, y_cam_world, y_cam_world);
+    var x_cam_world_new = m_vec3.cross(AXIS_Z, z_cam_world, z_cam_world);
     m_vec3.normalize(x_cam_world_new, x_cam_world_new);
 
-    // Y coord of local camera Z axis in world space
-    var z_cam_world_y = rmat[7];
-    if (!up_only && z_cam_world_y > 0) {
+    // Z coord of local camera MY axis in world space
+    var my_cam_world_z = rmat[4];
+    if (!up_only && my_cam_world_z > 0) {
         x_cam_world_new[0] *= -1;
         x_cam_world_new[1] *= -1;
         x_cam_world_new[2] *= -1;
@@ -2041,14 +2026,14 @@ exports.random_from_array = function(array) {
     return array[pos];
 }
 
-exports.xz_direction = function(a, b, dest) {
+exports.horizontal_direction = function(a, b, dest) {
 
     if (!dest)
         dest = new Float32Array(3);
 
     dest[0] = a[0] - b[0];
-    dest[1] = 0;
-    dest[2] = a[2] - b[2];
+    dest[1] = a[1] - b[1];
+    dest[2] = 0;
     m_vec3.normalize(dest, dest);
 }
 
@@ -2201,6 +2186,7 @@ function objs_is_equal(a, b) {
             case WebGLProgram:
             case WebGLShader:
             case WebGLFramebuffer:
+            case WebGLRenderbuffer:
             case WebGLTexture:
             case WebGLBuffer:
                 return a == b;
@@ -2256,7 +2242,7 @@ exports.quat_bpy_b4w = function(quat, dest) {
 exports.gen_color_id = function(counter) {
 
     // black reserved for background
-    var counter = counter + 1;
+    counter++;
 
     if (counter > 51 * 51 * 51)
         m_print.error("Color ID pool depleted");
@@ -2273,6 +2259,8 @@ exports.gen_color_id = function(counter) {
     return color_id;
 }
 
+// see Lengyel E. - Mathematics for 3D Game Programming and Computer Graphics,
+// Third Edition. Chapter 5.2.1 Intersection of a Line and a Plane
 exports.line_plane_intersect = function(pn, p_dist, pline, dest) {
     // four-dimensional representation of a plane
     var plane = _vec4_tmp;
@@ -2351,12 +2339,13 @@ exports.copy_array = function(a, out) {
  *
  * Both vectors are assumed to be unit length.
  *
- * @param {quat} out the receiving quaternion.
  * @param {vec3} a the initial vector
  * @param {vec3} b the destination vector
+ * @param {quat} out the receiving quaternion.
  * @returns {quat} out
  */
-exports.rotation_to_stable = function(a, b, out) {
+exports.rotation_to_stable = rotation_to_stable;
+function rotation_to_stable(a, b, out) {
     var tmp = _vec3_tmp;
     var dot = m_vec3.dot(a, b);
 
@@ -2546,6 +2535,246 @@ exports.ellipsoid_axes_to_mat3 = function(axis_x, axis_y, axis_z, dest) {
     dest[8] = axis_z[2];
 
     return dest;
+}
+
+/**
+ * Create an empty non-smi Array to store generic objects.
+ * Due to V8 optimizations all emtpy arrays created to store small (31 bit)
+ * integer values. This method prevents such optimization.
+ * @returns {Array} New empty Array
+ */
+exports.create_non_smi_array = create_non_smi_array;
+function create_non_smi_array() {
+    var arr = [{}];
+    arr.length = 0;
+    return arr;
+}
+
+/**
+ * Converts a float value of range [-1, 1] to a short.
+ */
+exports.float_to_short = function(float_val) {
+    var x = Math.round((float_val + 1) * 32767.5 - 32768);
+    // remove possible negative zero before clamping
+    return clamp(x ? x : 0, -32768, 32767);
+}
+
+/**
+ * Converts a short value of range [-32768, 32767] to a float.
+ */
+exports.short_to_float = function(short_val) {
+    return clamp((short_val + 32768) / 32767.5 - 1, -1, 1);
+}
+
+/**
+ * Converts an unsigned float value of range [0, 1] to an unsigned byte.
+ */
+exports.ufloat_to_ubyte = function(ufloat_val) {
+    return clamp(Math.round(ufloat_val * 255), 0, 255);
+}
+
+/**
+ * Converts an unsigned byte value of range [0, 255] to an unsigned float.
+ */
+exports.ubyte_to_ufloat = function(ubyte_val) {
+    return clamp(ubyte_val / 255, 0, 1);
+}
+
+exports.dist_to_triange = function(point, ver1, ver2, ver3) {
+    var dir_21 = m_vec3.subtract(ver2, ver1, _vec3_tmp);
+    var dir_32 = m_vec3.subtract(ver3, ver2, _vec3_tmp2);
+    var dir_13 = m_vec3.subtract(ver1, ver3, _vec3_tmp3);
+    var dir_p1 = m_vec3.subtract(point, ver1, _vec3_tmp4);
+    var dir_p2 = m_vec3.subtract(point, ver2, _vec3_tmp5);
+    var dir_p3 = m_vec3.subtract(point, ver3, _vec3_tmp6);
+
+    var normal = m_vec3.cross(dir_21, dir_32, _vec3_tmp7);
+
+    if (m_vec3.dot(m_vec3.cross(normal, dir_21, _vec3_tmp8), dir_p1) >= 0 &&
+            m_vec3.dot(m_vec3.cross(normal, dir_32, _vec3_tmp8), dir_p2) >= 0 &&
+            m_vec3.dot(m_vec3.cross(normal, dir_13, _vec3_tmp8), dir_p3) >= 0) {
+        // inside of the triange prism
+        // find distance to plane of the triange
+        var normal_length = m_vec3.length(normal);
+        var ndist = m_vec3.dot(normal, dir_p1);
+        return Math.abs(ndist / normal_length);
+    } else {
+        // outside of the triange prism
+        // find min distance of distances to the 3 edges of the triange
+        var proj_p1_on_21 = m_vec3.scale(dir_21,
+                clamp(m_vec3.dot(dir_21, dir_p1) / m_vec3.length(dir_21), 0, 1), _vec3_tmp8);
+        var dist_to_21 = m_vec3.length(m_vec3.subtract(dir_p1, proj_p1_on_21, _vec3_tmp8));
+
+        var proj_p2_on_32 = m_vec3.scale(dir_32,
+                clamp(m_vec3.dot(dir_32, dir_p2) / m_vec3.length(dir_32), 0, 1), _vec3_tmp8);
+        var dist_to_32 = m_vec3.length(m_vec3.subtract(dir_p2, proj_p2_on_32, _vec3_tmp8));
+
+        var proj_p3_on_13 = m_vec3.scale(dir_13,
+                clamp(m_vec3.dot(dir_13, dir_p3) / m_vec3.length(dir_13), 0, 1), _vec3_tmp8);
+        var dist_to_13 = m_vec3.length(m_vec3.subtract(dir_p3, proj_p3_on_13, _vec3_tmp8));
+
+        return Math.min(Math.min(dist_to_21, dist_to_32), dist_to_13);
+    }
+}
+
+exports.rotate_quat = function(quat, vertical_axis, d_phi, d_theta, dest) {
+    if (d_phi || d_theta) {
+        var rot_quat = m_quat.identity(_quat_tmp);
+
+        if (d_phi) {
+            var quat_phi = m_quat.setAxisAngle(vertical_axis, d_phi, _quat_tmp2);
+            m_quat.multiply(rot_quat, quat_phi, rot_quat);
+        }
+
+        var obj_quat = m_quat.copy(quat, dest);
+        if (d_theta) {
+            var x_world_cam = quat_to_dir(obj_quat, AXIS_X, _vec3_tmp);
+            var quat_theta = m_quat.setAxisAngle(x_world_cam, d_theta, _quat_tmp2);
+            // NOTE: obj_quat->x_world_cam->quat_theta->obj_quat leads to
+            // error accumulation if quat_theta is not normalized
+            m_quat.normalize(quat_theta, quat_theta);
+            m_quat.multiply(rot_quat, quat_theta, rot_quat);
+        }
+        m_quat.multiply(rot_quat, obj_quat, obj_quat);
+        // NOTE: It fixes the issue, when objects dance, when camera change
+        // vertical angle sign (+-)
+        m_quat.normalize(obj_quat, obj_quat);
+    }
+}
+
+/**
+ * Apply rotation to quat
+ */
+exports.quat_rotate_to_target = quat_rotate_to_target;
+function quat_rotate_to_target(trans, quat, target, dir_axis) {
+    var dir_from = _vec3_tmp2;
+    // NOTE: dir_axis is in local space, it will be directed to the target
+    quat_to_dir(quat, dir_axis, dir_from);
+    m_vec3.normalize(dir_from, dir_from);
+    var dir_to = _vec3_tmp3;
+    m_vec3.subtract(target, trans, dir_to);
+    m_vec3.normalize(dir_to, dir_to);
+    // NOTE: we don't check Math.abs(m_vec3.dot(dir_from, dir_to)) < 0.999999
+    var rotation = rotation_to_stable(dir_from, dir_to, _vec4_tmp);
+    m_quat.multiply(rotation, quat, quat);
+    m_quat.normalize(quat, quat);
+}
+
+exports.quat_set_vertical_axis = function(quat, axis, target_axis, dir) {
+    // NOTE: axis is obj's vertical axis in local space (from Blender),
+    // target_axis - target's Z one in the world space
+    var curr_axis_w = m_vec3.transformQuat(axis, quat, _vec3_tmp2);
+    var proj = m_vec3.dot(dir, target_axis);
+    var delta = m_vec3.scale(dir, proj, _vec3_tmp3);
+    var complanar_targer = m_vec3.subtract(target_axis, delta, _vec3_tmp3);
+    var rot_quat = m_quat.identity(_quat_tmp);
+    m_vec3.normalize(complanar_targer, complanar_targer);
+    if (Math.abs(m_vec3.dot(curr_axis_w, complanar_targer)) < 0.999999)
+        rotation_to_stable(curr_axis_w, complanar_targer, rot_quat);
+    m_quat.normalize(rot_quat, rot_quat);
+    m_quat.multiply(rot_quat, quat, quat);
+}
+
+exports.get_y_rot_from_quat = function(quat) {
+    // use vector which is ortogonal to Y
+    var axis = AXIS_X;
+    var rot_v = m_vec3.transformQuat(axis, quat, _vec3_tmp);
+    // limit case
+    if (Math.abs(m_vec3.dot(rot_v, AXIS_Y)) > 0.999999) {
+        axis = AXIS_Z;
+        rot_v = m_vec3.transformQuat(axis, quat, _vec3_tmp);
+        // m_vec3.scale(rot_v, -1, rot_v);
+    }
+    // projection
+    rot_v[1] = 0;
+    m_vec3.normalize(rot_v, rot_v);
+
+    var angle = Math.acos(m_vec3.dot(axis, rot_v));
+    var third_vec = m_vec3.cross(axis, rot_v, _vec3_tmp2);
+    var angle_sign = sign(m_vec3.dot(third_vec, AXIS_Y));
+    return angle * angle_sign;
+}
+
+exports.get_x_rot_from_quat = function(quat) {
+    // use vector which is ortogonal to X
+    var axis = AXIS_Y;
+    var rot_v = m_vec3.transformQuat(axis, quat, _vec3_tmp);
+    // limit case
+    if (Math.abs(m_vec3.dot(rot_v, AXIS_X)) > 0.999999) {
+        axis = AXIS_Z;
+        rot_v = m_vec3.transformQuat(axis, quat, _vec3_tmp);
+        // m_vec3.scale(rot_v, -1, rot_v);
+    }
+    // projection
+    rot_v[0] = 0;
+    m_vec3.normalize(rot_v, rot_v);
+
+    var angle = Math.acos(m_vec3.dot(axis, rot_v));
+    var third_vec = m_vec3.cross(axis, rot_v, _vec3_tmp2);
+    var angle_sign = sign(m_vec3.dot(third_vec, AXIS_X));
+    return angle * angle_sign;
+}
+
+exports.get_z_rot_from_quat = function(quat) {
+    // use vector which is ortogonal to Z
+    var axis = AXIS_X;
+    var rot_v = m_vec3.transformQuat(axis, quat, _vec3_tmp);
+    // limit case
+    if (Math.abs(m_vec3.dot(rot_v, AXIS_Z)) > 0.999999) {
+        axis = AXIS_Y;
+        rot_v = m_vec3.transformQuat(axis, quat, _vec3_tmp);
+        // m_vec3.scale(rot_v, -1, rot_v);
+    }
+    // projection
+    rot_v[2] = 0;
+    m_vec3.normalize(rot_v, rot_v);
+
+    var angle = Math.acos(m_vec3.dot(axis, rot_v));
+    var third_vec = m_vec3.cross(axis, rot_v, _vec3_tmp2);
+    var angle_sign = sign(m_vec3.dot(third_vec, AXIS_Z));
+    return angle * angle_sign;
+}
+
+/**
+* it's Blender's void compatible_eul(float eul[3], const float oldrot[3])
+**/
+exports.compatible_euler = function(eul, oldrot) {
+    var pi_thresh = 5.1;
+    var pi_x2 = 2 * Math.PI;
+    var pi_d2 = Math.PI / 2;
+
+    var deul = [];
+
+    for (var i = 0; i < 3; i++) {
+        deul[i] = eul[i] - oldrot[i];
+        if (deul[i] > pi_thresh) {
+            eul[i] -= ( deul[i] / pi_x2) * pi_x2;
+            deul[i] = eul[i] - oldrot[i];
+        }
+        else if (deul[i] < -pi_thresh) {
+            eul[i] += (-deul[i] / pi_x2) * pi_x2;
+            deul[i] = eul[i] - oldrot[i];
+        }
+    }
+
+    if (Math.abs(deul[0]) > 3.2 && Math.abs(deul[1]) < 1.6 && Math.abs(deul[2]) < 1.6) {
+        if (deul[0] > 0.0)
+            eul[0] -= pi_x2;
+        else
+            eul[0] += pi_x2;
+    }
+    if (Math.abs(deul[1]) > 3.2 && Math.abs(deul[2]) < 1.6 && Math.abs(deul[0]) < 1.6) {
+        if (deul[1] > 0.0)
+            eul[1] -= pi_x2;
+        else
+            eul[1] += pi_x2;
+    }
+    if (Math.abs(deul[2]) > 3.2 && Math.abs(deul[0]) < 1.6 && Math.abs(deul[1]) < 1.6) {
+        if (deul[2] > 0.0)
+            eul[2] -= pi_x2;
+        else
+            eul[2] += pi_x2;
+    }
 }
 
 }

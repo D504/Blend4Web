@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,18 +14,15 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict"
 
 /**
  * RGB colors API.
- * Colors in Blend4Web are always stored in linear space, for more info check
- * {@link https://www.blend4web.com/doc/en/colors.html documentation}.
+ * To match standard Blender behavior colors in Blend4Web are always stored in linear space, for more info check the {@link https://www.blend4web.com/doc/en/colors.html documentation}.
  * @module rgb
  */
 b4w.module["rgb"] = function(exports, require) {
 
-var m_print = require("__print");
 var m_util  = require("__util");
 
 var _rgb_tmp = new Float32Array(3);
@@ -34,6 +31,9 @@ var _rgb_tmp = new Float32Array(3);
  * Creates a new empty RGB vector representing black color.
  * @returns {RGB} A new RGB vector.
  * @alias module:rgb.create
+ * @example var m_rgb = require("rgb");
+ *
+ * var new_color = m_rgb.create();
  */
 exports.create = function() {
     var dest = new Float32Array(3);
@@ -43,11 +43,14 @@ exports.create = function() {
 /**
  * Creates a new RGB vector initialized with the given values.
  *
- * @param {Number} r Red component.
- * @param {Number} g Green component.
- * @param {Number} b Blue component.
+ * @param {number} r Red component.
+ * @param {number} g Green component.
+ * @param {number} b Blue component.
  * @returns {RGB} A new RGB vector.
  * @alias module:rgb.from_values
+ * @example var m_rgb = require("rgb");
+ *
+ * var new_color = m_rgb.from_values(0.5, 0.5, 0.5);
  */
 exports.from_values = function(r, g, b) {
     var dest = new Float32Array(3);
@@ -60,12 +63,17 @@ exports.from_values = function(r, g, b) {
 /**
  * Set the components of RGB vector to the given values.
  *
- * @param {Number} r Red component.
- * @param {Number} g Green component.
- * @param {Number} b Blue component.
+ * @param {number} r Red component.
+ * @param {number} g Green component.
+ * @param {number} b Blue component.
  * @param {RGB} dest Destination RGB vector.
  * @returns {RGB} Destination RGB vector.
  * @alias module:rgb.set
+ * @example var m_rgb = require("rgb");
+ *
+ * var new_color = new Float32Array(3);
+ * 
+ * m_rgb.set(0.7, 0.5, 0.1, new_color);
  */
 exports.set = function(r, g, b, dest) {
     dest[0] = r;
@@ -76,13 +84,14 @@ exports.set = function(r, g, b, dest) {
 
 /**
  * Convert CSS color components to RGB.
- * @param {Number} css_red CSS color red component (0-255).
- * @param {Number} css_green CSS color green component (0-255).
- * @param {Number} css_blue CSS color blue component (0-255).
+ * @param {number} css_red CSS color red component (0-255).
+ * @param {number} css_green CSS color green component (0-255).
+ * @param {number} css_blue CSS color blue component (0-255).
  * @param {RGB} [dest=rgb.create()] Destination RGB vector.
  * @returns {RGB} Destination RGB vector.
  * @alias module:rgb.css_to_rgb
- * @example
+ * @example var m_rgb = require("rgb");
+ *
  * // #808080 or rgb(128, 128, 128) converted to [0.219, 0.219, 0.219]
  * var rgb_color = m_rgb.css_to_rgb(128, 128, 128);
  */
@@ -101,11 +110,14 @@ exports.css_to_rgb = function(css_red, css_green, css_blue, dest) {
 /**
  * Convert RGB color components to CSS color.
  * @param {RGB} rgb RGB color vector.
- * @returns {Number[]} Array with CSS colors.
+ * @returns {number[]} Array with CSS colors.
  * @alias module:rgb.rgb_to_css
  * @example
+ * var m_rgb = require("rgb");
+ *
+ * var rgb_color = m_rgb.from_values(0.219, 0.219, 0.219);
  * // [0.219, 0.219, 0.219] converted to [128, 128, 128]
- * var color = m_rgb.rgb_to_css(m_rgb.from_values(0.219, 0.219, 0.219));
+ * var color = m_rgb.rgb_to_css(rgb_color);
  */
 exports.rgb_to_css = function(rgb) {
 
@@ -117,11 +129,14 @@ exports.rgb_to_css = function(rgb) {
 /**
  * Convert RGB color components to CSS color hex string.
  * @param {RGB} rgb RGB color vector.
- * @returns {String} CSS color hex string.
+ * @returns {string} CSS color hex string.
  * @alias module:rgb.rgb_to_css_hex
  * @example
+ * var m_rgb = require("rgb");
+ *
+ * var rgb_color = m_rgb.from_values(0.219, 0.219, 0.219);
  * // [0.219, 0.219, 0.219] converted to "#808080"
- * var hex_color = m_rgb.rgb_to_css_hex(m_rgb.from_values(0.219, 0.219, 0.219));
+ * var hex_color = m_rgb.rgb_to_css_hex(rgb_color);
  */
 exports.rgb_to_css_hex = function(rgb) {
 
@@ -140,13 +155,11 @@ exports.rgb_to_css_hex = function(rgb) {
 
 /**
  * RGBA colors API.
- * Colors in Blend4Web are always stored in linear space, for more info check
- * {@link https://www.blend4web.com/doc/en/colors.html documentation}.
+ * To match standard Blender behavior colors in Blend4Web are always stored in linear space, for more info check the {@link https://www.blend4web.com/doc/en/colors.html documentation}.
  * @module rgba
  */
 b4w.module["rgba"] = function(exports, require) {
 
-var m_print = require("__print");
 var m_util  = require("__util");
 
 var _rgb_tmp = new Float32Array(3);
@@ -155,6 +168,9 @@ var _rgb_tmp = new Float32Array(3);
  * Creates a new empty RGB vector representing black opaque color.
  * @returns {RGBA} A new RGBA vector.
  * @alias module:rgba.create
+ * @example var m_rgba = require("rgba");
+ *
+ * var new_rgba_color = m_rgba.create();
  */
 exports.create = function() {
     var dest = new Float32Array(4);
@@ -165,12 +181,15 @@ exports.create = function() {
 /**
  * Creates a new RGBA vector initialized with the given values.
  *
- * @param {Number} r Red component.
- * @param {Number} g Green component.
- * @param {Number} b Blue component.
- * @param {Number} a Alpha component.
+ * @param {number} r Red component.
+ * @param {number} g Green component.
+ * @param {number} b Blue component.
+ * @param {number} a Alpha component.
  * @returns {RGBA} A new RGBA vector.
  * @alias module:rgba.from_values
+ * @example var m_rgba = require("rgba");
+ *
+ * var new_rgba_color = m_rgba.from_values(0.5, 0.5, 0.5, 0.5);
  */
 exports.from_values = function(r, g, b, a) {
     var dest = new Float32Array(4);
@@ -184,13 +203,18 @@ exports.from_values = function(r, g, b, a) {
 /**
  * Set the components of RGBA vector to the given values.
  *
- * @param {Number} r Red component.
- * @param {Number} g Green component.
- * @param {Number} b Blue component.
- * @param {Number} a Alpha component.
+ * @param {number} r Red component.
+ * @param {number} g Green component.
+ * @param {number} b Blue component.
+ * @param {number} a Alpha component.
  * @param {RGBA} dest Destination RGBA vector.
  * @returns {RGBA} Destination RGBA vector.
  * @alias module:rgba.set
+ * @example var m_rgba = require("rgba");
+ *
+ * var new_rgba_color = new Float32Array(4);
+ *
+ * m_rgba.set(0.1, 0.5, 0.3, 1.0, new_rgba_color);
  */
 exports.set = function(r, g, b, a, dest) {
     dest[0] = r;
@@ -202,14 +226,15 @@ exports.set = function(r, g, b, a, dest) {
 
 /**
  * Convert CSS color components to RGBA.
- * @param {Number} css_red CSS color red component (0-255).
- * @param {Number} css_green CSS color green component (0-255).
- * @param {Number} css_blue CSS color blue component (0-255).
- * @param {Number} css_alpha CSS alpha component (0-1).
+ * @param {number} css_red CSS color red component (0-255).
+ * @param {number} css_green CSS color green component (0-255).
+ * @param {number} css_blue CSS color blue component (0-255).
+ * @param {number} css_alpha CSS alpha component (0-1).
  * @param {RGBA} [dest=rgba.create()] Destination RGB vector.
  * @returns {RGBA} Destination RGB vector.
  * @alias module:rgba.css_to_rgba
- * @example
+ * @example var m_rgba = require("rgba");
+ *
  * // rgba(128, 128, 128, 0.5) converted to [0.219, 0.219, 0.219, 0.5]
  * var rgba_color = m_rgba.css_to_rgba(128, 128, 128, 0.5);
  */
@@ -229,11 +254,13 @@ exports.css_to_rgba = function(css_red, css_green, css_blue, css_alpha, dest) {
 /**
  * Convert RGBA color components to CSS color.
  * @param {RGBA} rgba RGBA color vector.
- * @returns {Number[]} Array with CSS colors.
+ * @returns {number[]} Array with CSS colors.
  * @alias module:rgba.rgba_to_css
- * @example
+ * @example var m_rgba = require("rgba");
+ *
+ * var rgba_color = m_rgba.from_values(0.219, 0.219, 0.219, 0.5);
  * // [0.219, 0.219, 0.219, 0.5] converted to [128, 128, 128, 0.5]
- * var color = m_rgba.rgba_to_css(m_rgba.from_values(0.219, 0.219, 0.219, 0.5));
+ * var color = m_rgba.rgba_to_css(rgba_color);
  */
 exports.rgba_to_css = function(rgba) {
 

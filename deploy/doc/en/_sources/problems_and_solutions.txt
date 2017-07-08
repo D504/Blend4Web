@@ -8,7 +8,7 @@ Problems and Solutions
     :depth: 3
     :backlinks: entry
 
-As WebGL is still a relatively new technology, it may not work perfectly with every combination of software and hardware. This chapter covers common problems that users of the Blend4Web engine may encounter and provides solutions for these problems.
+As `WebGL <https://www.blend4web.com/en/technologies/webgl/>`_ is still a relatively new technology, it may not work perfectly with every combination of software and hardware. This chapter covers common problems that users of the Blend4Web engine may encounter and provides solutions for these problems.
 
 .. _webgl_support:
 
@@ -37,6 +37,7 @@ The following web browsers support WebGL:
     * Microsoft Edge
     * Opera (v. 12 or higher)
     * UC Browser (experimental)
+    * Yandex Browser
 
 We also recommend to use the most recent version of the web browser to avoid compatibility problems.
 
@@ -112,7 +113,7 @@ To do it, please follow these steps:
 
 |
 
-For MacOS X, you can check System Report.
+For macOS, you can check System Report.
 
 To do it, please follow these steps:
 
@@ -173,7 +174,7 @@ Known Issues
 
 * Problems with updating of the add-on.
 
-    It’s strongly advised to restart Blender after installing a newer version of Addon/SDK.
+    It’s strongly advised to restart Blender after installing a newer version of Add-on/SDK.
 
 * NVIDIA 331 driver in Linux can cause WebGL errors.
 
@@ -183,7 +184,7 @@ Known Issues
 
 * Some devices with Mail GPU require manual WebGL activation in browser settings.
 
-* For the local development server to work on Apple OS X and Blender 2.76, you may need to install `Python 3.4 <https://www.python.org/downloads/release/python-343/>`. This is due to a bug in Blender https://developer.blender.org/T46623. This bug has been fixed in Blender 2.76b, so updating it is advised.
+* For the local development server to work on Apple macOS and Blender 2.76, you may need to install `Python 3.4 <https://www.python.org/downloads/release/python-343/>`_. This is due to a bug in Blender https://developer.blender.org/T46623. This bug has been fixed in Blender 2.76b, so updating it is advised.
 
 * Skeletal animation may work incorrectly while using Nouveau drivers.
 
@@ -207,8 +208,6 @@ Known Issues
 
 * WebGL is unstable and sometimes crashes on Mesa 11.x drivers in Linux/Chrome with Intel GPUs. Downgrading to Mesa 10.x drivers can help.
 
-* Using canvas textures can lead to incorrect rendering results in Firefox 46-47 versions on Linux. It should work as expected again in Firefox 48. More info can be found here: `https://bugzilla.mozilla.org/show_bug.cgi?id=1276996 <https://bugzilla.mozilla.org/show_bug.cgi?id=1276996>`_.
-
 * Information about moving fingers on GearVR touch sensor in VR-mode is not available.
 
     Samsung Internet browser doesn't fire any events about moving fingers on touch sensor in VR-mode.
@@ -216,3 +215,7 @@ Known Issues
 * Particles emitted by particle systems placed on inactive (hidden) layers can have their positions set to zero as inactive layers are not updated by Blender.
 
     This problem can be solved by activating layers before exporting a scene or by simply clicking the layers to make Blender update them.
+
+* Alpha blending objects are rendered incorrect on the Mali 400 series GPU by Google Chrome browser.
+
+* Using several application instances in a single page can lead to excessive memory usage or even a tab crash in Chrome 59. However, this is fixed in Chrome 60.

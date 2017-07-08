@@ -10,29 +10,35 @@
 
   * 渲染面板
 
+    * 开发工具
+
+    * 著色
+
+    * 阴影
+
     * 反射和折射
 
-    * 运动模糊
-
-    * 布隆光晕
-
-    * 色彩校正
+    * 物体勾边
 
     * 晕光材质
 
-    * 物体勾边
+    * 抗锯齿
+
+    * 各向异性过滤
+
+    * 布隆光晕
+
+    * 运动模糊
 
     * 环境光遮蔽（SSAO方法）
 
     * 上帝光芒
 
-    * 抗锯齿
-
-    * 阴影
-
-    * 开发服务器
+    * 色彩校正
 
     * 时间线
+
+    * 动态草
 
   * 场景面板
 
@@ -50,7 +56,7 @@
 
     * 物理
 
-    * Cluster Batching
+    * 物体簇和LOD
 
     * 选择物体
 
@@ -70,9 +76,11 @@
 
     * 程序天空
 
+    * 动画
+
     * 导出选项
 
-定义整个场景的外观和行为（不只是一个单一的对象）所有参数都能在三个面板
+定义整个场景的外观和行为（不只是一个单一的物体）所有参数都能在三个面板
 里找到："Render" 面板时，"Scene" 面板和 "World" 面板。
 
 
@@ -84,6 +92,46 @@
 场景中的所有图像渲染参数都在此面板上找到。
 
 
+开发工具
+--------
+
+开发服务器设置。  详尽的描述在 自己的章节.
+
+[图片]
+
+
+著色
+----
+
+此面板包含各种着色选项。
+
+[图片]
+
+*推荐设置选项*
+   该按钮用于实现3D场景在Blender的视口和Web浏览器的外观之间的最大一致
+   性。按下此按钮：
+
+   * 启用 **世界空间着色**，
+
+   * 切换材质模式到 **GLSL**,
+
+   * 切换视口着色模式到 **材质** 和
+
+   * 设置主摄像头适合 **垂直** 。
+
+*世界空间着色*
+   此选项打开和关闭 **世界空间着色** （照明数据的世界空间演绎将用于物
+   体阴影）。默认情况下禁用。
+
+
+阴影
+----
+
+阴影设置。 详尽的描述在 自己的章节.
+
+[图片]
+
+
 反射和折射
 ----------
 
@@ -92,36 +140,20 @@
 [图片]
 
 *反射*
-   反射效果设置。可设置 "ON"，"OFF" 或 "AUTO"。默认设置为``ON``。
+   反射效果设置。可设置 "ON"，"OFF" 或 "AUTO"。默认设置为 "ON"。
 
 *折射*
    折射效果设置。可设置 "ON"，"OFF" 或 "AUTO"。默认设置为 "AUTO" 。
 
 *品质*
-   对于反射效果的画质设置。可设置 "HIGH``（最高反射品质），``MEDIUM``
-   （中等品质），或 ``LOW``（最低质量）。默认设置为 ``MEDIUM" 。
+   对于反射效果的画质设置。可设置 "HIGH" （最高反射品质），"MEDIUM" （
+   中等品质），或 "LOW" （最低质量）。默认设置为 "MEDIUM" 。
 
 
-运动模糊
+物体勾边
 --------
 
-运动模糊设置。详尽的描述在 自己的章节.
-
-[图片]
-
-
-布隆光晕
---------
-
-布隆光晕效果设置。详细描述在  自己的章节.
-
-[图片]
-
-
-色彩校正
---------
-
-色彩校正设置。 详尽的描述在 自己的章节.
+物体勾边设置。 详尽的描述在 自己的章节.
 
 [图片]
 
@@ -133,11 +165,41 @@
 
 [图片]
 
+注解: 为动态加载物体，"AUTO" 设置被解析为 "OFF",当没有带辉光的材料在
+  场景中 时。如果使用的是动态加载，你应该将这个参数设置为  "ON".
 
-物体勾边
+
+抗锯齿
+------
+
+抗锯齿的设置。  详尽的描述在 自己的章节.
+
+[图片]
+
+
+各向异性过滤
+------------
+
+该参数可用于启用或确定停用各向异性过滤并且还设置用于它的纹理样本的数目
+。默认情况下，各向异性过滤被禁用。
+
+[图片]
+
+可用值： "16x"，"8x"，"4x"，"2x" 和 "OFF" （默认值）。
+
+
+布隆光晕
 --------
 
-物体勾边设置。 详尽的描述在 自己的章节.
+布隆光晕效果设置。详细描述在  自己的章节.
+
+[图片]
+
+
+运动模糊
+--------
+
+运动模糊设置。详尽的描述在 自己的章节.
 
 [图片]
 
@@ -158,26 +220,10 @@
 [图片]
 
 
-抗锯齿
-------
+色彩校正
+--------
 
-抗锯齿的设置。  详尽的描述在 自己的章节.
-
-[图片]
-
-
-阴影
-----
-
-阴影设置。 详尽的描述在 自己的章节.
-
-[图片]
-
-
-开发服务器
-----------
-
-开发服务器设置。  详尽的描述在 自己的章节.
+色彩校正设置。 详尽的描述在 自己的章节.
 
 [图片]
 
@@ -198,6 +244,16 @@
 *帧率*
    每秒的帧的数目。默认设置为24。此参数只影响动画播放的速度（而不是场
    景本身）。
+
+
+动态草
+------
+
+启用和禁用 动态草 效果。
+
+[图片]
+
+可能的值："ON"，"OFF" 和 "AUTO"。默认设置为 "AUTO" 。
 
 
 场景面板
@@ -230,46 +286,40 @@
 音频
 ----
 
-Audio settings.
+音频设置
 
 [图片]
 
-*Volume*
-   The master volume of the sound in the application. This value can
-   vary between 0 and 100. Default value is 1.0.
+*音量*
+   应用中的声音的主音量。此值介于0到100之间，并默认值是1.0。
 
-*Distance Model*
-   The distance model used for calculating distance attenuation.
-   Following models are supported by the engine:
+*距离模型*
+   用于计算距离衰减的距离的模型。以下型号的引擎支持：
 
-   "None" - no distance model is used, the sound has constant volume
-   regardless of the distance.
+   "None"  - 不使用距离模型，声音具有体积不变无论距离远近。
 
-   "Exponent Clamped" - a clamped exponential distance model.
+   "指数钳制"  - 一个钳位指数距离模型。
 
-   "Linear Clamped" - a clamped linear distance model.
+   "线性钳制"  - 被夹住的直线距离模型。
 
-   "Inverse Clamped" - a clamped inverse distance model.
+   "逆钳制"  - 被夹住的逆距离模型。
 
-   The following models are partially supported (work the same way the
-   corresponding *Clamped*-type models):
+   以下型号部分支持（以同样的方式相应的 *钳位* 型车型）：
 
-   "Exponent"
+   "冪"
 
-   "Linear"
+   "线性"
 
-   "Inverse"
+   "反"
 
-   This parameter is set to "Inverse Clamped" by default.
+   此参数默认设置为 "逆钳制" 。
 
-*Speed*
-   This parameter sets the speed of sound used for Doppler effect
-   calculation. Its value is measured in meters per second and is set
-   to 343.3 by default.
+*速度*
+   此参数设置用于多普勒效应计算音速。它的值以米每秒为单位，默认设置为
+   343.3。
 
-*Doppler*
-   This sets the pitch factor for Doppler effect calculation. Its
-   default value if 1.0.
+*多普勒效应*
+   这为多普勒效应计算距离因素。它的默认值，如果1.0。
 
 *动态压缩*
    压缩音频信号的动态范围。该功能可用于使声音更加丰富。默认情况下禁用
@@ -331,7 +381,7 @@ Meta标签
 *说明源*
    应用程序的说明的来源。说明可以从一个文件中加载，或直接在
    "Description" 字段中写出。此参数可以有两个值，"Text" 和 "File"，它
-   是默认设置为``Text``。
+   是默认设置为 "Text"。
 
 
 物理
@@ -345,28 +395,49 @@ Meta标签
    允许在应用程序中使用物理。默认情况下启用。
 
 
-Cluster Batching
-----------------
+物体簇和LOD
+-----------
 
-This parameter enables the use of cluster batching. It can be used for
-optimization purposes. This is disabled by default.
-
-注解: If this parameter is disabled, the engine will try to combine
-  all static objects into one.
+物体簇和层次细节的设置。
 
 [图片]
 
-*Cluster Size*
-   The size of the cluster used for batching (in meters). Set to 30 by
-   default. If this parameter is set to zero, objects will not be
-   combined.
+*簇大小*
+   簇的大小用于批量（尺寸：米）的处理。如果该参数被设置为零，引擎将场
+   景中所有物体合并。默认设置为零。
+
+*LOD簇大小乘数*
+   该参数用于细分簇（基于每个物体指定的LOD距离）到较小的部分使得不同情
+   况的层次细节切换不被引起注意。小簇的大小是由物体的LOD距离乘以这个参
+   数的值定义。较高的值导致更大的簇，提高性能但使得过渡比较明显，而较
+   低的值让变换不被引起注意但是以性能降低为代价。可以用来作为优化的手
+   段。默认设置为0.5。
+
+*LOD平滑过渡*
+   定义物体将使用切换其 LOD 层次时使用平滑过渡。有以下选项︰
+
+   * OFF - 滑过渡被禁用 （最快）。
+
+   * NON-OPAQUE -  使用平滑过渡在 "Add", "Alpha Clip", "Alpha
+     Blend", "Alpha Sort" 和 "Alpha Anti-Aliasing" 材质.
+
+   * ALL - 平滑过渡将用于所有物体 （慢）。
+
+   选择 "ALL" 值可以明显降低应用程序的性能，所以小心使用。默认值是
+   "NON-OPAQUE".
+
+*最大 LOD 滞后区间*
+
+   用于切换LOD级别的间隔（米）的长度。这个值的一半从距离阈值添加/减去
+   ，产生两个不同的阈值切换到较低的和更高的LOD级。这应该减少LOD
+   "popping" 的效果。默认设置为4。
 
 
 选择物体
 --------
 
-物体选择设置。对象可以使用API​​函数来选择两种：b4wref：
-*scenes.pick_object（）* 并用 逻辑节点。
+物体选择设置。物体可以使用API​​函数来选择两种 pick_object() 并用 逻辑
+节点。
 
 注解: 在 场景查看器, 选择默认情况下启用。您可以在 "工具和除错" 面板
   将其关 闭。
@@ -442,14 +513,16 @@ Anchor 可见性检测设置。
 *天顶色*
    天空顶的颜色。
 
-*环境颜色*
-   环境照明颜色。
-
 *反射世界*
    渲染反射时渲染天空。
 
 *只渲染反射*
    在渲染的反射时 *只* 渲染天空。
+
+*世界背景*
+   启用和禁用  "世界背景" （位于   "3D View" 面板下的 "Display" 选项卡
+   ）。当激活此选项，则背景颜色在视区窗口中渲染的方式跟在引擎里面渲染
+   是一样的。
 
 
 天光照明
@@ -499,6 +572,28 @@ Anchor 可见性检测设置。
    程序天空设置。  详尽的描述在 自己的章节.
 
 [图片]
+
+
+动画
+----
+
+环境动画设置。
+
+[图片]
+
+*应用默认动画*
+   如果启用此参数，引擎将开始加载场景的时候播放动画。
+
+*行为*
+   设置默认的动画的行为。可用选项有：
+
+   * "Loop"  - 动画将重复播放。
+
+   * "完成停止"  - 动画将播放一次。
+
+   * "完成重置"  - 动画将播放一次，然后再切换回第一帧。
+
+   仅 启用了 "应用默认动画" 参数此选项可用。
 
 
 导出选项

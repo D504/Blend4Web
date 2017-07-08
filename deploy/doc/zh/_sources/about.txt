@@ -11,13 +11,13 @@ Blend4Web是一个面向Web的3D引擎 - 是一套在浏览器中进行制作交
 
 该平台是用于可视化，演示，在线商店，游戏等丰富的互联网应用。
 
-三维建模和动画工具（因此得名） - Blend4Web框架与Blender紧密集成。内容
-是由WebGL的和其他的浏览器技术渲染而成，**不使用插件** 。
+Blend4Web框架与Blender紧密集成 - 一个3D建模和动画工具（因此命名）。内
+容通过WebGL和其他浏览器技术渲染，而不使用任何插件。
 
 技术上Blend4Web是网页库，Blender插件以及进行调试和优化的一些工具。
 
-自2010年以来凯旋有限责任公司（ Triumph LLC）的员工开发了Blend4Web 3D引
-擎。该引擎首次发布于2014年3月28日。
+Blend4Web 3D引擎自2010年起由Triumph LLC员工开发。该引擎于2014年3月28日
+首次发布。
 
 
 "关于引擎"
@@ -56,8 +56,8 @@ WebGL的浏览器支持
 现在的WebGL在不同程度上被所有浏览器支持。
 
 
-全面支持
---------
+桌面浏览器
+----------
 
 * Chrome
 
@@ -68,10 +68,6 @@ WebGL的浏览器支持
 * Opera
 
 * Safari 8+
-
-
-实验支持
---------
 
 * Internet Explorer 11
 
@@ -85,15 +81,17 @@ WebGL的浏览器支持
 
 * BlackBerry
 
-* 或Firefox ...
+* Firefox OS
 
-* 8、 12、 16 位
+* iOS 8
 
 * Sailfish OS
 
 * Tizen
 
-* Debian/Ubuntu
+* Ubuntu Touch
+
+有关详细信息请参阅 相关章节 在问题和解决方案的篇章。
 
 
 WebGL的优势

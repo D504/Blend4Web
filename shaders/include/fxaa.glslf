@@ -1,4 +1,13 @@
-/*============================================================================
+#ifndef FXAA_GLSLF
+#define FXAA_GLSLF
+
+/*==============================================================================
+                                    VARS
+==============================================================================*/
+#var FXAA_BLEND4WEB 1
+#var FXAA_QUALITY_P12 0.0
+
+/*==============================================================================
 
 
                     NVIDIA FXAA 3.11 by TIMOTHY LOTTES
@@ -593,9 +602,7 @@ NOTE the other tuning knobs are now in the shader function inputs!
 #endif
 
 // B4W begin
-#var FXAA_QUALITY_P12 0.0
-#import luma
-#export FxaaPixelShader
+#include <color_util.glslf>
 // B4W end
 
 /*============================================================================
@@ -611,11 +618,11 @@ float FxaaSat(float x) {
 /*--------------------------------------------------------------------------*/
 #if (FXAA_BLEND4WEB == 1)
     vec4 FxaaTexTop(sampler2D t, vec2 p) {
-        return texture2D(t, p);
+        return GLSL_TEXTURE(t, p);
     }
 
     vec4 FxaaTexOff(sampler2D t, vec2 p, vec2 o, vec2 r) {
-        return texture2D(t, p + (o * r));
+        return GLSL_TEXTURE(t, p + (o * r));
     }
 #endif
 
@@ -1070,3 +1077,5 @@ vec4 FxaaPixelShader(
     #endif
 }
 /*==========================================================================*/
+
+#endif

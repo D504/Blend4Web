@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ import cProfile
 import bgl
 import blend4web
 
-from bpy.types import Panel
+from bpy.types import (Panel, Menu)
 
 b4w_modules = ["translator"]
 for m in b4w_modules:
@@ -55,6 +55,13 @@ class B4W_SCENE_PT_scene(SceneButtonsPanel, Panel):
         row = layout.row()
         row.prop(scene, "background_set", text=_("Background"))
 
+class SCENE_MT_units_length_presets(Menu):
+    """Unit of measure for properties that use length values"""
+    bl_label = "Unit Presets"
+    preset_subdir = "units_length"
+    preset_operator = "script.execute_preset"
+    draw = Menu.draw_preset
+
 class B4W_SCENE_PT_unit(SceneButtonsPanel, Panel):
     bl_label = _("Units")
 
@@ -63,43 +70,29 @@ class B4W_SCENE_PT_unit(SceneButtonsPanel, Panel):
 
         unit = context.scene.unit_settings
 
+        row = layout.row(align=True)
+        row.menu("SCENE_MT_units_length_presets", text=SCENE_MT_units_length_presets.bl_label)
+        row.operator("scene.units_length_preset_add", text="", icon='ZOOMIN')
+        row.operator("scene.units_length_preset_add", text="", icon='ZOOMOUT').remove_active = True
+
+        layout.separator()
+
+        split = layout.split(percentage=0.35)
+        split.label("Length:")
+        split.prop(unit, "system", text="")
+        split = layout.split(percentage=0.35)
+        split.label("Angle:")
+        split.prop(unit, "system_rotation", text="")
+
         col = layout.column()
-        col.row().prop(unit, "system", expand=True)
-        col.row().prop(unit, "system_rotation", expand=True)
+        col.enabled = unit.system != 'NONE'
+        split = col.split(percentage=0.35)
+        split.label("Unit Scale:")
+        split.prop(unit, "scale_length", text="")
+        split = col.split(percentage=0.35)
+        split.row()
+        split.prop(unit, "use_separate")
 
-        if unit.system != 'NONE':
-            row = layout.row()
-            row.prop(unit, "scale_length", text=_("Scale"))
-            row.prop(unit, "use_separate")
-
-class B4W_SCENE_PT_simplify(SceneButtonsPanel, Panel):
-    bl_label = _("Simplify")
-    COMPAT_ENGINES = {'BLENDER_RENDER'}
-
-    def draw_header(self, context):
-        rd = context.scene.render
-        self.layout.prop(rd, "use_simplify", text="")
-
-    def draw(self, context):
-        layout = self.layout
-
-        rd = context.scene.render
-        layout.active = rd.use_simplify
-
-        split = layout.split()
-
-        col = split.column()
-        col.label(text=_("Viewport:"))
-        col.prop(rd, "simplify_subdivision", text=_("Subdivision"))
-        col.prop(rd, "simplify_child_particles", text=_("Child Particles"))
-
-        col = split.column()
-        col.label(text=_("Render:"))
-        col.prop(rd, "simplify_subdivision_render", text=_("Subdivision"))
-        col.prop(rd, "simplify_child_particles_render", text=_("Child Particles"))
-        col.prop(rd, "simplify_shadow_samples", text=_("Shadow Samples"))
-        col.prop(rd, "simplify_ao_sss", text=_("AO and SSS"))
-        col.prop(rd, "use_simplify_triangulate")
 
 class B4W_SceneAudio(SceneButtonsPanel, Panel):
     bl_label = _("Audio")
@@ -275,21 +268,20 @@ class B4W_ScenePhysics(SceneButtonsPanel, Panel):
         layout.prop(scene, "b4w_enable_physics", text=_("Enable Physics"))
 
 class B4W_SceneClusterBatching(SceneButtonsPanel, Panel):
-    bl_label = _("Cluster Batching")
+    bl_label = _("Object Clustering & LOD")
     bl_idname = "SCENE_PT_b4w_cluster_batching"
     bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_header(self, context):
-        self.layout.prop(context.scene, "b4w_enable_cluster_batching", text="")
 
     def draw(self, context):
         scene = context.scene
         layout = self.layout
-        layout.active = getattr(scene, "b4w_enable_cluster_batching")
         layout.prop(scene, "b4w_cluster_size", text=_("Cluster Size"))
+        layout.prop(scene, "b4w_lod_cluster_size_mult", text=_("LOD Cluster Size Multiplier"))
+        layout.prop(scene, "b4w_lod_smooth_type", text=_("LOD Smooth Transitions"))
+        layout.prop(scene, "b4w_lod_hyst_interval", text=_("Max LOD Hysteresis Interval"))
 
 class B4W_SceneObjsSelection(SceneButtonsPanel, Panel):
-    bl_label = _("Objects Selection")
+    bl_label = _("Object Selection")
     bl_idname = "SCENE_PT_b4w_objs_selection"
     bl_options = {'DEFAULT_CLOSED'}
 

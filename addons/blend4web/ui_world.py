@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,6 +41,34 @@ class WorldButtonsPanel:
     def poll(cls, context):
         return (context.world and context.scene.render.engine in cls.COMPAT_ENGINES)
 
+class B4W_OperatorWorldBackgroundShow(bpy.types.Operator):
+    bl_idname = "b4w.world_background_show"
+    bl_label = p_("Show", "Operator")
+    bl_description = _('Enable the "World Background" option in 3D VIEW panels')
+    bl_options = {"INTERNAL"}
+
+    def invoke(self, context, event):
+        for area in bpy.context.screen.areas:
+            if area.type == 'VIEW_3D':
+                for space in area.spaces:
+                    if space.type == "VIEW_3D":
+                        space.show_world = True
+        return {'FINISHED'}
+
+class B4W_OperatorWorldBackgroundHide(bpy.types.Operator):
+    bl_idname = "b4w.world_background_hide"
+    bl_label = p_("Hide", "Operator")
+    bl_description = _('Disable the "World Background" option in 3D VIEW panels')
+    bl_options = {"INTERNAL"}
+
+    def invoke(self, context, event):
+        for area in bpy.context.screen.areas:
+            if area.type == 'VIEW_3D':
+                for space in area.spaces:
+                    if space.type == "VIEW_3D":
+                        space.show_world = False
+        return {'FINISHED'}
+
 class B4W_WORLD_PT_world(WorldButtonsPanel, Panel):
     bl_label = _("World")
     bl_idname = "WORLD_PT_b4w_world"
@@ -49,20 +77,24 @@ class B4W_WORLD_PT_world(WorldButtonsPanel, Panel):
         layout = self.layout
 
         world = context.world
-
         sky = world.b4w_sky_settings
-        layout.prop(context.world.b4w_sky_settings, "render_sky", text=_("Render Sky"))
 
+        layout.prop(sky, "render_sky", text=_("Render Sky"))
         sky_is_active = getattr(sky, "render_sky")
 
         row = layout.row()
         row.active = sky_is_active
+        row.prop(world, "use_nodes", text=_("Use Nodes (Cycles)"))
+        is_node_world = getattr(world, "use_nodes")
+
+        row = layout.row()
+        row.active = sky_is_active and not is_node_world
         row.prop(world, "use_sky_paper")
         row.prop(world, "use_sky_blend")
         row.prop(world, "use_sky_real")
 
         row = layout.row()
-        row.active = sky_is_active
+        row.active = sky_is_active and not is_node_world
         row.column().prop(world, "horizon_color")
         col = row.column()
         col.prop(world, "zenith_color")
@@ -72,6 +104,14 @@ class B4W_WORLD_PT_world(WorldButtonsPanel, Panel):
         row = layout.row()
         row.active = sky.reflexible
         row.prop(sky, "reflexible_only", text=_("Render Only Reflection"))
+
+        row = layout.row()
+        row.label("World Background:")
+        row = layout.row()
+        sides = row.split(align=True)
+        sides.operator("b4w.world_background_show")
+        sides.operator("b4w.world_background_hide")
+
 
 class B4W_WORLD_PT_environment_lighting(WorldButtonsPanel, Panel):
     bl_label = _("Environment Lighting")

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -36,7 +35,6 @@ var m_time  = require("__time");
 var m_tsr   = require("__tsr");
 var m_util  = require("__util");
 var m_vec3  = require("__vec3");
-var m_vec4  = require("__vec4");
 
 var cfg_ctl = m_cfg.controls;
 var cfg_dft = m_cfg.defaults;
@@ -84,7 +82,11 @@ var ST_HMD_QUAT          = 210;
 var ST_HMD_POSITION      = 220;
 var ST_CALLBACK          = 230;
 var ST_GAMEPAD_BTNS      = 240;
-var ST_GMPD_AXIS         = 250;
+var ST_GMPD_AXIS         = 250
+var ST_GAMEPAD_POSITION  = 260;
+var ST_GAMEPAD_ORIENTATION = 270;
+var ST_PLOCK_MOUSE_MOVE  = 280;
+var ST_PLOCK             = 290;
 
 // control types
 exports.CT_POSITIVE   = 10;
@@ -100,10 +102,14 @@ exports.PL_MULTITOUCH_MOVE_PAN    = 2;
 exports.PL_MULTITOUCH_MOVE_ROTATE = 3;
 
 var SENSOR_SMOOTH_PERIOD = 0.3;
+var CAM_SMOOTH_CHARACTER_MOUSE = 0.1;
+var MOUSE_DELTA_THRESHOLD = 0.01;
 
 var KEY_SHIFT = 16;
 
 var MAX_COUNT_FINGERS = 10;
+
+var _smooth_factor = 1.0;
 
 exports.update = function(timeline, elapsed) {
     // prepare sensor accumulators
@@ -238,6 +244,12 @@ function init_sensor(type, element) {
         // for ST_GAMEPAD_BTNS
         gamepad_id: 0,
 
+        // for ST_GAMEPAD_POSITION
+        position: m_vec3.create(),
+
+        // for ST_GAMEPAD_ORIENTATION
+        orientation: m_quat.create(),
+
         // for ST_CALLBACK
         callback: function() {}
     };
@@ -277,10 +289,15 @@ function update_accumulator(accum) {
         accum.is_updated_keyboard = true;
     }
 
+    if (accum.mouse_state == 1)
+        accum.mouse_state = 2;
+    else if (accum.mouse_state == 3)
+        accum.mouse_state = 0;
+
     accum.wheel_delta = 0;
     accum.mouse_last_x = accum.mouse_curr_x;
     accum.mouse_last_y = accum.mouse_curr_y;
-    accum.downed_keys[0] = false;
+    accum.downed_keys[0] = 0;
 
     accum.touches_last_x.set(accum.touches_curr_x);
     accum.touches_last_y.set(accum.touches_curr_y);
@@ -307,13 +324,17 @@ function get_accumulator(element) {
         element: element,
 
         is_updated_keyboard: true,
-        is_mouse_downed: false,
+        mouse_state: 0,
         is_touch_ended: true,
         // for ST_MOUSE_MOVE sensor
         mouse_last_x: 0,
         mouse_last_y: 0,
         mouse_curr_x: 0,
         mouse_curr_y: 0,
+
+        // for ST_PLOCK_MOUSE_MOVE
+        pointerlock_dx: 0.0,
+        pointerlock_dy: 0.0,
 
         // for ST_TOUCH_MOVE sensor
         touches_last_x: new Float32Array(2),
@@ -360,6 +381,7 @@ function get_accumulator(element) {
         touch_select_end_cb: null,
         mouse_up_which_cb: null,
         mouse_location_cb: null,
+        pointerlock_cb: null,
         keyboard_downed_keys_cb: null,
         touch_start_cb: null,
         touch_move_cb: null,
@@ -416,7 +438,8 @@ function get_accumulator(element) {
         accumulator.mouse_last_y = loc[1];
         accumulator.mouse_curr_x = loc[0];
         accumulator.mouse_curr_y = loc[1];
-        accumulator.is_mouse_downed = true;
+        if (accumulator.mouse_state == 3 || accumulator.mouse_state == 0)
+            accumulator.mouse_state = 1;
         accumulator.which = wd;
     }
 
@@ -481,13 +504,29 @@ function get_accumulator(element) {
     }
 
     accumulator.mouse_up_which_cb = function(wd) {
-        accumulator.is_mouse_downed = false;
+        var device = m_input.get_device_by_type_element(m_input.DEVICE_MOUSE,
+                accumulator.element);
+        var loc = m_input.get_vector_param(device, m_input.MOUSE_LOCATION, _vec2_tmp);
+        accumulator.mouse_last_x = loc[0];
+        accumulator.mouse_last_y = loc[1];
+        accumulator.mouse_curr_x = loc[0];
+        accumulator.mouse_curr_y = loc[1];
+        if (accumulator.mouse_state > 0)
+            accumulator.mouse_state = 3;
+        accumulator.which = wd;
     }
 
     accumulator.mouse_location_cb = function(location) {
-        if (!cfg_dft.ie11_edge_touchscreen_hack || accumulator.is_mouse_downed) {
+        if (!cfg_dft.ie11_edge_touchscreen_hack || accumulator.mouse_state) {
             accumulator.mouse_curr_x = location[0];
             accumulator.mouse_curr_y = location[1];
+        }
+    }
+
+    accumulator.pointerlock_cb = function(location) {
+        if (!cfg_dft.ie11_edge_touchscreen_hack || accumulator.mouse_state) {
+            accumulator.pointerlock_dx += location[0];
+            accumulator.pointerlock_dy += location[1];
         }
     }
 
@@ -507,12 +546,8 @@ function get_accumulator(element) {
     }
 
     accumulator.keyboard_up_keys_cb = function(key) {
-        if (accumulator.downed_keys[key] == 1)
-            accumulator.downed_keys[key] = 0;
-        else {
-            accumulator.is_updated_keyboard &= false;
-            accumulator.downed_keys[key] = 3;
-        }
+        accumulator.is_updated_keyboard = false;
+        accumulator.downed_keys[key] = 3;
     }
 
     accumulator.touch_start_cb = function(touches) {
@@ -636,13 +671,20 @@ function register_accum_value(accum, value_name) {
             m_input.attach_param_cb(device, m_input.MOUSE_LOCATION,
                     accum.mouse_location_cb);
         break;
+    case "mouse_pointerlock":
+        var device = m_input.get_device_by_type_element(m_input.DEVICE_MOUSE,
+                accum.element);
+        if (device)
+            m_input.attach_param_cb(device, m_input.MOUSE_LOCATION_PL,
+                    accum.pointerlock_cb);
+        break;
     case "keyboard_downed_keys":
         var device = m_input.get_device_by_type_element(m_input.DEVICE_KEYBOARD,
                 accum.element);
         if (device) {
             m_input.attach_param_cb(device, m_input.KEYBOARD_DOWN,
                     accum.keyboard_down_keys_cb);
-            m_input.attach_param_cb(device, m_input.KEYBOARD_DOWN_MODIFIERED,
+            m_input.attach_param_cb(device, m_input.KEYBOARD_DOWN_MODIFIED,
                     accum.keyboard_down_mod_keys_cb);
             m_input.attach_param_cb(device, m_input.KEYBOARD_UP,
                     accum.keyboard_up_keys_cb);
@@ -673,7 +715,7 @@ function register_accum_value(accum, value_name) {
 }
 
 function unregister_accum_value(accum, value_name) {
-    if (!value_name in accum.registered_accum_values)
+    if (!(value_name in accum.registered_accum_values))
         return
     else
         if (accum.registered_accum_values[value_name] > 0) {
@@ -741,13 +783,20 @@ function unregister_accum_value(accum, value_name) {
             m_input.detach_param_cb(device, m_input.MOUSE_LOCATION,
                     accum.mouse_location_cb);
         break;
+    case "mouse_pointerlock":
+        var device = m_input.get_device_by_type_element(m_input.DEVICE_MOUSE,
+                accum.element);
+        if (device)
+            m_input.detach_param_cb(device, m_input.MOUSE_LOCATION_PL,
+                    accum.pointerlock_cb);
+        break;
     case "keyboard_downed_keys":
         var device = m_input.get_device_by_type_element(m_input.DEVICE_KEYBOARD,
                 accum.element);
         if (device) {
             m_input.detach_param_cb(device, m_input.KEYBOARD_DOWN,
                     accum.keyboard_down_keys_cb);
-            m_input.detach_param_cb(device, m_input.KEYBOARD_DOWN_MODIFIERED,
+            m_input.detach_param_cb(device, m_input.KEYBOARD_DOWN_MODIFIED,
                     accum.keyboard_down_mod_keys_cb);
             m_input.detach_param_cb(device, m_input.KEYBOARD_UP,
                     accum.keyboard_up_keys_cb);
@@ -804,6 +853,30 @@ exports.create_gamepad_axis_sensor = function(axis, id) {
     sensor.gamepad_id = id;
     sensor.key = axis;
     sensor.do_activation = true;
+    return sensor;
+}
+
+exports.create_gamepad_position_sensor = function(id) {
+    var element = document;
+    var sensor = init_sensor(ST_GAMEPAD_POSITION, element);
+
+    id = id === undefined ? m_input.get_first_gmpd_id() : id;
+
+    sensor.gamepad_id = id;
+    sensor.do_activation = true;
+    sensor.payload = m_vec3.create();
+    return sensor;
+}
+
+exports.create_gamepad_orientation_sensor = function(id) {
+    var element = document;
+    var sensor = init_sensor(ST_GAMEPAD_ORIENTATION, element);
+
+    id = id === undefined ? m_input.get_first_gmpd_id() : id;
+
+    sensor.gamepad_id = id;
+    sensor.do_activation = true;
+    sensor.payload = m_quat.create();
     return sensor;
 }
 
@@ -905,6 +978,7 @@ exports.create_ray_sensor = function(obj_src, from, to, collision_id,
 exports.create_mouse_click_sensor = function(element) {
     var sensor = init_sensor(ST_MOUSE_CLICK, element);
     sensor.do_activation = true;
+    sensor.payload = {coords: new Float32Array(2), which: null};
     return sensor;
 }
 
@@ -917,7 +991,7 @@ exports.create_mouse_wheel_sensor = function(element) {
 exports.create_mouse_move_sensor = function(axis, element) {
     var sensor = init_sensor(ST_MOUSE_MOVE, element);
     sensor.axis = axis || "XY";
-    sensor.payload = (sensor.axis == "XY") ? new Float32Array(2) : 0;
+    sensor.payload = {coords: new Float32Array(2)};
     sensor.do_activation = true;
     return sensor;
 }
@@ -925,7 +999,7 @@ exports.create_mouse_move_sensor = function(axis, element) {
 exports.create_touch_move_sensor = function(axis, element) {
     var sensor = init_sensor(ST_TOUCH_MOVE, element);
     sensor.axis = axis || "XY";
-    sensor.payload = 0;
+    sensor.payload = {coords: new Float32Array(2), gesture: 0};
     sensor.do_activation = true;
     return sensor;
 }
@@ -946,7 +1020,7 @@ exports.create_touch_rotate_sensor = function(element) {
 
 exports.create_touch_click_sensor = function(element) {
     var sensor = init_sensor(ST_TOUCH_CLICK, element);
-    sensor.payload = 0;
+    sensor.payload = {coords: new Float32Array(2)};
     sensor.do_activation = true;
     return sensor;
 }
@@ -1124,6 +1198,19 @@ exports.create_callback_sensor = function(callback, value) {
     return sensor;
 }
 
+exports.create_plock_mouse_sensor = function(element) {
+    var sensor = init_sensor(ST_PLOCK_MOUSE_MOVE, element);
+    sensor.payload = {coords: new Float32Array(2)};
+    sensor.do_activation = true;
+    return sensor;
+}
+
+exports.create_plock_sensor = function(element) {
+    var sensor = init_sensor(ST_PLOCK, element);
+    sensor.do_activation = true;
+    return sensor;
+}
+
 exports.sensor_set_value = sensor_set_value;
 function sensor_set_value(sensor, value) {
     sensor.value = Number(value);
@@ -1178,6 +1265,9 @@ exports.get_sensor_payload = function(obj, manifold_id, num) {
     return sensor.payload;
 }
 
+/**
+ * uses _vec2_tmp _vec2_tmp2 _vec3_tmp _quat_tmp
+ */
 function update_sensor(sensor, timeline, elapsed) {
     if (!elapsed)
         return;
@@ -1186,8 +1276,8 @@ function update_sensor(sensor, timeline, elapsed) {
     case ST_MOTION:
         var obj = sensor.source_object;
 
-        var trans = m_tsr.get_trans_view(obj.render.world_tsr);
-        var quat = m_tsr.get_quat_view(obj.render.world_tsr);
+        var trans = m_tsr.get_trans(obj.render.world_tsr, _vec3_tmp);
+        var quat = m_tsr.get_quat(obj.render.world_tsr, _quat_tmp);
 
         var dist = m_vec3.dist(sensor.trans_last, trans);
 
@@ -1222,7 +1312,7 @@ function update_sensor(sensor, timeline, elapsed) {
 
     case ST_V_VELOCITY:
         var obj = sensor.source_object;
-        var trans = m_tsr.get_trans_view(obj.render.world_tsr);
+        var trans = m_tsr.get_trans(obj.render.world_tsr, _vec3_tmp);
 
         var vel = Math.abs(trans[1] - sensor.trans_last[1]) / elapsed;
         sensor.avg_vertical_vel = m_util.smooth(vel, sensor.avg_vertical_vel,
@@ -1301,6 +1391,16 @@ function update_sensor(sensor, timeline, elapsed) {
         var device = get_gmpd_device_by_id(sensor.gamepad_id);
         sensor.value = m_input.get_gamepad_axis_value(device, sensor.key);
         break;
+    case ST_GAMEPAD_POSITION:
+        var device = get_gmpd_device_by_id(sensor.gamepad_id);
+        m_input.get_gamepad_position(device, sensor.payload);
+        sensor_set_value(sensor, 1);
+        break;
+    case ST_GAMEPAD_ORIENTATION:
+        var device = get_gmpd_device_by_id(sensor.gamepad_id);
+        m_input.get_gamepad_orientation(device, sensor.payload);
+        sensor_set_value(sensor, 1);
+        break;
     case ST_CALLBACK:
         sensor_set_value(sensor, sensor.callback());
         break;
@@ -1311,38 +1411,64 @@ function update_sensor(sensor, timeline, elapsed) {
         break;
     case ST_MOUSE_MOVE:
         var accum = get_accumulator(sensor.element);
-        if (!cfg_dft.ie11_edge_touchscreen_hack || accum.is_mouse_downed) {
+        if (!cfg_dft.ie11_edge_touchscreen_hack ||
+                accum.mouse_state == 1 || accum.mouse_state == 2) {
             var delta_x = accum.mouse_curr_x - accum.mouse_last_x;
             var delta_y = accum.mouse_curr_y - accum.mouse_last_y;
 
+            sensor.payload.coords[0] = accum.mouse_curr_x;
+            sensor.payload.coords[1] = accum.mouse_curr_y;
             switch (sensor.axis) {
             case "X":
                 sensor_set_value(sensor, delta_x);
-                sensor.payload = accum.mouse_curr_x;
                 break;
             case "Y":
                 sensor_set_value(sensor, delta_y);
-                sensor.payload = accum.mouse_curr_y;
                 break;
             case "XY":
                 var delta = Math.sqrt(delta_x*delta_x + delta_y*delta_y);
                 sensor_set_value(sensor, delta);
-                sensor.payload[0] = accum.mouse_curr_x;
-                sensor.payload[1] = accum.mouse_curr_y;
                 break;
             }
         }
         break;
+    case ST_PLOCK_MOUSE_MOVE:
+        var accum = get_accumulator(sensor.element);
+        if (!cfg_dft.ie11_edge_touchscreen_hack) {
+
+            var delta_x = accum.pointerlock_dx;
+            var delta_y = accum.pointerlock_dy;
+
+            var rot_x = m_util.smooth(delta_x, 0,
+                    elapsed, smooth_coeff_mouse());
+            var rot_y = m_util.smooth(delta_y, 0,
+                    elapsed, smooth_coeff_mouse());
+
+            if (Math.abs(delta_x) > MOUSE_DELTA_THRESHOLD ||
+                    Math.abs(delta_y) > MOUSE_DELTA_THRESHOLD) {
+                accum.pointerlock_dx -= rot_x;
+                accum.pointerlock_dy -= rot_y;
+                sensor.payload.coords[0] = rot_x;
+                sensor.payload.coords[1] = rot_y;
+            } else {
+                sensor.payload.coords[0] = 0.0;
+                sensor.payload.coords[1] = 0.0;
+            }
+            sensor_set_value(sensor, Math.sqrt(delta_x*delta_x + delta_y*delta_y));
+        }
+        break;
     case ST_MOUSE_CLICK:
         var accum = get_accumulator(sensor.element);
-        sensor_set_value(sensor, accum.is_mouse_downed);
-        sensor.payload = accum.which;
+        sensor_set_value(sensor, (accum.mouse_state > 0) | 0);
+        sensor.payload.which = accum.which;
+        sensor.payload.coords[0] = accum.mouse_curr_x;
+        sensor.payload.coords[1] = accum.mouse_curr_y;
         break;
     case ST_SELECTION:
         var accum = get_accumulator(sensor.element);
         sensor_set_value(sensor, 0);
         if (!sensor.enable_toggle_switch) {
-            if (accum.is_mouse_downed &&
+            if (accum.mouse_state &&
                     accum.mouse_select_data.obj == sensor.source_object)
                 sensor_set_value(sensor, 1);
             else if (!accum.is_touch_ended) {
@@ -1366,7 +1492,7 @@ function update_sensor(sensor, timeline, elapsed) {
         sensor.payload = accum.downed_keys[sensor.key];
         if (sensor.payload == 1 || accum.downed_keys[0] && sensor.key == KEY_SHIFT)
             sensor_set_value(sensor, 1);
-        else if (!sensor.payload || sensor.payload == 3)
+        else if (!sensor.payload)
             sensor_set_value(sensor, 0);
         break;
     case ST_TOUCH_MOVE:
@@ -1393,7 +1519,7 @@ function update_sensor(sensor, timeline, elapsed) {
                 }
             }
 
-            sensor.payload = exports.PL_SINGLE_TOUCH_MOVE;
+            sensor.payload.gesture = exports.PL_SINGLE_TOUCH_MOVE;
         } else {
             var cur_center = _vec2_tmp;
             cur_center[0] = (accum.touches_curr_x[0] + accum.touches_curr_x[1]) / 2;
@@ -1407,9 +1533,10 @@ function update_sensor(sensor, timeline, elapsed) {
             var delta_y = (cur_center[1] - last_center[1]);
             var delta = Math.sqrt(delta_x * delta_x + delta_y * delta_y);
 
-            sensor.payload = exports.PL_MULTITOUCH_MOVE_PAN;
+            sensor.payload.gesture = exports.PL_MULTITOUCH_MOVE_PAN;
         }
-
+        sensor.payload.coords[0] = accum.touches_curr_x[0];
+        sensor.payload.coords[1] = accum.touches_curr_y[0];
         switch(sensor.axis) {
         case "X":
             sensor_set_value(sensor, delta_x);
@@ -1441,6 +1568,8 @@ function update_sensor(sensor, timeline, elapsed) {
         break;
     case ST_TOUCH_CLICK:
         var accum = get_accumulator(sensor.element);
+        sensor.payload.coords[0] = accum.touches_curr_x[0];
+        sensor.payload.coords[1] = accum.touches_curr_y[0];
         if (accum.is_touch_ended)
             sensor_set_value(sensor, 0);
         else
@@ -1653,10 +1782,8 @@ exports.create_sensor_manifold = function(obj, id, type, sensors,
     if (_objects.indexOf(obj) == -1)
         _objects.push(obj);
 
-    var sensors = manifold.sensors;
-
-    for (var i = 0; i < sensors.length; i++) {
-        var sensor = sensors[i];
+    for (var i = 0; i < manifold.sensors.length; i++) {
+        var sensor = manifold.sensors[i];
         activate_sensor(sensor);
         var sens_ind = _sensors_cache.indexOf(sensor);
         if (sens_ind == -1) {
@@ -1711,6 +1838,7 @@ function activate_sensor(sensor) {
                     sensor.from, sensor.to, sensor.collision_id,
                     sensor.ray_test_cb, false, false, sensor.calc_pos_norm,
                     sensor.ign_src_rot);
+            // TODO: check if the next line is necessary
             sensor.payload.ray_test_id = sensor.ray_test_id;
             break;
         case ST_TIMER:
@@ -1732,6 +1860,13 @@ function activate_sensor(sensor) {
             register_accum_value(accumulator, "mouse_down_which");
             register_accum_value(accumulator, "mouse_up_which");
             register_accum_value(accumulator, "mouse_location");
+            break;
+        case ST_PLOCK_MOUSE_MOVE:
+            var accumulator = get_accumulator(sensor.element);
+            register_accum_value(accumulator, "mouse_pointerlock");
+            break;
+        case ST_PLOCK:
+            m_input.activate_pointerlock(sensor);
             break;
         case ST_MOUSE_CLICK:
             var accumulator = get_accumulator(sensor.element);
@@ -1778,6 +1913,8 @@ function activate_sensor(sensor) {
             register_accum_value(accumulator, "orientation_quat");
             break;
         case ST_GAMEPAD_BTNS:
+        case ST_GAMEPAD_POSITION:
+        case ST_GAMEPAD_ORIENTATION:
             if (sensor.gamepad_id == 0)
                 m_input.get_device_by_type_element(m_input.DEVICE_GAMEPAD0);
             else if (sensor.gamepad_id == 1)
@@ -1841,8 +1978,8 @@ function remove_sensor_manifold(obj, id) {
     } else {
         // make a copy to ensure reliable results
         var removed_ids = [];
-        for (var id in manifolds)
-            removed_ids.push(id);
+        for (var man_id in manifolds)
+            removed_ids.push(man_id);
 
         for (var i = 0; i < removed_ids.length; i++)
             remove_sensor_manifold(obj, removed_ids[i]);
@@ -1907,6 +2044,11 @@ function deactivate_sensor(sensor) {
         unregister_accum_value(accumulator, "mouse_down_which");
         unregister_accum_value(accumulator, "mouse_up_which");
         unregister_accum_value(accumulator, "mouse_location");
+        sensor.do_activation = true;
+        break;
+    case ST_PLOCK_MOUSE_MOVE:
+        var accumulator = get_accumulator(sensor.element);
+        unregister_accum_value(accumulator, "mouse_pointerlock");
         sensor.do_activation = true;
         break;
     case ST_MOUSE_CLICK:
@@ -2040,6 +2182,14 @@ function get_gmpd_device_by_id(gamepad_id) {
         var device = m_input.get_device_by_type_element(m_input.DEVICE_GAMEPAD3);
 
     return device;
+}
+
+function smooth_coeff_mouse() {
+    return CAM_SMOOTH_CHARACTER_MOUSE * _smooth_factor;
+}
+
+exports.set_plock_smooth_factor = function(value) {
+    _smooth_factor = value;
 }
 
 }

@@ -2,23 +2,26 @@
 
 b4w.register("camera_move_styles", function(exports, require) {
 
-var m_app    = require("app");
-var m_cam    = require("camera");
-var m_cfg    = require("config");
-var m_data   = require("data");
-var m_scenes = require("scenes");
-var m_trans  = require("transform");
-var m_util   = require("util");
+var m_app     = require("app");
+var m_cam     = require("camera");
+var m_cfg     = require("config");
+var m_data    = require("data");
+var m_scenes  = require("scenes");
+var m_trans   = require("transform");
+var m_util    = require("util");
+var m_version = require("version");
+
+var DEBUG = (m_version.type() === "DEBUG");
 
 var APP_ASSETS_PATH = m_cfg.get_std_assets_path() + "code_snippets/camera_move_styles/";
 
-var STATIC_POS = new Float32Array([-4.5, 0.5, 3]);
+var STATIC_POS = new Float32Array([-4.5, -3, 0.5]);
 var STATIC_LOOK_AT = new Float32Array([-4.5, 0, 0]);
 
-var EYE_POS = new Float32Array([-1.5, 0.5, 3]);
-var EYE_LOOK_AT = new Float32Array([-1.5, 0.5, 0]);
+var EYE_POS = new Float32Array([-1.5, -3, 0.5]);
+var EYE_LOOK_AT = new Float32Array([-1.5, 0, 0.5]);
 
-var TARGET_POS = new Float32Array([1.5, 0, 2]);
+var TARGET_POS = new Float32Array([1.5, -2, 0]);
 var TARGET_PIVOT = new Float32Array([1.5, 0, 0]);
 
 var DIST_LIMITS = {
@@ -54,13 +57,16 @@ var _default_rot = new Float32Array(4);
 
 exports.init = function() {
     m_app.init({
-        canvas_container_id: "canvas_cont",
+        canvas_container_id: "main_canvas_container",
         callback: init_cb,
         physics_enabled: false,
         alpha: true,
         show_fps: true,
         autoresize: true,
-        console_verbose: true
+        assets_dds_available: !DEBUG,
+        assets_min50_available: !DEBUG,
+        console_verbose: true,
+        gl_debug: true
     });
 }
 
@@ -114,14 +120,11 @@ function init_interface() {
 }
 
 function create_button(caption) {
-    var button = document.createElement("div");
-    button.className = "button_container";
+    var button = document.createElement("a");
 
-    var label = document.createElement("label");
-    label.className = "text";
-    label.textContent = caption;
+    button.className = "btn";
+    button.innerText = caption;
 
-    button.appendChild(label);
     return button;
 }
 

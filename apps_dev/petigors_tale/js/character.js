@@ -19,15 +19,12 @@ var m_cons  = require("constraints");
 var m_mouse = require("mouse");
 var m_cam   = require("camera");
 var m_cont  = require("container");
-var m_obj   = require("objects");
-
-var m_quat  = require("quat");
+var m_mat   = require("material");
 
 var m_conf = require("game_config");
 var m_combat = require("combat");
 var m_interface = require("interface");
 var m_bonuses = require("bonuses");
-var m_env = require("environment");
 
 var _level_conf = null; // specified during initialization
 
@@ -75,21 +72,21 @@ exports.init_wrapper = function(level_conf, json_name) {
     };
     m_anim.apply_def(_char_wrapper.hitsparks);
     m_anim.set_behavior(_char_wrapper.hitsparks, m_anim.AB_FINISH_RESET);
-    m_obj.set_nodemat_value(_char_wrapper.lava_shield_prot,
+    m_mat.set_nodemat_value(_char_wrapper.lava_shield_prot,
                             ["lava_shield_prot", "lava_prot_switcher"],
                             0);
-    m_obj.set_nodemat_value(_char_wrapper.lava_shield_prot,
+    m_mat.set_nodemat_value(_char_wrapper.lava_shield_prot,
                             ["lava_shield_prot", "shield_switcher"],
                             0);
 
     m_scs.hide_object(_char_wrapper.foot_smoke);
 
     if (level_conf && level_conf.LEVEL_NAME == "dungeon")
-        m_obj.set_nodemat_value(_char_wrapper.body,
+        m_mat.set_nodemat_value(_char_wrapper.body,
                                 ["petigor", m_conf.CHAR_SWORD_SWITCHER],
                                 1);
     else
-        m_obj.set_nodemat_value(_char_wrapper.body,
+        m_mat.set_nodemat_value(_char_wrapper.body,
                                 ["petigor", m_conf.CHAR_SWORD_SWITCHER],
                                 0);
 
@@ -119,21 +116,21 @@ exports.setup_controls = function (elapsed_sensor) {
     var offset = new Float32Array(m_conf.CAM_OFFSET);
     var dist = m_vec3.length(offset);
 
-    var clamp_left  = 0;
-    var clamp_right = 0;
+    var clamp_left  = -Math.PI / 2;
+    var clamp_right = Math.PI / 2;
     var clamp_up    = Math.PI / 3;
     var clamp_down  = 0.01;
 
-    function rotation_cb(rot_x, rot_y) {
+    function rotation_cb(rot_x, rot_z) {
         m_phy.character_rotation_inc(_char_wrapper.phys_body, rot_x, 0);
-        if (rot_y) {
-            m_cam.eye_rotate(camobj, 0, rot_y);
+        if (rot_z) {
+            m_cam.rotate_camera(camobj, 0, rot_z);
 
             m_cam.get_camera_angles(camobj, _vec3_tmp);
-            offset[2] = -dist * Math.cos(_vec3_tmp[1]);
-            offset[1] = -dist * Math.sin(_vec3_tmp[1]);
+            offset[1] =  dist * Math.cos(_vec3_tmp[1]);
+            offset[2] = -dist * Math.sin(_vec3_tmp[1]);
 
-            m_cons.append_semi_stiff_cam(camobj, _char_wrapper.target, offset, null,
+            m_cons.append_semi_stiff(camobj, _char_wrapper.target, offset, null,
                                  clamp_left, clamp_right, clamp_up, clamp_down);
         }
     }
@@ -151,13 +148,13 @@ exports.setup_controls = function (elapsed_sensor) {
     setup_attack(touch_attack, elapsed_sensor);
 
     var targ_pos = m_trans.get_translation(_char_wrapper.target, _vec3_tmp);
-    m_cons.append_semi_stiff_cam(camobj, _char_wrapper.target, offset, null,
+    m_cons.append_semi_stiff(camobj, _char_wrapper.target, offset, null,
                         clamp_left, clamp_right, clamp_up, clamp_down);
     m_cam.eye_set_look_at(camobj, null, targ_pos);
 
     if (_level_conf) {
         _cam_indicator = m_scs.get_object_by_dupli_name_list(m_conf.CAMERA_INDICTAOR);
-        m_obj.set_nodemat_value(_cam_indicator,
+        m_mat.set_nodemat_value(_cam_indicator,
                                 ["camera_indicator", m_conf.CAM_INDICATOR_VAL], 0);
     }
 }
@@ -202,7 +199,6 @@ exports.run_victory = function() {
     var cam_params = {pivot: pivot};
     m_cam.target_setup(camobj, cam_params);
 
-    var elapsed_sensor = m_ctl.create_elapsed_sensor();
     function cam_rotate_cb(obj, id, pulse) {
         var angles = m_cam.get_camera_angles(obj, _vec2_tmp);
         var dist = m_cam.target_get_distance(obj);
@@ -215,7 +211,7 @@ exports.run_victory = function() {
         else
             var vert_angle = 0;
 
-        m_cam.target_rotate(obj, hor_angle, vert_angle);
+        m_cam.rotate_camera(obj, hor_angle, vert_angle);
 
         if (dist > _level_conf.VICT_CAM_DIST) {
             dist -= elapsed;
@@ -302,11 +298,11 @@ function init_island_detection() {
 
 function setup_ground_sensor(on_ground) {
     var ground_sens = m_ctl.create_ray_sensor(_char_wrapper.phys_body, [0, 0, 0],
-                                          [0, -m_conf.CHAR_RAY_LENGTH, 0], "GROUND", true);
+                                          [0, 0, -m_conf.CHAR_RAY_LENGTH], "GROUND", true);
     var lava_sens = m_ctl.create_ray_sensor(_char_wrapper.phys_body, [0, 0, 0],
-                                          [0, -m_conf.CHAR_RAY_LENGTH, 0], "LAVA", true);
+                                          [0, 0, -m_conf.CHAR_RAY_LENGTH], "LAVA", true);
     var common_coll_sens = m_ctl.create_ray_sensor(_char_wrapper.phys_body, [0, 0, 0],
-                                          [0, -m_conf.CHAR_RAY_LENGTH, 0], "COMMON", true);
+                                          [0, 0, -m_conf.CHAR_RAY_LENGTH], "COMMON", true);
     function ground_cb(obj, id, pulse) {
         var val = pulse == 1? 1: 0;
         m_ctl.set_custom_sensor(on_ground, val)
@@ -381,10 +377,10 @@ function setup_movement(up_arrow, down_arrow, left_arrow, right_arrow, on_ground
         }
 
         if ((move_state.forw_back || move_state.left_right) && on_ground) {
-            if (!m_sfx.is_play(_char_run_spk))
+            if (!m_sfx.is_playing(_char_run_spk))
                 m_sfx.play_def(_char_run_spk);
         } else {
-            if (m_sfx.is_play(_char_run_spk))
+            if (m_sfx.is_playing(_char_run_spk))
                 m_sfx.stop(_char_run_spk);
         }
 
@@ -405,23 +401,21 @@ function setup_movement(up_arrow, down_arrow, left_arrow, right_arrow, on_ground
         if (_char_wrapper.state == m_conf.CH_ATTACK)
             return;
 
-        var on_ground = m_ctl.get_sensor_value(obj, id, 0);
-
         var cur_anim = m_anim.get_current_anim_name(_char_wrapper.rig);
         var required_anim = m_conf.CHAR_IDLE_ANIM;
 
         if (_char_wrapper.state == m_conf.CH_JUMP) {
-            var required_anim = m_conf.CHAR_JUMP_ANIM;
+            required_anim = m_conf.CHAR_JUMP_ANIM;
         } else if (move_state.forw_back == 1) {
-            var required_anim = m_conf.CHAR_RUN_ANIM;
+            required_anim = m_conf.CHAR_RUN_ANIM;
         } else if (move_state.forw_back == -1) {
-            var required_anim = m_conf.CHAR_RUN_ANIM;
+            required_anim = m_conf.CHAR_RUN_ANIM;
             m_anim.set_speed(_char_wrapper.rig, -1);
         } else if (move_state.left_right == 1) {
-            var required_anim = m_conf.CHAR_STRAFE;
+            required_anim = m_conf.CHAR_STRAFE;
             m_anim.set_speed(_char_wrapper.rig, -1);
         } else if (move_state.left_right == -1) {
-            var required_anim = m_conf.CHAR_STRAFE;
+            required_anim = m_conf.CHAR_STRAFE;
         }
 
         if (cur_anim != required_anim) {
@@ -455,8 +449,8 @@ function setup_jumping(touch_jump, on_ground_sens) {
             _char_wrapper.state = m_conf.CH_JUMP;
             m_phy.character_jump(obj);
 
-            var id = Math.floor(_char_jump_spks.length * Math.random());
-            m_sfx.play_def(_char_jump_spks[id]);
+            var jump_id = Math.floor(_char_jump_spks.length * Math.random());
+            m_sfx.play_def(_char_jump_spks[jump_id]);
 
             m_anim.apply(_char_wrapper.rig, m_conf.CHAR_JUMP_ANIM);
             m_anim.set_behavior(_char_wrapper.rig, m_anim.AB_FINISH_STOP);
@@ -494,7 +488,7 @@ function setup_attack(touch_attack, elapsed) {
     }
 
     function process_attack_speakers() {
-        if (m_sfx.is_play(_char_run_spk))
+        if (m_sfx.is_playing(_char_run_spk))
             m_sfx.stop(_char_run_spk);
 
         m_sfx.play_def(_char_attack_spk);
@@ -537,7 +531,7 @@ function setup_attack(touch_attack, elapsed) {
 
                 m_trans.get_translation(_char_wrapper.phys_body, trans);
                 m_trans.get_rotation(_char_wrapper.phys_body, cur_rot_q);
-                m_vec3.transformQuat(m_util.AXIS_Z, cur_rot_q, cur_dir);
+                m_vec3.transformQuat(m_util.AXIS_MY, cur_rot_q, cur_dir);
 
                 m_vec3.scaleAndAdd(trans, cur_dir, at_dst, at_pt);
                 if (m_combat.process_attack_on_enemies(at_pt, at_dst)) {
@@ -560,7 +554,6 @@ function disable_controls() {
         m_ctl.remove_sensor_manifold(_char_wrapper.phys_body);
     m_phy.set_character_move_dir(_char_wrapper.phys_body, 0, 0);
     m_sfx.stop(_char_run_spk);
-    var canvas_elem = m_cont.get_canvas();
 
     if (!m_main.detect_mobile())
         m_mouse.exit_pointerlock();
@@ -596,7 +589,7 @@ function setup_hurt_indicator() {
             return;
         }
         prev_ind_val = indicator_val;
-        m_obj.set_nodemat_value(_cam_indicator,
+        m_mat.set_nodemat_value(_cam_indicator,
                 ["camera_indicator", m_conf.CAM_INDICATOR_VAL], indicator_val);
     }
 
@@ -612,7 +605,7 @@ exports.apply_hp_potion = function() {
 exports.apply_lava_protect = function() {
     m_anim.set_behavior(_char_wrapper.body, m_anim.AB_FINISH_STOP, m_anim.SLOT_1);
     m_anim.play(_char_wrapper.body, null, m_anim.SLOT_1);
-    m_obj.set_nodemat_value(_char_wrapper.lava_shield_prot,
+    m_mat.set_nodemat_value(_char_wrapper.lava_shield_prot,
                             ["lava_shield_prot", "lava_prot_switcher"],
                             1);
 }
@@ -620,7 +613,7 @@ exports.apply_lava_protect = function() {
 exports.remove_lava_protect = remove_lava_protect;
 function remove_lava_protect() {
     m_bonuses.set_lava_protect_time(0);
-    m_obj.set_nodemat_value(_char_wrapper.lava_shield_prot,
+    m_mat.set_nodemat_value(_char_wrapper.lava_shield_prot,
                             ["lava_shield_prot", "lava_prot_switcher"],
                             0);
 }
@@ -629,7 +622,7 @@ exports.apply_shield = apply_shield;
 function apply_shield() {
     m_anim.set_behavior(_char_wrapper.body, m_anim.AB_FINISH_STOP, m_anim.SLOT_2);
     m_anim.play(_char_wrapper.body, null, m_anim.SLOT_2);
-    m_obj.set_nodemat_value(_char_wrapper.lava_shield_prot,
+    m_mat.set_nodemat_value(_char_wrapper.lava_shield_prot,
                             ["lava_shield_prot", "shield_switcher"],
                             1);
 }
@@ -637,7 +630,7 @@ function apply_shield() {
 exports.remove_shield = remove_shield;
 function remove_shield() {
     m_bonuses.set_shield_time(0);
-    m_obj.set_nodemat_value(_char_wrapper.lava_shield_prot,
+    m_mat.set_nodemat_value(_char_wrapper.lava_shield_prot,
                             ["lava_shield_prot", "shield_switcher"],
                             0);
 }
@@ -699,7 +692,7 @@ function kill() {
     if (m_bonuses.lava_protect_time_left() > 0)
         remove_lava_protect();
 
-    m_obj.set_nodemat_value(_cam_indicator,
+    m_mat.set_nodemat_value(_cam_indicator,
             ["camera_indicator", m_conf.CAM_INDICATOR_VAL], 1.0);
 }
 

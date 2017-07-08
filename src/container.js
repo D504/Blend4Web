@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -28,9 +27,9 @@ var m_anchors = require("__anchors");
 var m_cfg     = require("__config");
 var m_data    = require("__data");
 var m_hud     = require("__hud");
-var m_input   = require("__input");
 var m_print   = require("__print");
 var m_scenes  = require("__scenes");
+var m_subs    = require("__subscene");
 var m_time    = require("__time");
 var m_trans   = require("__transform");
 var m_util    = require("__util");
@@ -40,6 +39,7 @@ var cfg_def = m_cfg.defaults;
 var _canvas      = null;
 var _canvas_hud  = null;
 var _canvas_cont = null;
+var _mouse_event_param = {clientX: 0, clientY: 0};
 
 // NOTE: for optimization, to request canvas bounds only once a frame
 var _offsets_updating_needed = false;
@@ -47,23 +47,9 @@ var _offsets_updating_needed = false;
 var _viewport_layout = {
     width: 0,   // device pixels
     height: 0,  // device pixels
-    scale: 1,   // divece pixels/css pixels
+    scale: 1,   // divice pixels/css pixels
     offset_top: 0,  // css pixels
     offset_left: 0  // css pixels
-}
-
-var _gl = null;
-
-// default canvas dimensions
-exports.DEFAULT_CANVAS_W = 320;
-exports.DEFAULT_CANVAS_H = 240;
-
-/**
- * Setup WebGL context
- * @param gl WebGL context
- */
-exports.setup_context = function(gl) {
-    _gl = gl;
 }
 
 exports.get_canvas = get_canvas;
@@ -174,11 +160,30 @@ function get_offset_left() {
 }
 
 exports.client_to_canvas_coords = function(client_x, client_y, dest) {
-    if (!dest)
-        dest = new Float32Array(2);
+    return client_to_element_coords(client_x, client_y, _canvas, dest);
+}
 
-    dest[0] = client_x - get_offset_left();
-    dest[1] = client_y - get_offset_top();
+exports.client_to_element_coords = client_to_element_coords;
+function client_to_element_coords(client_x, client_y, element, dest) {
+    if (!cfg_def.ie11_edge_mouseoffset_hack) {
+        // NOTE: hacky things.
+        // Autoconvert client_x/client_y to offsetX/offsetY using custom MouseEvent
+        _mouse_event_param.clientX = client_x;
+        _mouse_event_param.clientY = client_y;
+
+        // NOTE: needed in Chrome to work properly
+        _mouse_event_param.view = window;
+        var event = new MouseEvent("b4w_convert", _mouse_event_param);
+        element.dispatchEvent(event);
+
+        dest[0] = event.offsetX;
+        dest[1] = event.offsetY;
+    } else {
+        // TODO: fix, MouseEvent is not supported by IE
+        dest[0] = client_x;
+        dest[1] = client_y;
+    }
+
     return dest;
 }
 
@@ -243,29 +248,23 @@ exports.find_script = function(src) {
     return null;
 }
 
+function resize_css(canvas_webgl, canvas_hud, width, height) {
+    canvas_webgl.style.width = width + "px";
+    canvas_webgl.style.height = height + "px";
+
+    if (canvas_hud) {
+        canvas_hud.style.width = width + "px";
+        canvas_hud.style.height = height + "px";
+    }
+}
+
 exports.resize = resize;
 function resize(width, height, update_canvas_css) {
-    if (!width || !height) {
-        width = exports.DEFAULT_CANVAS_W;
-        height = exports.DEFAULT_CANVAS_H;
-
-        var canvas_cont = get_container();
-        canvas_cont.style.width = exports.DEFAULT_CANVAS_W + "px";
-        canvas_cont.style.height = exports.DEFAULT_CANVAS_H + "px";
-    }
 
     var canvas_webgl = get_canvas();
     var canvas_hud   = get_canvas_hud();
-
-    if (update_canvas_css !== false) {
-        canvas_webgl.style.width = width + "px";
-        canvas_webgl.style.height = height + "px";
-
-        if (canvas_hud) {
-            canvas_hud.style.width = width + "px";
-            canvas_hud.style.height = height + "px";
-        }
-    }
+    if (update_canvas_css)
+        resize_css(canvas_webgl, canvas_hud, width, height);
 
     if (canvas_hud) {
         // no HIDPI/resolution factor for HUD canvas
@@ -274,39 +273,10 @@ function resize(width, height, update_canvas_css) {
         m_hud.update_dim();
     }
 
-    var cw = Math.floor(width * cfg_def.canvas_resolution_factor);
-    var ch = Math.floor(height * cfg_def.canvas_resolution_factor);
+    canvas_webgl.width  = width;
+    canvas_webgl.height = height;
 
-    if (is_hidpi()) {
-        cw *= window.devicePixelRatio;
-        ch *= window.devicePixelRatio;
-    }
-
-    // use only main scene for the canvas resizing
-    var main_scene = m_scenes.get_main();
-    if (main_scene) {
-        var sc_render = main_scene._render;
-        cw = Math.floor(cw * sc_render.resolution_factor);
-        ch = Math.floor(ch * sc_render.resolution_factor);
-    }
-
-    canvas_webgl.width  = cw;
-    canvas_webgl.height = ch;
-
-    if (cw > _gl.drawingBufferWidth || ch > _gl.drawingBufferHeight) {
-        m_print.warn("Canvas size exceeds platform limits, downscaling");
-
-        var downscale = Math.min(_gl.drawingBufferWidth/cw,
-                _gl.drawingBufferHeight/ch);
-
-        cw *= downscale;
-        ch *= downscale;
-
-        canvas_webgl.width  = cw;
-        canvas_webgl.height = ch;
-    }
-
-    m_scenes.setup_dim(cw, ch, cw/width);
+    m_scenes.setup_dim(width, height);
 
     // needed for frustum culling/constraints
     if (m_scenes.check_active())
@@ -336,11 +306,31 @@ exports.resize_to_container = function(force) {
     var h = container.clientHeight;
 
     if (force || w != canvas.clientWidth || h != canvas.clientHeight) {
-        var vr_display = cfg_def.stereo === "HMD" && m_input.get_webvr_display();
-        // NOTE: don't resize in case of HMD fullscreen (WebVR API 1.0)
-        if (!vr_display || !vr_display.isPresenting)
-            resize(w, h, true);
+        var old_width = canvas.width;
+        var old_height = canvas.height;
+        var canvas_webgl = get_canvas();
+        var canvas_hud   = get_canvas_hud();
+        resize_css(canvas_webgl, canvas_hud, w, h);
+
+        // NOTE: in case of HMD splited screen, update canvas CSS width/height,
+        // but keep canvas width/height unchangeable
+        if (m_scenes.check_active()) {
+            var active_scene = m_scenes.get_active();
+            var subs_stereo = m_scenes.get_subs(active_scene, m_subs.STEREO);
+            if (subs_stereo && subs_stereo.enable_hmd_stereo) {
+                // restore canvas.width/canvas.height
+                resize(old_width, old_height, false)
+                return;
+            }
+        }
+        resize(w, h, false)
     }
+}
+
+exports.reset = function() {
+    _canvas      = null;
+    _canvas_hud  = null;
+    _canvas_cont = null;
 }
 
 }

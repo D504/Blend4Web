@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -29,6 +28,7 @@ b4w.module["__particles"] = function(exports, require) {
 var m_cfg    = require("__config");
 var m_batch  = require("__batch");
 var m_geom   = require("__geometry");
+var m_tbn    = require("__tbn");
 var m_tex    = require("__textures");
 var m_time   = require("__time");
 var m_tsr    = require("__tsr");
@@ -40,12 +40,13 @@ var DELAYRANDFACTOR = 10;
 
 var cfg_def = m_cfg.defaults;
 
+var _tbn_tmp = m_tbn.create();
 var _tsr_tmp = new Float32Array(8);
 var _vec3_tmp = new Float32Array(3);
 
 var _particles_objs_cache = [];
 
-function create_particles_data(name, type) {
+function init_particles_data(name, type) {
     var pdata = {
         name: name,
         p_type: type,
@@ -53,13 +54,15 @@ function create_particles_data(name, type) {
         time: 0,
         prev_time: -1,
         use_world_space: false,
+        count_factor: 1,
 
         frame_start: 0,
         frame_end: 0,
         time_length: 0,
         lifetime_frames: 0,
         lifetime: 0,
-        cyclic: false,
+        // bool
+        cyclic: 0,
 
         mass: 0,
         nfactor: 0,
@@ -74,10 +77,12 @@ function create_particles_data(name, type) {
         color_ramp_length: 0,
         color_ramp: new Float32Array(16),
 
+        need_buffers_update: false,
+
         positions: null,
         positions_cache: null,
-        normals: null,
-        normals_cache: null,
+        tbn: null,
+        tbn_cache: null,
         delay_attrs: null,
         delay_attrs_masked: null,
         emitter_tsr_snapshots: null,
@@ -88,6 +93,57 @@ function create_particles_data(name, type) {
     }
 
     return pdata;
+}
+
+exports.clone_particles_data = clone_particles_data;
+function clone_particles_data(particles_data) {
+
+    var particles_data_new = init_particles_data(particles_data.name, 
+            particles_data.type);
+
+    particles_data_new.time = particles_data.time;
+    particles_data_new.prev_time = particles_data.prev_time;
+    particles_data_new.use_world_space = particles_data.use_world_space;
+    particles_data_new.count_factor = particles_data.count_factor;
+
+    particles_data_new.frame_start = particles_data.frame_start;
+    particles_data_new.frame_end = particles_data.frame_end;
+    particles_data_new.time_length = particles_data.time_length;
+    particles_data_new.lifetime_frames = particles_data.lifetime_frames;
+    particles_data_new.lifetime = particles_data.lifetime;
+    particles_data_new.cyclic = particles_data.cyclic;
+
+    particles_data_new.mass = particles_data.mass;
+    particles_data_new.nfactor = particles_data.nfactor;
+    particles_data_new.gravity = particles_data.gravity;
+    particles_data_new.fade_in = particles_data.fade_in;
+    particles_data_new.fade_out = particles_data.fade_out;
+    particles_data_new.wind_factor = particles_data.wind_factor;
+
+    particles_data_new.size = particles_data.size;
+    particles_data_new.alpha_start = particles_data.alpha_start;
+    particles_data_new.alpha_end = particles_data.alpha_end;
+    particles_data_new.color_ramp_length = particles_data.color_ramp_length;
+    particles_data_new.color_ramp.set(particles_data.color_ramp);
+
+    particles_data_new.need_buffers_update = particles_data.need_buffers_update;
+
+    particles_data_new.positions = m_util.clone_object_r(particles_data.positions);
+    particles_data_new.positions_cache = m_util.clone_object_r(
+            particles_data.positions_cache);
+    particles_data_new.tbn = m_util.clone_object_r(particles_data.tbn);
+    particles_data_new.tbn_cache = m_util.clone_object_r(particles_data.tbn_cache);
+    particles_data_new.delay_attrs = m_util.clone_object_r(particles_data.delay_attrs);
+    particles_data_new.delay_attrs_masked = m_util.clone_object_r(
+            particles_data.delay_attrs_masked);
+    particles_data_new.emitter_tsr_snapshots = m_util.clone_object_r(
+            particles_data.emitter_tsr_snapshots);
+    particles_data_new.p_data = m_util.clone_object_r(particles_data.p_data);
+
+    particles_data_new.tilt = particles_data.tilt;
+    particles_data_new.tilt_rand = particles_data.tilt_rand;
+
+    return particles_data_new;
 }
 
 var _rand = function() {
@@ -114,6 +170,20 @@ exports.obj_has_particles = function(obj) {
         for (var j = 0; j < batches.length; j++)
             if (batches[j].particles_data)
                 return true;
+    }
+
+    return false;
+}
+
+exports.obj_has_psys = function(obj, psys_name) {
+    var scenes_data = obj.scenes_data;
+    for (var i = 0; i < scenes_data.length; i++) {
+        var batches = scenes_data[i].batches;
+        for (var j = 0; j < batches.length; j++) {
+            var pdata = batches[j].particles_data;
+            if (pdata && pdata.name == psys_name)
+                return true;
+        }
     }
 
     return false;
@@ -164,8 +234,8 @@ exports.has_dynamic_grass_particles = function(bpy_obj) {
     return false;
 }
 
-exports.init_particles_data = function(batch, psystem, pmaterial) {
-    var pdata = batch.particles_data = create_particles_data(psystem["name"],
+exports.create_particles_data = function(batch, psystem, pmaterial) {
+    var pdata = batch.particles_data = init_particles_data(psystem["name"],
             psystem["settings"]["type"]);
     pdata.frame_start = psystem["settings"]["frame_start"];
     pdata.frame_end = psystem["settings"]["frame_end"];
@@ -194,17 +264,17 @@ exports.init_particles_data = function(batch, psystem, pmaterial) {
 
         // default 50
         if (hardness < 30) {
-            var alpha_start = 0.5;
-            var alpha_end = 0.9;
+            alpha_start = 0.5;
+            alpha_end = 0.9;
         } else if (hardness < 40) {
-            var alpha_start = 0.1;
-            var alpha_end = 1.0;
+            alpha_start = 0.1;
+            alpha_end = 1.0;
         } else if (hardness < 50) {
-            var alpha_start = 0.0;
-            var alpha_end = 0.8;
+            alpha_start = 0.0;
+            alpha_end = 0.8;
         } else {
-            var alpha_start = 0.0;
-            var alpha_end = 0.5;
+            alpha_start = 0.0;
+            alpha_end = 0.5;
         }
     } else {
         size = psystem["settings"]["particle_size"];
@@ -218,7 +288,6 @@ exports.init_particles_data = function(batch, psystem, pmaterial) {
     if (pmaterial["use_nodes"] && psystem["settings"]["render_type"] == "BILLBOARD") {
         m_batch.set_batch_directive(batch, "NODES", 1);
         m_batch.set_batch_directive(batch, "PARTICLE_BATCH", 1);
-        batch.use_nodes = true;
         batch.has_nodes = true;
     }
 
@@ -229,13 +298,16 @@ exports.init_particles_data = function(batch, psystem, pmaterial) {
             tex_slot[0]["texture"]["type"] == "BLEND" &&
             tex_slot[0]["texture"]["use_color_ramp"] &&
             cfg_def.allow_vertex_textures) {
+        var bpy_tex = tex_slot[0]["texture"];
         var image_data = [];
-        m_tex.calc_color_ramp_data(tex_slot[0]["texture"]["color_ramp"],
+        m_tex.calc_color_ramp_data(bpy_tex["color_ramp"],
                 m_tex.PART_COLORRAMP_TEXT_SIZE, image_data);
         image_data = new Uint8Array(image_data.map(function(val) {return m_util.clamp(val * 255,
             0, 255)}));
-        m_batch.append_texture_to_batch(batch, image_data, "u_color_ramp_tex",
-                m_tex.PART_COLORRAMP_TEXT_SIZE);
+
+        var tex = m_tex.create_color_ramp_texture(image_data, m_tex.PART_COLORRAMP_TEXT_SIZE);
+
+        m_batch.append_texture(batch, tex, "u_color_ramp_tex", bpy_tex["name"]);
         m_batch.set_batch_directive(batch, "USE_COLOR_RAMP", 1);
     }
 
@@ -302,17 +374,17 @@ exports.generate_emitter_particles_submesh = function(batch, emitter_mesh,
     init_particle_rand(psystem["seed"]);
 
     var emitter_submesh = m_geom.extract_submesh_all_mats(emitter_mesh,
-            ["a_position", "a_normal"], null, render);
+            ["a_position", "a_tbn"], null, render);
 
-    var pos_norm = distribute_positions_normals(pcount, emit_from,
+    var pos_tbn = distribute_positions_tbn(pcount, emit_from,
             emitter_submesh);
-    var positions = pos_norm[0];
-    var normals = pos_norm[1];
+    var positions = pos_tbn[0];
+    var tbn = pos_tbn[1];
 
     pdata.positions = new Float32Array(positions);
-    pdata.normals = new Float32Array(normals);
+    pdata.tbn = new Float32Array(tbn);
     pdata.positions_cache = new Float32Array(positions.length);
-    pdata.normals_cache = new Float32Array(normals.length);
+    pdata.tbn_cache = new Float32Array(tbn.length);
 
     var delay_attrs = gen_delay_attrs(pcount, time_start, time_end,
                                       is_rand_delay, cyclic);
@@ -326,19 +398,18 @@ exports.generate_emitter_particles_submesh = function(batch, emitter_mesh,
             for (var j = 0; j < 8; j++)
                 pdata.emitter_tsr_snapshots[8 * i + j] = tsr[j];
 
-        pose_emitter_world(pdata, positions, normals, tsr,
-                positions, normals);
+        pose_emitter_world(pdata, positions, tbn, tsr, positions, tbn);
     }
 
-    var submesh = m_util.create_empty_submesh("EMITTER_PARTICLES");
+    var submesh = m_geom.init_submesh("EMITTER_PARTICLES");
     var va_frame = m_util.create_empty_va_frame();
     va_frame["a_position"] = positions;
-    va_frame["a_normal"] = normals;
+    va_frame["a_tbn"] = tbn;
     submesh.va_frames[0] = va_frame;
 
     batch.draw_mode = m_geom.DM_DYNAMIC_TRIANGLES;
     submesh.indices = gen_bb_indices(pcount);
-    submesh.va_common["a_p_bb_vertex"] = gen_bb_vertices(pcount);
+    submesh.va_common["a_p_bb_vertex"] = m_geom.gen_bb_vertices(pcount);
 
     submesh.base_length = positions.length/3;
     var larr = gen_lifetimes(pcount, lifetime, lifetime_random);
@@ -352,10 +423,11 @@ exports.generate_emitter_particles_submesh = function(batch, emitter_mesh,
 }
 
 /**
- * Recalculate particles position/normals in world space.
+ * Recalculate particles position/tbn in world space.
  */
-function pose_emitter_world(pdata, positions, normals, tsr,
-                            positions_new, normals_new) {
+function pose_emitter_world(pdata, positions, tbn, tsr,
+                            positions_new, tbn_new) {
+
     var delay_attrs = pdata.delay_attrs;
     var em_snapshots = pdata.emitter_tsr_snapshots;
     var time = pdata.time;
@@ -391,25 +463,19 @@ function pose_emitter_world(pdata, positions, normals, tsr,
         positions_new[3 * j + 1] = pos[1];
         positions_new[3 * j + 2] = pos[2];
 
-        // normals
-        var norm = _vec3_tmp;
-        norm[0] = normals[3 * j];
-        norm[1] = normals[3 * j + 1];
-        norm[2] = normals[3 * j + 2];
+        var cur_tbn = m_tbn.get_item(tbn, j, _tbn_tmp);
 
-        m_tsr.transform_dir_vec3(norm, _tsr_tmp, norm);
+        m_tbn.multiply_tsr(cur_tbn, _tsr_tmp, cur_tbn);
 
-        normals_new[3 * j]     = norm[0];
-        normals_new[3 * j + 1] = norm[1];
-        normals_new[3 * j + 2] = norm[2];
+        m_tbn.set_item(tbn_new, cur_tbn, j);
 
+        // same transform for the rest corners (billboard)
         for (var k = 1; k < 4; k++) {
             positions_new[3 * (j + k)]     = positions_new[3 * j];
             positions_new[3 * (j + k) + 1] = positions_new[3 * j + 1];
             positions_new[3 * (j + k) + 2] = positions_new[3 * j + 2];
-            normals_new[3 * (j + k)]       = norm[0];
-            normals_new[3 * (j + k) + 1]   = norm[1];
-            normals_new[3 * (j + k) + 2]   = norm[2];
+
+            m_tbn.set_item(tbn_new, cur_tbn, j + k);
         }
     }
 }
@@ -423,13 +489,13 @@ function update_emitter_transform(obj, batches) {
             continue;
 
         var pcache = pdata.positions_cache;
-        var ncache = pdata.normals_cache;
+        var tbncache = pdata.tbn_cache;
 
         var positions = pdata.positions;
-        var normals = pdata.normals;
+        var tbn = pdata.tbn;
 
-        pose_emitter_world(pdata, positions, normals, obj.render.world_tsr,
-                     pcache, ncache);
+        pose_emitter_world(pdata, positions, tbn,
+                obj.render.world_tsr, pcache, tbncache);
 
         pdata.need_buffers_update = true;
     }
@@ -454,20 +520,6 @@ function init_particle_rand(seed) {
     }
 }
 
-/**
- * Generate billboard vertices
- */
-function gen_bb_vertices(pcount) {
-    var bbv = [];
-
-    for (var i = 0; i < pcount; i++) {
-        bbv.push(-0.5,-0.5, -0.5,0.5, 0.5,0.5, 0.5,-0.5);
-    }
-
-    var bb_vertices = new Float32Array(bbv);
-    return bb_vertices;
-}
-
 function gen_bb_indices(pcount) {
     var bbi = [];
 
@@ -480,27 +532,29 @@ function gen_bb_indices(pcount) {
     return bb_indices;
 }
 
-function distribute_positions_normals(pcount, emit_from, emitter_submesh) {
+function distribute_positions_tbn(pcount, emit_from, emitter_submesh) {
     switch (emit_from) {
     case "VERT":
 
         var ecoords = emitter_submesh.va_frames[0]["a_position"];
-        var encoords = emitter_submesh.va_frames[0]["a_normal"];
+        var etbncoords = emitter_submesh.va_frames[0]["a_tbn"];
 
         var pindices = gen_pindices(pcount, ecoords);
         var positions = gen_positions(pindices, ecoords);
-        var normals = gen_normals(pindices, encoords);
+        var tbn = gen_tbn(pindices, etbncoords);
         break;
     case "FACE":
         var positions = [];
-        var normals = [];
+        var tbn = [];
 
         // TODO: get seed from particle system
         var seed = [];
         m_util.init_rand_r_seed(0, seed);
         var rand_pos = m_geom.geometry_random_points(emitter_submesh, pcount, false, seed);
         m_util.init_rand_r_seed(0, seed);
-        var rand_norm = m_geom.geometry_random_points(emitter_submesh, pcount, true, seed);
+        var rand_tbn = m_geom.geometry_random_points(emitter_submesh, pcount, true, seed);
+
+        tbn = m_tbn.create(rand_pos.length * 4);
 
         for (var i = 0; i < rand_pos.length; i++) {
 
@@ -509,15 +563,13 @@ function distribute_positions_normals(pcount, emit_from, emitter_submesh) {
             positions.push(rand_pos[i][0], rand_pos[i][1], rand_pos[i][2]);
             positions.push(rand_pos[i][0], rand_pos[i][1], rand_pos[i][2]);
 
-
-            normals.push(rand_norm[i][0], rand_norm[i][1], rand_norm[i][2]);
-            normals.push(rand_norm[i][0], rand_norm[i][1], rand_norm[i][2]);
-            normals.push(rand_norm[i][0], rand_norm[i][1], rand_norm[i][2]);
-            normals.push(rand_norm[i][0], rand_norm[i][1], rand_norm[i][2]);
+            m_tbn.set_item(tbn, rand_tbn[i], 4 * i);
+            m_tbn.set_item(tbn, rand_tbn[i], 4 * i + 1);
+            m_tbn.set_item(tbn, rand_tbn[i], 4 * i + 2);
+            m_tbn.set_item(tbn, rand_tbn[i], 4 * i + 3);
         }
 
-        var positions = new Float32Array(positions);
-        var normals = new Float32Array(normals);
+        positions = new Float32Array(positions);
 
         break;
     case "VOLUME":
@@ -528,7 +580,7 @@ function distribute_positions_normals(pcount, emit_from, emitter_submesh) {
         break;
     }
 
-    return [positions, normals];
+    return [positions, tbn];
 }
 
 /**
@@ -567,20 +619,16 @@ function gen_positions(indices, ecoords) {
     return positions;
 }
 
-function gen_normals(indices, encoords) {
-    var narr = [];
+function gen_tbn(indices, etbncoords) {
+    var tbn = m_tbn.create(indices.length);
 
     for (var i = 0; i < indices.length; i++) {
-
-        narr.push(encoords[3*indices[i]]);
-        narr.push(encoords[3*indices[i] + 1]);
-        narr.push(encoords[3*indices[i] + 2]);
+        var cur_tbn = m_tbn.get_item(etbncoords, indices[i], _tbn_tmp);
+        m_tbn.set_item(tbn, cur_tbn, i);
     }
 
-    var normals = new Float32Array(narr);
-    return normals;
+    return tbn;
 }
-
 
 function gen_delay_attrs(pcount, mindelay, maxdelay, random, cyclic) {
     var darr = [];
@@ -703,7 +751,6 @@ exports.prepare_lens_flares = function(submesh) {
 
     var base_length = submesh.base_length;
     var sub_pos = submesh.va_frames[0]["a_position"];
-    var sub_tco = submesh.va_common["a_texcoord"];
 
     var bb_dist_arr = [];
     var bb_vert_arr = [];
@@ -711,17 +758,15 @@ exports.prepare_lens_flares = function(submesh) {
     for (var i = 0; i < base_length; i++) {
 
         bb_vert_arr.push(sub_pos[3*i]);
-        bb_vert_arr.push(sub_pos[3*i + 1]);
-
-        bb_dist_arr.push(sub_pos[3*i + 2]);
+        bb_dist_arr.push(sub_pos[3*i + 1]);
+        bb_vert_arr.push(sub_pos[3*i + 2]);
     }
 
-    var bb_dist_arr = new Float32Array(bb_dist_arr);
-    var bb_vert_arr = new Float32Array(bb_vert_arr);
+    bb_dist_arr = new Float32Array(bb_dist_arr);
+    bb_vert_arr = new Float32Array(bb_vert_arr);
 
     submesh.va_common["a_lf_dist"] = bb_dist_arr;
     submesh.va_common["a_lf_bb_vertex"] = bb_vert_arr;
-    submesh.va_common["a_texcoord"] = sub_tco;
 
     return submesh;
 }
@@ -756,6 +801,23 @@ exports.set_normal_factor = function(obj, psys_name, nfactor) {
     }
 }
 
+exports.get_normal_factor = function(obj, psys_name) {
+    var scenes_data = obj.scenes_data;
+    for (var i = 0; i < scenes_data.length; i++) {
+        var batches = scenes_data[i].batches;
+        for (var j = 0; j < batches.length; j++) {
+            var pdata = batches[j].particles_data;
+
+            if (!pdata || pdata.name != psys_name)
+                continue;
+
+            return pdata.nfactor;
+        }
+    }
+
+    return 0;
+}
+
 exports.set_factor = function(obj, psys_name, factor) {
     var scenes_data = obj.scenes_data;
     for (var i = 0; i < scenes_data.length; i++) {
@@ -766,6 +828,8 @@ exports.set_factor = function(obj, psys_name, factor) {
 
             if (!pdata || pdata.name != psys_name)
                 continue;
+
+            pdata.count_factor = factor;
 
             var delay_attrs = pdata.delay_attrs;
 
@@ -803,8 +867,6 @@ exports.set_factor = function(obj, psys_name, factor) {
             var pointers = pbuf.pointers;
             var pointer = pointers["a_p_data"];
             if (pointer) {
-                var vbo_array = pbuf.vbo_array;
-                var end = 3 * delay_attrs_masked.length;
                 var p_data = pdata.p_data;
                 for (var k = 0; k < p_data.length; k=k+3)
                     p_data[k + 1] = delay_attrs_masked[Math.round(k / 3)];
@@ -839,25 +901,14 @@ exports.update_start_pos = function(obj, trans, quats) {
 
 exports.update_particles_submesh = function(submesh, batch, pcount, material) {
 
-    // if (material["use_orco_tex_coord"]) {
-    //     var data = [];
-    //     for (var i = 0; i < pcount; i++)
-    //         data.push(0, 0, 0, 1, 1, 1, 1, 0);
-    //     submesh.va_common["a_orco_tex_coord"] = new Float32Array(data);
-    // }
-
-    if (batch.part_use_tangent) {
-        var data = [];
-        for (var i = 0; i < pcount; i++)
-            data.push(1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1);
-        submesh.va_common["a_tangent"] = new Float32Array(data);
-    }
+    submesh.va_common["a_tbn"] = m_tbn.create(4 * pcount);
+    m_tbn.identity(submesh.va_common["a_tbn"]);
 
     if (batch.part_node_data) {
-        var data = [];
+        var node_data = [];
         for (var i = 0; i < pcount; i++)
-            data.push(i, i, i, i);
-        submesh.va_common[batch.part_node_data.name] = new Float32Array(data);
+            node_data.push(i, i, i, i);
+        submesh.va_common[batch.part_node_data.name] = new Float32Array(node_data);
     }
 }
 

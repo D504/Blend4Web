@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -49,9 +48,13 @@ exports.setup_context = function(gl) {
 exports.get_s3tc = function() {
 
     var ext_s3tc = get(       "WEBGL_compressed_texture_s3tc") ||
-                   get("WEBKIT_WEBGL_compressed_texture_s3tc") ||
-                   get(   "MOZ_WEBGL_compressed_texture_s3tc");
+                   get("WEBKIT_WEBGL_compressed_texture_s3tc");
     return ext_s3tc;
+}
+exports.get_pvr = function() {
+    var ext_pvr = get("WEBKIT_WEBGL_compressed_texture_pvrtc") ||
+            get("WEBGL_compressed_texture_pvrtc");
+    return ext_pvr;
 }
 
 /**
@@ -61,11 +64,10 @@ exports.get_s3tc = function() {
 exports.get_depth_texture = function() {
 
     if (cfg_def.webgl2)
-        return {};
+        return webgl2_get("WEBGL_depth_texture");
 
     var ext_dtex = get(       "WEBGL_depth_texture") ||
-                   get("WEBKIT_WEBGL_depth_texture") || 
-                   get(   "MOZ_WEBGL_depth_texture");
+                   get("WEBKIT_WEBGL_depth_texture");
     return ext_dtex;
 }
 
@@ -76,9 +78,17 @@ exports.get_depth_texture = function() {
 exports.get_aniso = function() {
 
     var ext_aniso = get(       "EXT_texture_filter_anisotropic") ||
-                    get("WEBKIT_EXT_texture_filter_anisotropic") ||
-                    get(   "MOZ_EXT_texture_filter_anisotropic");
+                    get("WEBKIT_EXT_texture_filter_anisotropic");
     return ext_aniso;
+}
+
+exports.get_texture_lod = function() {
+
+    if (cfg_def.webgl2)
+        return webgl2_get("EXT_shader_texture_lod");
+
+    var ext_tex_lod = get("EXT_shader_texture_lod");
+    return ext_tex_lod;
 }
 
 /**
@@ -108,7 +118,7 @@ exports.get_renderer_info = function() {
 exports.get_elem_index_uint = function() {
 
     if (cfg_def.webgl2)
-        return {};
+        return webgl2_get("OES_element_index_uint");
 
     var ext_elem_index_uint = get("OES_element_index_uint");
     return ext_elem_index_uint;
@@ -120,9 +130,8 @@ exports.get_elem_index_uint = function() {
  */
 exports.get_standard_derivatives = function() {
 
-    // NOTE: disable until shaders will be converted to GLSL 3.0
     if (cfg_def.webgl2)
-        return null;
+        return webgl2_get("OES_standard_derivatives");
 
     var ext_standard_derivatives = get("OES_standard_derivatives");
     return ext_standard_derivatives;
@@ -133,17 +142,108 @@ exports.get_standard_derivatives = function() {
  * @methodOf extensions
  */
 exports.get_disjoint_timer_query = function() {
-    var ext = get("EXT_disjoint_timer_query");
-    return ext;
+    if (cfg_def.webgl2)
+        var ext = webgl2_get("EXT_disjoint_timer_query_webgl2");
+    else
+        var ext = get("EXT_disjoint_timer_query");
+
+    if (ext == null)
+        return ext;
+
+    if (ext.createQueryEXT)
+        var ext_complete = {
+            createQuery: function() {
+                return ext.createQueryEXT();
+            },
+            beginQuery: function(query) {
+                ext.beginQueryEXT(ext.TIME_ELAPSED_EXT, query);
+            },
+            endQuery: function() {
+                ext.endQueryEXT(ext.TIME_ELAPSED_EXT);
+            },
+            getQueryAvailable: function(query) {
+                return ext.getQueryObjectEXT(query, ext.QUERY_RESULT_AVAILABLE_EXT);
+            },
+            getQueryObject: function(query) {
+                return ext.getQueryObjectEXT(query, ext.QUERY_RESULT_EXT);
+            },
+            getDisjoint: function() {
+                return ext.GPU_DISJOINT_EXT;
+            }
+        };
+    else
+        var ext_complete = {
+            createQuery: function() {
+                return _gl.createQuery();
+            },
+            beginQuery: function(query) {
+                _gl.beginQuery(ext.TIME_ELAPSED_EXT, query);
+            },
+            endQuery: function() {
+                _gl.endQuery(ext.TIME_ELAPSED_EXT);
+            },
+            getQueryAvailable: function(query) {
+                return _gl.getQueryParameter(query, _gl.QUERY_RESULT_AVAILABLE);
+            },
+            getQueryObject: function(query) {
+                return _gl.getQueryParameter(query, _gl.QUERY_RESULT);
+            },
+            getDisjoint: function() {
+                return ext.GPU_DISJOINT_EXT;
+            }
+        };
+
+    return ext_complete;
 }
 
 exports.get_instanced_arrays = function() {
 
     if (cfg_def.webgl2)
-        return null;
+        return webgl2_get("ANGLE_instanced_arrays");
 
     var ext = get("ANGLE_instanced_arrays");
-    return ext;
+    if (ext == null)
+        return ext;
+
+    var ext_complete = {
+        drawElementsInstanced: function(mode, count, type, offset, primcount) {
+            ext.drawElementsInstancedANGLE(mode, count, type, offset,
+                    primcount);
+        },
+        vertexAttribDivisor: function(loc, div) {
+            ext.vertexAttribDivisorANGLE(loc, div);
+        },
+        drawArraysInstanced: function(mode, first, count, primcount) {
+            ext.drawArraysInstancedANGLE(mode, first, count, primcount);
+        }
+    }
+    return ext_complete;
+}
+
+exports.get_vertex_array_object = function() {
+
+    if (cfg_def.webgl2)
+        return webgl2_get("OES_vertex_array_object");
+
+    var ext = get("OES_vertex_array_object");
+    if (ext == null)
+        return ext;
+
+    var ext_complete = {
+        bindVertexArray: function(vao) {
+            ext.bindVertexArrayOES(vao);
+        },
+        createVertexArray: function() {
+            return ext.createVertexArrayOES();
+        },
+        deleteVertexArray: function(vao) {
+            ext.deleteVertexArrayOES(vao);
+        },
+        isVertexArray: function(vao) {
+            return ext.isVertexArrayOES(vao);
+        }
+    }
+    return ext_complete;
 }
 
 function get(name) {
@@ -165,11 +265,48 @@ function get(name) {
     return ext;
 }
 
+function webgl2_get(name) {
+
+    if (name in _ext_cache)
+        return _ext_cache[name];
+
+    switch(name) {
+    case "WEBGL_depth_texture":
+    case "OES_element_index_uint":
+    case "OES_standard_derivatives":
+    case "EXT_shader_texture_lod":
+        var ext = {};
+        break;
+    case "ANGLE_instanced_arrays":
+    case "OES_vertex_array_object":
+        var ext = _gl;
+        break;
+    default:
+        var ext = _gl.getExtension(name) || null;
+        break;
+    }
+
+    _ext_cache[name] = ext;
+
+    if (ext)
+        var color = "0a0";
+    else
+        var color = "a00";
+
+    m_print.log("%cGET EXTENSION (WebGL 2)", "color: #" + color, name);
+
+    return ext;
+}
+
 /**
  * Perform module cleanup
  */
 exports.cleanup = function() {
     _ext_cache = {};
+}
+
+exports.reset = function() {
+    _gl = null;
 }
 
 }

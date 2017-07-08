@@ -1,33 +1,48 @@
-// lamp dirs
+#version GLSL_VERSION
+
+/*==============================================================================
+                                    VARS
+==============================================================================*/
+#var PRECISION highp
+
 #var NUM_LIGHTS 0
-#var LAMP_IND 0
-#var LAMP_SPOT_SIZE 0
-#var LAMP_SPOT_BLEND 0
-#var LAMP_LIGHT_DIST 0
-#var LAMP_LIGHT_FACT_IND 0
-#var LAMP_FAC_CHANNELS rgb
-#var LAMP_SHADOW_MAP_IND 0
-#var NUM_LFACTORS 0
-#var NUM_VALUES 0
-#var NUM_RGBS 0
-#var NUM_LAMP_LIGHTS 0
+#var SKY_TEXTURE 0
+#var SKY_COLOR 0
+#var PROCEDURAL_FOG 0
+#var TEXTURE_BLEND_TYPE TEXTURE_BLEND_TYPE_MIX
 
-#include <std_enums.glsl>
+#var ALPHA 0
+#var ALPHA_CLIP 0
 
+#var SOFT_STRENGTH 0.25
+
+#var SOFT_PARTICLES 0
+#var NODES 0
+#var HALO_PARTICLES 0
+#var TEXTURE_COLOR 0
+#var USE_ENVIRONMENT_LIGHT 0
+#var SKY_STARS 0
+#var DISABLE_FOG 0
+#var WATER_EFFECTS 0
+#var USE_FOG 0
+#var PARTICLES_SHADELESS 0
+#var USE_TBN_SHADING 0
+
+/*==============================================================================
+                                  INCLUDES
+==============================================================================*/
 #include <precision_statement.glslf>
+#include <std.glsl>
+
+
 #include <color_util.glslf>
 #if SOFT_PARTICLES || NODES
 #include <pack.glslf>
 #endif
 
-#var PARTICLES_SHADELESS 0
-#var SOFT_STRENGTH 1.0
-
-
-
-/*============================================================================
+/*==============================================================================
                                GLOBAL UNIFORMS
-============================================================================*/
+==============================================================================*/
 
 #if !HALO_PARTICLES
 
@@ -38,10 +53,10 @@ uniform sampler2D u_sampler;
 uniform float u_environment_energy;
 
 # if NUM_LIGHTS > 0
-uniform vec3 u_light_positions[NUM_LIGHTS];
+// light_factors packed in the w componnets
+uniform vec4 u_light_positions[NUM_LIGHTS];
 uniform vec3 u_light_directions[NUM_LIGHTS];
-uniform vec3 u_light_color_intensities[NUM_LIGHTS];
-uniform vec4 u_light_factors[NUM_LFACTORS];
+uniform vec4 u_light_color_intensities[NUM_LIGHTS];
 # endif
 
 # if TEXTURE_COLOR
@@ -55,9 +70,9 @@ uniform vec3 u_horizon_color;
 uniform vec3 u_zenith_color;
 # endif
 
-/*============================================================================
+/*==============================================================================
                                MATERIAL UNIFORMS
-============================================================================*/
+==============================================================================*/
 
 uniform vec2 u_diffuse_params;
 uniform float u_diffuse_intensity;
@@ -104,45 +119,56 @@ uniform PRECISION sampler2D u_scene_depth;
 uniform float u_view_max_depth;
 #endif
 
-/*============================================================================
-                                   VARYINGS
-============================================================================*/
+/*==============================================================================
+                                SHADER INTERFACE
+==============================================================================*/
 #if SOFT_PARTICLES
-varying vec3 v_tex_pos_clip;
+GLSL_IN vec3 v_tex_pos_clip;
 #endif
 
 #if TEXTURE_COLOR || HALO_PARTICLES || USE_NODE_TEX_COORD_UV || USE_NODE_UV_MERGED \
-        || USE_NODE_UVMAP || USE_NODE_GEOMETRY_UV || USE_NODE_GEOMETRY_OR || USE_NODE_TEX_COORD_GE
-varying vec2 v_texcoord;
+        || USE_NODE_UVMAP || USE_NODE_GEOMETRY_UV || USE_NODE_GEOMETRY_OR \
+        || USE_NODE_TEX_COORD_GE
+GLSL_IN vec2 v_texcoord;
 #endif
 
-varying vec3 v_pos_world;
+GLSL_IN vec3 v_pos_world;
 
 #if !NODES
 # if !HALO_PARTICLES
-varying float v_alpha;
+GLSL_IN float v_alpha;
 # endif
-varying vec3 v_color;
+GLSL_IN vec3 v_color;
 #endif
 
 #if !PARTICLES_SHADELESS || !DISABLE_FOG
-varying vec3 v_eye_dir;
+GLSL_IN vec3 v_eye_dir;
 #endif
 
 #if SOFT_PARTICLES || !DISABLE_FOG || NODES
-varying vec4 v_pos_view;
+GLSL_IN vec4 v_pos_view;
 #endif
 
 #if HALO_PARTICLES
-varying float v_vertex_random;
+GLSL_IN float v_vertex_random;
 # if SKY_STARS
-varying vec4 v_position_world;
+GLSL_IN vec4 v_position_world;
 # endif
 #endif
 
-/*============================================================================
+#if USE_TBN_SHADING
+GLSL_IN vec3 v_shade_tang;
+#endif
+
+GLSL_IN vec3 v_normal;
+
+//------------------------------------------------------------------------------
+
+GLSL_OUT vec4 GLSL_OUT_FRAG_COLOR;
+
+/*==============================================================================
                                   FUNCTIONS
-============================================================================*/
+==============================================================================*/
 #include <lighting_nodes.glslf>
 #if !DISABLE_FOG
 #include <fog.glslf>
@@ -156,9 +182,9 @@ varying vec4 v_position_world;
 #include <halo_color.glslf>
 #endif
 
-/*============================================================================
+/*==============================================================================
                                     MAIN
-============================================================================*/
+==============================================================================*/
 
 void main(void) {
 
@@ -179,7 +205,7 @@ void main(void) {
     vec4 diffuse_color = u_diffuse_color;
 
 #  if TEXTURE_COLOR
-        vec4 texture_color = texture2D(u_sampler, v_texcoord);
+        vec4 texture_color = GLSL_TEXTURE(u_sampler, v_texcoord);
         srgb_to_lin(texture_color.rgb);
 #   if TEXTURE_BLEND_TYPE == TEXTURE_BLEND_TYPE_MIX
         diffuse_color.rgb = mix(diffuse_color.rgb, texture_color.rgb, u_diffuse_color_factor);
@@ -196,7 +222,7 @@ void main(void) {
     
     vec3 E = u_emit * diffuse_color.rgb;
 
-    vec3 normal = vec3(0.0, 1.0, 0.0);
+    vec3 normal = normalize(v_normal);
 
 #   if USE_ENVIRONMENT_LIGHT && !SKY_TEXTURE && SKY_COLOR
         vec3 environment_color = u_environment_energy * get_environment_color(vec3(0.0));
@@ -214,7 +240,7 @@ void main(void) {
     vec3 specular;
     nodes_lighting(E, A, D, S, v_pos_world, normal, eye_dir, spec_params, 
             u_diffuse_params, vec4(1.0), 0.0, vec4(0.0), color, specular);
-        
+
 #  else // !PARTICLES_SHADELESS
         vec3 color = diffuse_color.rgb;
 #  endif // !PARTICLES_SHADELESS
@@ -239,7 +265,7 @@ void main(void) {
 
 #if SOFT_PARTICLES
     float view_depth = -v_pos_view.z / u_view_max_depth;
-    vec4 scene_depth_rgba = texture2DProj(u_scene_depth, v_tex_pos_clip);
+    vec4 scene_depth_rgba = GLSL_TEXTURE_PROJ(u_scene_depth, v_tex_pos_clip);
     float scene_depth = unpack_float(scene_depth_rgba);
     float delta = scene_depth - view_depth;
     float depth_diff = u_view_max_depth / SOFT_STRENGTH * delta;
@@ -249,5 +275,5 @@ void main(void) {
 #if ALPHA && !ALPHA_CLIP 
     premultiply_alpha(color, alpha);
 #endif
-    gl_FragColor = vec4(color, alpha);
+    GLSL_OUT_FRAG_COLOR = vec4(color, alpha);
 }

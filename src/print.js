@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -51,6 +50,7 @@ exports.log = function() {
     }
 }
 
+exports.compose_args_prefix = compose_args_prefix;
 function compose_args_prefix(args_in, prefix) {
     var args_out = [];
 
@@ -100,8 +100,11 @@ exports.error_deprecated_arr = function(depr_func, new_func_arr) {
 }
 
 exports.error_deprecated_cfg = function(depr_cfg, new_cfg) {
-    error_once("Config option \"" + depr_cfg + "\" is deprecated, use \"" +
-            new_cfg + "\" instead.");
+    if (new_cfg === undefined)
+        error_once("Config option \"" + depr_cfg + "\" is deprecated.");
+    else
+        error_once("Config option \"" + depr_cfg + "\" is deprecated, use \"" +
+                new_cfg + "\" instead.");
 }
 
 exports.warn = function() {
@@ -144,18 +147,15 @@ exports.timeEnd = function() {
 }
 
 exports.group = function() {
-    if (_verbose)
-        console.group.apply(console, arguments);
+    console.group.apply(console, arguments);
 }
 
 exports.groupCollapsed = function() {
-    if (_verbose)
-        console.groupCollapsed.apply(console, arguments);
+    console.groupCollapsed.apply(console, arguments);
 }
 
 exports.groupEnd = function() {
-    if (_verbose)
-        console.groupEnd.apply(console, arguments);
+    console.groupEnd.apply(console, arguments);
 }
 
 exports.clear = function() {

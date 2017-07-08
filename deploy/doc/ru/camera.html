@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Камера &mdash; Руководство пользователя Blend4Web 16.07</title>
+  <title>Камера &mdash; Руководство пользователя Blend4Web 17.06</title>
   
 
   
@@ -32,7 +32,7 @@
   
         <link rel="author" title="Об этих документах"
               href="about.html"/>
-    <link rel="top" title="Руководство пользователя Blend4Web 16.07" href="index.html"/>
+    <link rel="top" title="Руководство пользователя Blend4Web 17.06" href="index.html"/>
         <link rel="next" title="Материалы" href="materials.html"/>
         <link rel="prev" title="Редактор нормалей" href="normal_editor.html"/> 
 
@@ -61,7 +61,7 @@
           
           
             <div class="version">
-              v16.07
+              v17.06
             </div>
           
         
@@ -265,7 +265,7 @@
 <div class="line"><br /></div>
 </div>
 <div class="section" id="target-type-camera">
-<h3><a class="toc-backref" href="#id5">Камера типа Target</a><a class="headerlink" href="#target-type-camera" title="Ссылка на этот заголовок">¶</a></h3>
+<span id="camera-target-type"></span><h3><a class="toc-backref" href="#id5">Камера типа Target</a><a class="headerlink" href="#target-type-camera" title="Ссылка на этот заголовок">¶</a></h3>
 <a class="reference internal image-reference" href="_images/camera_limits_target.png"><img alt="_images/camera_limits_target.png" class="align-center" src="_images/camera_limits_target.png" style="width: 100%;" /></a>
 <dl class="docutils">
 <dt><em>Camera Move Style &gt; Camera Limits &gt; Distance Limits</em></dt>
@@ -303,7 +303,7 @@
 </div>
 </div>
 <div class="section" id="eye-type-camera">
-<h3><a class="toc-backref" href="#id6">Камера типа Eye</a><a class="headerlink" href="#eye-type-camera" title="Ссылка на этот заголовок">¶</a></h3>
+<span id="camera-eye-type"></span><h3><a class="toc-backref" href="#id6">Камера типа Eye</a><a class="headerlink" href="#eye-type-camera" title="Ссылка на этот заголовок">¶</a></h3>
 <a class="reference internal image-reference" href="_images/camera_limits_eye.png"><img alt="_images/camera_limits_eye.png" class="align-center" src="_images/camera_limits_eye.png" style="width: 100%;" /></a>
 <dl class="docutils">
 <dt><em>Blend4Web &gt; Horizontal Rotation Limits</em></dt>
@@ -324,7 +324,7 @@
 </div>
 </div>
 <div class="section" id="hover-type-camera">
-<h3><a class="toc-backref" href="#id7">Камера типа Hover</a><a class="headerlink" href="#hover-type-camera" title="Ссылка на этот заголовок">¶</a></h3>
+<span id="camera-hover-type"></span><h3><a class="toc-backref" href="#id7">Камера типа Hover</a><a class="headerlink" href="#hover-type-camera" title="Ссылка на этот заголовок">¶</a></h3>
 <a class="reference internal image-reference" href="_images/camera_limits_hover.png"><img alt="_images/camera_limits_hover.png" class="align-center" src="_images/camera_limits_hover.png" style="width: 100%;" /></a>
 <dl class="docutils">
 <dt><em>Camera Move Style &gt; Camera Limits &gt; Horizontal Translation Limits</em></dt>
@@ -364,7 +364,7 @@
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p><strong>Камера типа Static</strong></p>
+<p id="camera-static-type"><strong>Камера типа Static</strong></p>
 <a class="reference internal image-reference" href="_images/camera_limits_static.png"><img alt="_images/camera_limits_static.png" class="align-center" src="_images/camera_limits_static.png" style="width: 100%;" /></a>
 <p>Камера этого типа не имеет ограничителей, так как не контролируется пользователем.</p>
 <div class="line-block">
@@ -439,7 +439,7 @@
 <dd><p class="first last">Расстояние между камерой и объектом, привязанным к ней. По умолчанию равно 10.</p>
 </dd>
 <dt><em>Fit to Camera</em></dt>
-<dd><p class="first last">Нажатие на эту кнопку раположит объект относительно камеры так, как он будет располагаться в движке. Может использоваться для предварительного просмотра результатов привязки.</p>
+<dd><p class="first last">Нажатие на эту кнопку расположит объект относительно камеры так, как он будет располагаться в движке. Может использоваться для предварительного просмотра результатов привязки.</p>
 </dd>
 </dl>
 </div>
@@ -485,7 +485,7 @@
 <span class="nx">m_cam</span><span class="p">.</span><span class="nx">target_setup</span><span class="p">(</span><span class="nx">camera</span><span class="p">,</span> <span class="p">{</span> <span class="nx">pos</span><span class="o">:</span> <span class="nx">POS</span><span class="p">,</span> <span class="nx">pivot</span><span class="o">:</span> <span class="nx">LOOK_AT</span><span class="p">,</span>
         <span class="nx">dist_lim</span><span class="o">:</span> <span class="nx">TARGET_DIST_LIMITS</span><span class="p">,</span> <span class="nx">use_panning</span><span class="o">:</span> <span class="kc">true</span> <span class="p">});</span>
 
-<span class="c1">// setup HOVER camera on a fixed distance (without zooming) reltively to its pivot</span>
+<span class="c1">// setup HOVER camera on a fixed distance (without zooming) relatively to its pivot</span>
 <span class="nx">m_cam</span><span class="p">.</span><span class="nx">hover_setup</span><span class="p">(</span><span class="nx">camera</span><span class="p">,</span> <span class="p">{</span> <span class="nx">pos</span><span class="o">:</span> <span class="nx">POS</span><span class="p">,</span> <span class="nx">pivot</span><span class="o">:</span> <span class="nx">LOOK_AT</span> <span class="p">});</span>
 
 <span class="c1">// setup HOVER camera with zooming (distance + angle limits)</span>
@@ -654,18 +654,6 @@
 <p class="first admonition-title">Примечание</p>
 <p class="last">В режиме HOVER у камеры всегда есть лимиты по дистанции и углу подъёма. В случае, если они не были заданы, лимиты автоматически рассчитываются так, чтобы зафиксировать камеру в текущем положении относительно опорной точки.</p>
 </div>
-<div class="admonition note" id="hover-translation-limits">
-<p class="first admonition-title">Примечание</p>
-<p>При выставлении лимитов перемещения для камеры типа <code class="docutils literal"><span class="pre">HOVER</span></code> значения лимитов будут соответствовать осям системы координат движка:</p>
-<ul class="simple">
-<li><p class="first"><code class="docutils literal"><span class="pre">Horizontal</span> <span class="pre">Translation</span> <span class="pre">Limits</span></code> - ось X</p>
-</li>
-<li><p class="first"><code class="docutils literal"><span class="pre">Vertical</span> <span class="pre">Translation</span> <span class="pre">Limits</span></code> - ось Z</p>
-</li>
-</ul>
-<a class="last reference internal image-reference" href="_images/b4w_hover_trans_limits.svg"><div align="center" class="align-center"><img src="_images/b4w_hover_trans_limits.svg" width="100%" /></div>
-</a>
-</div>
 <div class="admonition note">
 <p class="first admonition-title">Примечание</p>
 <p class="last">Присутствующие на камере лимиты могут влиять на её позицию и ориентацию, выставляемые через API.</p>
@@ -674,7 +662,7 @@
 <div class="section" id="angular-coordinates-count">
 <span id="camera-spherical-coordinates"></span><h3><a class="toc-backref" href="#id13">Отсчет угловых координат</a><a class="headerlink" href="#angular-coordinates-count" title="Ссылка на этот заголовок">¶</a></h3>
 <blockquote>
-<div><p>При работе с камерой через API (вращение, выставление ограничений) отсчет угловых координат ведется в <a class="reference internal" href="objects.html#b4w-blender-coordinates"><span>системе координат движка</span></a> следующим образом:</p>
+<div><p>При работе с камерой через API (вращение, выставление ограничений) отсчет угловых координат ведется следующим образом:</p>
 <p>Для типов <code class="docutils literal"><span class="pre">TARGET/HOVER</span></code>:</p>
 </div></blockquote>
 <a class="reference internal image-reference" href="_images/b4w_target_hover_cam_angles.svg"><div align="center" class="align-center"><img src="_images/b4w_target_hover_cam_angles.svg" width="100%" /></div>
@@ -705,8 +693,8 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2014-2016, Триумф.
-      Обновлено: 2016-07-26.
+        &copy; Copyright 2014-2017, Триумф.
+      Обновлено: 2017-06-30.
 
     </p>
   </div>
@@ -762,7 +750,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'v16.07',
+            VERSION:'v17.06',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

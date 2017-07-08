@@ -17,7 +17,7 @@ def get_proj_cfg(proj_dir):
     Get the cfg_parser object from '.b4w_project' file.
     """
     b4w_proj_cfg = configparser.ConfigParser()
-    b4w_proj_cfg.read(join(proj_dir, ".b4w_project"))
+    b4w_proj_cfg.read(join(proj_dir, ".b4w_project"), encoding="utf-8")
 
     return b4w_proj_cfg
 
@@ -73,7 +73,15 @@ def csv_str_to_dict(s):
             key_val.append("")
         key_vals.append(tuple(key_val))
 
-    return OrderedDict(key_vals)
+    refactered_key_vals = []
+
+    for key_val in key_vals:
+        refactered_key_vals.append(key_val[:2])
+
+    try:
+        return OrderedDict(refactered_key_vals)
+    except:
+        return OrderedDict()
 
 def dict_to_csv_str(d):
     items = []

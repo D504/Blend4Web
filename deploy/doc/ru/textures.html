@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Текстуры &mdash; Руководство пользователя Blend4Web 16.07</title>
+  <title>Текстуры &mdash; Руководство пользователя Blend4Web 17.06</title>
   
 
   
@@ -32,7 +32,7 @@
   
         <link rel="author" title="Об этих документах"
               href="about.html"/>
-    <link rel="top" title="Руководство пользователя Blend4Web 16.07" href="index.html"/>
+    <link rel="top" title="Руководство пользователя Blend4Web 17.06" href="index.html"/>
         <link rel="next" title="Система частиц. Флюиды" href="particles.html"/>
         <link rel="prev" title="Стереоизображение" href="stereo_rendering.html"/> 
 
@@ -61,7 +61,7 @@
           
           
             <div class="version">
-              v16.07
+              v17.06
             </div>
           
         
@@ -154,8 +154,8 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#special-texture-types">Особые типы текстур</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#d-scene">3D сценa</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#canvas">Canvas</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#render-to-texture">Рендеринг в текстуру</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#canvas-textures">Canvas-текстуры</a></li>
 </ul>
 </li>
 </ul>
@@ -243,7 +243,7 @@
 <ol class="arabic">
 <li><p class="first"><code class="docutils literal"><span class="pre">Image</span> <span class="pre">or</span> <span class="pre">Movie</span></code>, <strong>изображение или фильм</strong></p>
 <blockquote>
-<div><p>В этом случае текстура задаётся с помщью растрового изображения или видеофайла. Поддерживаются следующие графические форматы:</p>
+<div><p>В этом случае текстура задаётся с помощью растрового изображения или видеофайла. Поддерживаются следующие графические форматы:</p>
 <blockquote>
 <div><ul class="simple">
 <li><code class="docutils literal"><span class="pre">.PNG</span></code></li>
@@ -314,11 +314,7 @@
 </dl>
 <dl class="docutils" id="index-3">
 <dt><em>Mapping &gt; Coordinates</em></dt>
-<dd><p class="first">Тип текстурных координат. Поддерживаются <code class="docutils literal"><span class="pre">UV</span></code> (использовать развертку), <code class="docutils literal"><span class="pre">Normal</span></code> (использовать направление на камеру, только для диффузных текстур, применяется для создания материалов в стиле <strong>material capture</strong>, <strong>matcap</strong>) и <code class="docutils literal"><span class="pre">Generated</span></code> (исходные недеформированные координаты объекта). Значение по умолчанию <code class="docutils literal"><span class="pre">Generated</span></code>.</p>
-<div class="last admonition note">
-<p class="first admonition-title">Примечание</p>
-<p class="last">На данный момент Blend4Web поддерживает не более двух UV-карт в одном материале. Если в материале присутствуют дополнительные UV-карты, они не будут экспортированы.</p>
-</div>
+<dd><p class="first last">Тип текстурных координат. Поддерживаются <code class="docutils literal"><span class="pre">UV</span></code> (использовать развертку), <code class="docutils literal"><span class="pre">Normal</span></code> (использовать направление на камеру, только для диффузных текстур, применяется для создания материалов в стиле <strong>material capture</strong>, <strong>matcap</strong>) и <code class="docutils literal"><span class="pre">Generated</span></code> (исходные недеформированные координаты объекта). Значение по умолчанию <code class="docutils literal"><span class="pre">Generated</span></code>.</p>
 </dd>
 <dt><em>Mapping &gt; Size</em></dt>
 <dd><p class="first last">Масштабирование развертки по соответствующим осям. Значения по умолчанию 1.0.</p>
@@ -390,6 +386,7 @@
 <p>Карта нормалей применяется для указания распределения нормалей (перпендикуляров) к поверхности с целью увеличения уровня детализации ее рельефа. Информация о нормалях должна храниться в текстурном пространстве координат. Карты нормалей в объектном пространстве не поддерживаются.</p>
 <div class="section" id="id7">
 <h3>Активация<a class="headerlink" href="#id7" title="Ссылка на этот заголовок">¶</a></h3>
+<p>Выставить параметр <code class="docutils literal"><span class="pre">Image</span> <span class="pre">&gt;</span> <span class="pre">Color</span> <span class="pre">Space</span></code> в значение <code class="docutils literal"><span class="pre">Non-Color</span></code>.</p>
 <p>Выставить опцию <code class="docutils literal"><span class="pre">Geometry</span> <span class="pre">&gt;</span> <span class="pre">Normal</span></code> на панели <code class="docutils literal"><span class="pre">Textures</span> <span class="pre">&gt;</span> <span class="pre">Influence</span></code>.</p>
 </div>
 <div class="section" id="id8">
@@ -518,7 +515,7 @@
 <div class="line-block">
 <div class="line"><br /></div>
 </div>
-<p>Существует возможность ускоренного воспроизведения видеозаписей. Для этого необходимо задать значение свойства <code class="docutils literal"><span class="pre">Scene</span> <span class="pre">&gt;</span> <span class="pre">Dimensions</span> <span class="pre">&gt;</span> <span class="pre">Frame</span> <span class="pre">rate</span></code> отличным от значения fps (кадров в секунду) для видеозаписи. При этом скорость воспроизведения видеозаписи расчитывается как отношение Frame rate сцены к fps видеозаписи.</p>
+<p>Существует возможность ускоренного воспроизведения видеозаписей. Для этого необходимо задать значение свойства <code class="docutils literal"><span class="pre">Scene</span> <span class="pre">&gt;</span> <span class="pre">Dimensions</span> <span class="pre">&gt;</span> <span class="pre">Frame</span> <span class="pre">rate</span></code> отличным от значения fps (кадров в секунду) для видеозаписи. При этом скорость воспроизведения видеозаписи рассчитывается как отношение Frame rate сцены к fps видеозаписи.</p>
 <img alt="_images/fps.png" class="align-center" src="_images/fps.png" />
 <div class="admonition note">
 <p class="first admonition-title">Примечание</p>
@@ -535,7 +532,7 @@
 </li>
 <li><p class="first">не гарантируется стабильная работа при выставлении опции <code class="docutils literal"><span class="pre">Offset</span></code> в ненулевое значение.</p>
 </li>
-<li><p class="first">не на всех устройствах поддерживается ускореное воспроизведение видео.</p>
+<li><p class="first">не на всех устройствах поддерживается ускоренное воспроизведение видео.</p>
 </li>
 <li><p class="first">на iPad и iPhone отсутствует возможность управления громкостью звука видеофайла, поэтому следует убрать аудио дорожку из видео перед добавлением файла в Blender.</p>
 </li>
@@ -649,23 +646,29 @@
 </dd>
 </dl>
 <img alt="_images/canvas_tex.png" class="align-center" src="_images/canvas_tex.png" />
-<div class="section" id="d-scene">
-<span id="render-to-texture-scene"></span><h3>3D сценa<a class="headerlink" href="#d-scene" title="Ссылка на этот заголовок">¶</a></h3>
+<div class="section" id="render-to-texture">
+<span id="render-to-texture-scene"></span><h3>Рендеринг в текстуру<a class="headerlink" href="#render-to-texture" title="Ссылка на этот заголовок">¶</a></h3>
 <p>Изображение 3D сцены может быть использовано в качестве текстуры на объекте другой (&#8220;главной&#8221;) сцены. Этот приём известен как &#8220;рендеринг в текстуру &#8221;. Для того, чтобы использовать его, выполните следующие действия:</p>
 <ol class="arabic simple">
-<li><p class="first">Создать дополнительную сцену-источник.</p>
+<li><p class="first">Создаёте новую сцену, которая будет использоваться для рендеринга в текстуру.</p>
 </li>
-<li><p class="first">Переименовать для удобства.</p>
+<li><p class="first">Для удобства переименуйте сцену.</p>
 </li>
-<li><p class="first">Создать <code class="docutils literal"><span class="pre">World</span></code>.</p>
+<li><p class="first">Создайте для сцены группу настроек <code class="docutils literal"><span class="pre">World</span></code>.</p>
 </li>
-<li><p class="first">Добавить нужные объекты.</p>
+<li><p class="first">Добавьте в сцену необходимые объекты.</p>
 </li>
-<li><p class="first">Настроить вид из камеры.</p>
+<li><p class="first">Добавьте в сцену камеру и настройте её.</p>
 </li>
-<li><p class="first">В главной сцене создать UV-развёртку целевого объекта.</p>
+<li><p class="first">Затем переключитесь на главную сцену.</p>
 </li>
-<li><p class="first">Для текстуры целевого объекта выставить тип <code class="docutils literal"><span class="pre">None</span></code>.</p>
+<li><p class="first">Выберите нужный вам объект и создайте для него UV-развёртку.</p>
+</li>
+<li><p class="first">Создайте текстуру, которая будет использоваться для рендеринга.</p>
+</li>
+<li><p class="first">Для этой текстуры выставьте тип <code class="docutils literal"><span class="pre">None</span></code>.</p>
+</li>
+<li><p class="first">На панели <code class="docutils literal"><span class="pre">Mapping</span></code>, установите параметр <code class="docutils literal"><span class="pre">Coordinates</span></code> в значение <code class="docutils literal"><span class="pre">UV</span></code>.</p>
 </li>
 <li><p class="first">В поле <code class="docutils literal"><span class="pre">Export</span> <span class="pre">Options</span> <span class="pre">&gt;</span> <span class="pre">Source</span> <span class="pre">Type</span></code> указать тип <code class="docutils literal"><span class="pre">Scene</span></code>.</p>
 </li>
@@ -686,8 +689,8 @@
 </div>
 </div></blockquote>
 </div>
-<div class="section" id="canvas">
-<span id="render-to-texture-canvas"></span><h3>Canvas<a class="headerlink" href="#canvas" title="Ссылка на этот заголовок">¶</a></h3>
+<div class="section" id="canvas-textures">
+<span id="render-to-texture-canvas"></span><h3>Canvas-текстуры<a class="headerlink" href="#canvas-textures" title="Ссылка на этот заголовок">¶</a></h3>
 <p>В качестве текстуры используется HTML-элемент &lt;canvas&gt;. Его редактирование осуществляется при помощи API.</p>
 <p>В главной сцене для текстуры целевого объекта выставить тип <code class="docutils literal"><span class="pre">None</span></code>, в поле <code class="docutils literal"><span class="pre">Export</span> <span class="pre">Options</span> <span class="pre">&gt;</span> <span class="pre">Source</span> <span class="pre">Type</span></code> указать тип <code class="docutils literal"><span class="pre">Canvas</span></code>. В поле <code class="docutils literal"><span class="pre">Export</span> <span class="pre">Options</span> <span class="pre">&gt;</span> <span class="pre">Source</span> <span class="pre">Size</span></code> указать размер текстуры в пикселях.</p>
 <p>Для работы с этими текстурами используется модуль <code class="docutils literal"><span class="pre">textures</span></code>. Пример работы с ним описан ниже.</p>
@@ -731,8 +734,8 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2014-2016, Триумф.
-      Обновлено: 2016-07-26.
+        &copy; Copyright 2014-2017, Триумф.
+      Обновлено: 2017-06-30.
 
     </p>
   </div>
@@ -788,7 +791,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'v16.07',
+            VERSION:'v17.06',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

@@ -175,7 +175,9 @@ Activation
 To enable procedural waves the ``Waves`` option must be turned on.
 
 .. note::
-    Procedural waves will work only if a ``Wind`` force field is present in the scene.
+    The direction of procedural waves is derived from a ``Wind`` force field in the scene.
+
+    If a scene does not have a ``Wind`` force field, procedural waves will only move in the default direction which cannot be changed.
 
 .. image:: src_images/outdoor_rendering/outdoor_rendering_volumetric_waves.png
    :align: center
@@ -212,7 +214,7 @@ Setting up
     This specifies the size of the noise for the shore waves. This parameter can vary from 0 to 1 and is set to 0.05 by default.
 
 *Noise Dir Freq*
-    This describes the fequency of the noise for the shore waves. This parameter can vary from 0 to 1. Default value is 0.07.
+    This describes the frequency of the noise for the shore waves. This parameter can vary from 0 to 1. Default value is 0.07.
 
 *Min Dir Noise Fac*
     This is the noise minimum for the shore waves. This parameter can vary from 0 to 1. Default value is 0.5.
@@ -233,7 +235,7 @@ Settings for Surface Generation
     This describes the number of cascades on the generated surface. This parameter's value can vary from 1 to 20. Default value is 5.
 
 *Subdivisions*
-    This is the number of subdivisions in generated mesh. Default value is 64. The lowes possible value for this parameter is 2, while the highest possible value is 512.
+    This is the number of subdivisions in generated mesh. Default value is 64. The lowest possible value for this parameter is 2, while the highest possible value is 512.
 
 *Detailed Distance*
     This specifies the maximum distance from the camera to the edge of the last cascade. The value of this parameter can vary from 1 to 5000. Default value is 1000.
@@ -306,20 +308,16 @@ Supported settings:
 *Procedural Sky > Mie Distribution*
      Mie scattering distribution. The default value is 0.4.
 
-
+.. _fog:
 
 Fog
 ---
 
 The engine supports standard parameters located on the ``World > Mist`` panel. Besides this, overriding fog color is possible.
 
-*Mist > Use Custom Color*
-    Apply the user-defined fog color instead of ``World > Horizon`` color. Enabled by default.
+Fog settings are described in the :ref:`Scene Settings <world_mist>` chapter.
 
-*Mist > Color*
-    Fog color. The default value is (0.5, 0.5, 0.5) (gray).
-
-When a dynamic skydome is used the fog color is defined by the sky color.
+When a dynamic skydome is used, the fog color is defined by the sky color.
 
 
 Time of Day

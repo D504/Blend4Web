@@ -15,6 +15,8 @@ The stereoscopic rendering mode is intended for viewing the content using specia
 
 Blend4Web supports two techniques of the stereo image rendering - anaglyph image and the HMD (head-mounted display).
 
+.. _anaglyph:
+
 Anaglyph:
 
 .. image:: src_images/stereo_rendering/postprocessing_effects_anaglyph.png
@@ -22,6 +24,8 @@ Anaglyph:
    :width: 100%
 
 |
+
+.. _hmd:
 
 HMD:
 
@@ -34,7 +38,7 @@ HMD is an experimental feature, for now it works only with the ``Eye`` type came
 Activation
 ----------
 
-To use HMD stereo rendering, you need to install Oculus's `runtime utility <https://developer.oculus.com/downloads/>`_ (two versions are supported: the `chromium_webvr_v1_win64.7z` in the root directory and the one in the `Deprecated API` folder). Windows and MacOS versions can be found on the Oculus website in binary format, while Linux version should be compiled from the source code.
+To use HMD stereo rendering, you need to install Oculus' `runtime utility <https://developer.oculus.com/downloads/>`_ (two versions are supported: the `chromium_webvr_v1_win64.7z` in the root directory and the one in the `Deprecated API` folder). Windows and macOS versions can be found on the Oculus website in binary format, while Linux version should be compiled from the source code.
 
 For now, the HMD is supported by the `Chromium experimental builds <https://webvr.info/get-chrome/>`_ and in the `Firefox nightly builds <https://nightly.mozilla.org/>`_.
 
@@ -55,6 +59,8 @@ Additional Settings
 
 None.
 
+.. _hmd_settings:
+
 HMD Settings
 ------------
 
@@ -64,7 +70,7 @@ HMD Settings
 
 This group of settings allows a user to change various parameters in order to adjust whatever VR device they have to better view a certain 3D application or scene. There are two ways these settings can be accessed:
 
-Firstly, it can be found in the :ref:`Blend4Web Viewer <viewer>` application under the Stereo View tab.
+Firstly, it can be found in the :ref:`Blend4Web Viewer <viewer>` application under the :ref:`Stereo View tab <stereo_view>`.
 
 And secondly, it can also be shown in an application by using the :b4wref:`hmd_conf.show` method of the :b4wmod:`hmd_conf` module, but doing this requires some programming. Examples of this method can be found in the ``viewer.js`` and ``webplayer.js`` applications (in the ``m_hmd_conf`` object).
 
@@ -93,7 +99,7 @@ Rendering Settings
 
     This value can vary from 0 to 100. Default value is 64.
 
-*Screen to lense distance*
+*Screen to lens distance*
     This specifies the distance between the screen of the phone and the camera lenses.
 
     This value can vary from 0 to 100. Default value is 50.

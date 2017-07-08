@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -89,12 +89,29 @@ class B4W_DATA_PT_camera_dof(CameraButtonsPanel, Panel):
         sub.active = cam.dof_object is None
         sub.prop(cam, "dof_distance", text=_("Distance"))
 
+        split = layout.split()
+        col = split.column()
+        col.active = cam.b4w_dof_bokeh
+        col.prop(cam, "b4w_dof_front_start", text=_("Front Start"))
+        col.prop(cam, "b4w_dof_rear_start", text=_("Rear Start"))
+        col = split.column()
+        sub = col.column()
+        sub.prop(cam, "b4w_dof_front_end", text=_("Front End"))
+        sub.prop(cam, "b4w_dof_rear_end", text=_("Rear End"))
+
         row = layout.row()
-        row.prop(cam, "b4w_dof_front", text=_("Front"))
-        row.prop(cam, "b4w_dof_rear", text=_("Rear"))
         row.prop(cam, "b4w_dof_power", text=_("Power"))
+
+        split = layout.split()
+        col = split.column()
+        col.prop(cam, "b4w_dof_bokeh", text=_("High Quality (Bokeh)"))
+        col = split.column()
+        sub = col.column()
+        sub.active = cam.b4w_dof_bokeh
+        sub.prop(cam, "b4w_dof_bokeh_intensity", text=_("Bokeh Intensity"))
         row = layout.row()
-        row.prop(cam, "b4w_dof_bokeh", text=_("Bokeh"))
+        row.active = cam.b4w_dof_bokeh
+        row.prop(cam, "b4w_dof_foreground_blur", text=_("Foreground Blur"))
 
 class B4W_DATA_PT_camera(CameraButtonsPanel, Panel):
     bl_label = _("Camera")
@@ -109,10 +126,15 @@ class B4W_DATA_PT_camera(CameraButtonsPanel, Panel):
         split = layout.split()
 
         col = split.column(align=True)
-        if cam.sensor_fit == 'VERTICAL':
-            col.prop(cam, "sensor_height", text=_("Height"))
+        if cam.sensor_fit == 'AUTO':
+            col.prop(cam, "sensor_width", text="Size")
         else:
-            col.label(text=_("Unsupported sensor type."), icon="ERROR")
+            sub = col.column(align=True)
+            sub.active = cam.sensor_fit == 'HORIZONTAL'
+            sub.prop(cam, "sensor_width", text="Width")
+            sub = col.column(align=True)
+            sub.active = cam.sensor_fit == 'VERTICAL'
+            sub.prop(cam, "sensor_height", text="Height")
 
         col = split.column(align=True)
         col.prop(cam, "sensor_fit", text="")
@@ -254,6 +276,7 @@ class B4W_DATA_PT_shape_keys(MeshButtonsPanel, Panel):
         sub.operator("object.b4w_shape_key_add", icon='ZOOMIN', text="")
         sub.operator("object.shape_key_remove", icon='ZOOMOUT', text="").all = False
         sub.menu("MESH_MT_shape_key_specials", icon='DOWNARROW_HLT', text="")
+        sub.active = ob.mode != 'EDIT'
 
         if kb:
             col.separator()
@@ -337,7 +360,7 @@ class B4W_DATA_PT_lamp(LampPanel, Panel):
         layout.prop(lamp, "type", expand=True)
 
         if lamp.type == "AREA":
-            layout.label(text=_("Area type is not supported"))
+            layout.label(text=_("AREA type is not supported"), icon="ERROR")
         else:
             split = layout.split()
             col = split.column()
@@ -355,6 +378,8 @@ class B4W_DATA_PT_lamp(LampPanel, Panel):
                 else:
                     sub.prop(lamp, "distance")
 
+                col.prop(lamp, "use_sphere")
+
             if lamp.type == 'AREA':
                 col.prop(lamp, "distance")
                 col.prop(lamp, "gamma")
@@ -366,6 +391,7 @@ class B4W_DATA_PT_lamp(LampPanel, Panel):
         if lamp.type == "SUN":
             row = layout.row()
             row.prop(lamp, "b4w_dynamic_intensity", text=_("Dynamic Intensity"))
+
 
 class B4W_DataLampShadows(LampPanel, Panel):
     bl_label = _("Shadow")
@@ -601,6 +627,8 @@ class OperatorAddShapeKey(bpy.types.Operator):
 
     def execute(self, context):
         obj = context.active_object
+        if obj.mode == 'EDIT':
+            return {'FINISHED'}
         # auto apply default animaton
         if not "b4w_shape_keys" in obj.keys():
             obj.b4w_shape_keys = True

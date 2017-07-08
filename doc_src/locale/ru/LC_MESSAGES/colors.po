@@ -1,21 +1,20 @@
-# SOME DESCRIPTIVE TITLE.
+# Blend4Web User Manual Russian Translation: Colors
 # Copyright (C) 2014-2016, Triumph
-# This file is distributed under the same license as the Blend4Web. User
-# Manual package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2016.
+# This file is distributed under the same license as Blend4Web.
+# Blend4Web Team <info [at] blend4web.com>, 2014.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Blend4Web. Руководство пользователя v16.01\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-07-20 17:46+0300\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"Project-Id-Version: Blend4Web 16.08\n"
+"Report-Msgid-Bugs-To: https://www.blend4web.com/en/forums/forum/17/\n"
+"POT-Creation-Date: 2017-04-24 17:23+0300\n"
+"PO-Revision-Date: 2015-08-28 10:55+0300\n"
+"Last-Translator: Blend4Web Team <info [at] blend4web.com>\n"
+"Language-Team: Russian <info [at] blend4web.com>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.2.0\n"
+"Generated-By: Babel 2.3.4\n"
 
 #: ../colors.rst:5
 msgid "Color Management"
@@ -54,7 +53,7 @@ msgstr ""
 
 #: ../colors.rst:18
 msgid ""
-"Overwise, 8 bit of information will not be enough to encode the light "
+"Otherwise, 8 bit of information will not be enough to encode the light "
 "intensity. This will result in incorrect rendering of darker tones. For "
 "example, dark  gradients will look stepped."
 msgstr ""
@@ -103,7 +102,7 @@ msgstr "Летом в полдень"
 
 #: ../colors.rst:27
 msgid "17 000"
-msgstr ""
+msgstr "17 000"
 
 #: ../colors.rst:29
 msgid "Winter noon"
@@ -111,7 +110,7 @@ msgstr "Зимой в полдень"
 
 #: ../colors.rst:29
 msgid "5 000"
-msgstr ""
+msgstr "5 000"
 
 #: ../colors.rst:31
 msgid "Dull day"
@@ -119,7 +118,7 @@ msgstr "В пасмурный день"
 
 #: ../colors.rst:31
 msgid "1 000"
-msgstr ""
+msgstr "1 000"
 
 #: ../colors.rst:33
 msgid "In a light room"
@@ -127,7 +126,7 @@ msgstr "В светлой комнате"
 
 #: ../colors.rst:33
 msgid "100"
-msgstr ""
+msgstr "100"
 
 #: ../colors.rst:35
 msgid "Full moon by night"
@@ -135,7 +134,7 @@ msgstr "Ночью в полнолуние"
 
 #: ../colors.rst:35
 msgid "0.2"
-msgstr ""
+msgstr "0.2"
 
 #: ../colors.rst:37
 msgid "Moonless light"
@@ -143,7 +142,7 @@ msgstr "В безлунную ночь"
 
 #: ../colors.rst:37
 msgid "0.001"
-msgstr ""
+msgstr "0.001"
 
 #: ../colors.rst:42
 msgid ""
@@ -218,7 +217,7 @@ msgstr "Используется в следующей упрощенной фо
 
 #: ../colors.rst:60
 msgid "V\\ :sub:`out` = V\\ :sub:`in`\\ :sup:`γ`"
-msgstr ""
+msgstr "V\\ :sub:`out` = V\\ :sub:`in`\\ :sup:`γ`"
 
 #: ../colors.rst:62
 msgid ""
@@ -365,15 +364,15 @@ msgstr "Общие сведения"
 msgid ""
 "Physically correct alpha compositing is performed according to the "
 "formula [`source "
-"<http://wwwnew.cs.princeton.edu/courses/archive/spring05/cos426/papers/smith95a.pdf>`_]:"
+"<http://www.cs.princeton.edu/courses/archive/spring05/cos426/papers/smith95a.pdf>`_]:"
 msgstr ""
 "Физически корректный альфа-композитинг осуществляется по формуле "
 "[`источник "
-"<http://wwwnew.cs.princeton.edu/courses/archive/spring05/cos426/papers/smith95a.pdf>`_]:"
+"<http://www.cs.princeton.edu/courses/archive/spring05/cos426/papers/smith95a.pdf>`_]:"
 
 #: ../colors.rst:127
 msgid ":math:`C_o = C_a \\alpha_a + C_b \\alpha_b (1 - \\alpha_a)`."
-msgstr ""
+msgstr ":math:`C_o = C_a \\alpha_a + C_b \\alpha_b (1 - \\alpha_a)`."
 
 #: ../colors.rst:129
 msgid ""
@@ -401,7 +400,7 @@ msgstr ""
 
 #: ../colors.rst:133
 msgid ":math:`C_o = C_a + C_b (1 - \\alpha_a)`."
-msgstr ""
+msgstr ":math:`C_o = C_a + C_b (1 - \\alpha_a)`."
 
 #: ../colors.rst:135
 msgid ""
@@ -413,15 +412,15 @@ msgstr ""
 
 #: ../colors.rst:137
 msgid ":math:`\\alpha_o = \\alpha_a + \\alpha_b (1 - \\alpha_a)`."
-msgstr ""
+msgstr ":math:`\\alpha_o = \\alpha_a + \\alpha_b (1 - \\alpha_a)`."
 
 #: ../colors.rst:139
 msgid ""
-"Preliminary multiplication of the color channels by the :math:`\\alpha`  "
+"Preliminary multiplication of the color channels by the :math:`\\alpha` "
 "values allows to save two multiplication operations. The more significant"
 " thing is that the derived formula can be used repeatedly without the "
-"need to divide the :math:`C_o` color by the αoαo value on each consequent"
-" iteration."
+"need to divide the :math:`C_o` color by the :math:`\\alpha_o` value on "
+"each consequent iteration."
 msgstr ""
 "Предварительное умножение цветовых каналов на значения :math:`\\alpha` "
 "позволяет сэкономить две операции умножения. Еще более существенным "
@@ -449,7 +448,7 @@ msgstr ""
 "того, на выходе шейдеров производится умножение всех каналов цветности на"
 " значение :math:`\\alpha`."
 
-#: ../colors.rst:158 ../colors.rst:153
+#: ../colors.rst:153 ../colors.rst:158
 msgid "Color Correction"
 msgstr "Коррекция цвета"
 
@@ -467,7 +466,7 @@ msgstr "Дополнительные настройки"
 
 #: ../colors.rst:173
 msgid "*Brightness*"
-msgstr ""
+msgstr "*Brightness*"
 
 #: ../colors.rst:173 ../colors.rst:176
 msgid "The default value is 0.0."
@@ -475,11 +474,11 @@ msgstr "Яркость. Значение по умолчанию 0.0."
 
 #: ../colors.rst:176
 msgid "*Contrast*"
-msgstr ""
+msgstr "*Contrast*"
 
 #: ../colors.rst:179
 msgid "*Exposure*"
-msgstr ""
+msgstr "*Exposure*"
 
 #: ../colors.rst:179 ../colors.rst:182
 msgid "The default value is 1.0."
@@ -487,5 +486,5 @@ msgstr "Экспозиция. Значение по умолчанию 1.0."
 
 #: ../colors.rst:186
 msgid "*Saturation*"
-msgstr ""
+msgstr "*Saturation*"
 

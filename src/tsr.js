@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -45,6 +44,12 @@ function create() {
     return tsr;
 }
 
+exports.clone = function(tsr) {
+    var out = create();
+    copy(tsr, out);
+    return out;
+}
+
 exports.from_values = function(x, y, z, s, qx, qy, qz, qw) {
     var tsr = create();
     tsr[0] = x;
@@ -66,6 +71,12 @@ function create_ext() {
     return tsr;
 }
 
+exports.clone_ext = function(tsr) {
+    var out = create_ext();
+    copy(tsr, out);
+    return out;
+}
+
 exports.from_values_ext = function(x, y, z, s, qx, qy, qz, qw) {
     var tsr = create_ext();
     tsr[0] = x;
@@ -79,7 +90,7 @@ exports.from_values_ext = function(x, y, z, s, qx, qy, qz, qw) {
     return tsr;
 }
 
-exports.copy = copy
+exports.copy = copy;
 function copy(tsr, dest) {
     // faster than .set()
 
@@ -153,10 +164,13 @@ exports.set_quat = function(quat, dest) {
     return dest;
 }
 
+/**
+ * NOTE: bad for CPU and GC
+ */
 exports.get_trans_view = function(tsr) {
     return tsr.subarray(0, 3);
 }
-exports.get_trans_value = function(tsr, dest) {
+exports.get_trans = function(tsr, dest) {
     dest[0] = tsr[0];
     dest[1] = tsr[1];
     dest[2] = tsr[2];
@@ -166,10 +180,22 @@ exports.get_trans_value = function(tsr, dest) {
 exports.get_scale = function(tsr) {
     return tsr[3];
 }
+exports.get_transcale = function(tsr, dest) {
+    dest[0] = tsr[0];
+    dest[1] = tsr[1];
+    dest[2] = tsr[2];
+    dest[3] = tsr[3];
+
+    return dest;
+}
+/**
+ * NOTE: bad for CPU and GC
+ */
 exports.get_quat_view = function(tsr) {
     return tsr.subarray(4, 8);
 }
-exports.get_quat_value = function(tsr, dest) {
+exports.get_quat = get_quat;
+function get_quat(tsr, dest) {
     dest[0] = tsr[4];
     dest[1] = tsr[5];
     dest[2] = tsr[6];
@@ -229,7 +255,7 @@ exports.to_mat4 = function(tsr, dest) {
     var scale = tsr[3];
     var quat = tsr.subarray(4, 8);
 
-    var mat = m_mat4.fromRotationTranslation(quat, trans, dest);
+    m_mat4.fromRotationTranslation(quat, trans, dest);
 
     for (var i = 0; i < 12; i++)
         dest[i] *= scale;
@@ -382,7 +408,7 @@ exports.transform_vectors = function(vectors, tsr, new_vectors,
         dest_offset) {
 
     if (!dest_offset)
-        var dest_offset = 0;
+        dest_offset = 0;
 
     var len = vectors.length;
 
@@ -429,7 +455,7 @@ exports.transform_dir_vectors = function(vectors, tsr, new_vectors,
         dest_offset) {
 
     if (!dest_offset)
-        var dest_offset = 0;
+        dest_offset = 0;
 
     var len = vectors.length;
 
@@ -498,7 +524,7 @@ exports.transform_tangents = function(vectors, tsr, new_vectors,
         dest_offset) {
 
     if (!dest_offset)
-        var dest_offset = 0;
+        dest_offset = 0;
 
     var len = vectors.length;
 
@@ -527,6 +553,30 @@ exports.transform_tangents = function(vectors, tsr, new_vectors,
         // just save exact sign
         new_vectors[dest_offset + i + 3] = vectors[i + 3];
     }
+
+    return new_vectors;
+}
+
+exports.transform_quat = function(quat, tsr, new_quat) {
+    var rot_quat = get_quat(tsr, _quat_tmp);
+
+    m_quat.multiply(rot_quat, quat, new_quat);
+
+    return new_quat;
+}
+
+/**
+ * Tranform quaternions vectors by tsr.
+ * optional destination offset in values (not vectors, not bytes)
+ */
+exports.transform_quats = function(vectors, tsr, new_vectors,
+        dest_offset) {
+
+    dest_offset = dest_offset || 0;
+
+    var rot_quat = get_quat(tsr, _quat_tmp);
+
+    m_util.quats_multiply_quat(vectors, rot_quat, new_vectors, dest_offset);
 
     return new_vectors;
 }

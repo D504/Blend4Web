@@ -64,11 +64,18 @@ The following is supported for all types of objects: transform, data reference, 
 Object Tab
 ----------
 
-.. image:: src_images/objects/object_setup.png
+.. image:: src_images/objects/object_settings.png
    :align: center
-   :width: 100%
 
 |
+
+.. _object_settings_transform:
+
+Transform Panel
+...............
+
+.. image:: src_images/objects/object_settings_transform.png
+   :align: center
 
 *Transform > Location*
     Position coordinates.
@@ -79,36 +86,59 @@ Object Tab
 *Transform > Scale*
     Scaling. All 3 components (x, y, z) should be the same. Scaling for physics objects is not supported.
 
-*Relations > Parent*
-    Reference to the parent object.
+.. _object_settings_groups:
 
-    If the parent object is a camera, ``Viewport Alignment`` settings are available.
-
-    .. image:: src_images/objects/objects_viewport_alignment.png
-       :align: center
-       :width: 100%
-
-    |
-
-    These settings can be used to align the object to an active camera. They are described in the :ref:`Camera chapter <camera_viewport_alignment>`.
+Groups Panel
+............
 
 *Groups*
     Objects’ groups to which this object belongs.
 
-
-.. image:: src_images/objects/object_setup_end.png
+.. image:: src_images/objects/object_settings_groups.png
    :align: center
 
 |
 
-*Levels of Detail > LOD Transition Ratio*
-    Parameter for smoothing the switching between the LOD objects. It defines the additional distance at which the LOD objects are still rendered before getting replaced by the next LOD objects. Assigned for the main object. Measured in fractions of the object’s bounding sphere radius.
+.. _object_settings_lod:
 
-*Special Effects > Disable Fogging*
-    Disable fog for the object.
+Levels of Detail Panel
+......................
 
-*Special Effects > Caustics*
-    The object will render caustics effects from the adjacent water.
+.. image:: src_images/objects/object_settings_lod.png
+   :align: center
+
+*Levels of Detail > Object*
+    The object to use for this level of detail.
+
+*Levels of Detail > Distance*
+    The distance to begin using this level of detail.
+
+Using levels of detail is described in the :ref:`dedicated section <lods>`.
+
+.. _object_settings_animation:
+
+Animation Panel
+...............
+
+.. image:: src_images/objects/object_settings_animation.png
+   :align: center
+
+*Animation > Apply Default Animation*
+    Upon loading into the engine start playback of the animation assigned to the object.
+
+*Animation > Animation Blending*
+    Only for armature objects. Allows blending between skeletal animations.
+
+*Animation > Behavior*
+    Animation behavior when the last frame is reached: ``Finish Stop`` - stop, ``Finish Reset`` - stop and go to the zero frame, ``Loop`` - repeat forever.
+
+.. _object_settings_export:
+
+Export Options Panel
+....................
+
+.. image:: src_images/objects/object_settings_export.png
+   :align: center
 
 *Export Options > Do Not Export*
     Do not export this object.
@@ -131,28 +161,50 @@ Object Tab
 
     The following properties are mutually exclusive: *Apply Modifiers*, *Apply Scale and Modifiers*, *Export Vertex Animation* and *Export Shape Keys*.
 
-*Animation > Apply Default Animation*
-    Upon loading into the engine start playback of the animation assigned to the object.
+.. _object_settings_render:
 
-*Animation > Animation Blending*
-    Only for armature objects. Allows blending between skeletal animations.
+Rendering Properties Panel
+..........................
 
-*Animation > Behavior*
-    Animation behavior when the last frame is reached: ``Finish Stop`` - stop, ``Finish Reset`` - stop and go to the zero frame, ``Loop`` - repeat forever.
+.. image:: src_images/objects/object_settings_rendering.png
+   :align: center
+
+*Rendering Properties > Hidden*
+    An object with this property enabled will be hidden on load.
+
+*Rendering Properties > Hidden Children*
+    All of the object's children and children's children and so on will be hidden on load. Available only if the ``Rendering Properties > Hidden`` property is enabled and if the object has any children.
 
 *Rendering Properties > Do Not Render*
     Disable object rendering (for example useful for a physics object).
 
+    This parameter is not available for ``Empty`` type objects.
+
 *Rendering Properties > Disable Frustum Culling*
     Disable frustum culling optimization.
+
+    This parameter is not available for ``Empty`` type objects.
 
 *Rendering Properties > Force Dynamic Object*
     Force the object to become a :ref:`dynamic object <static_dynamic_objects>`.
 
 .. _dynamic_geom:
 
-*Rendering Properties > Dynamic Geometry*
-    Allow overriding of the object’s geometry through Blend4Web API.
+*Rendering Properties > Dynamic Geometry & Materials*
+    Allows using geometry update API and inherit materials for the object.
+
+*Rendering Properties > Line Rendering*
+    Enables using the object for rendering :ref:`lines <line_rendering>`.
+
+    This parameter is only available for ``Empty`` type objects.
+
+.. _object_settings_shadows:
+
+Shadows Panel
+.............
+
+.. image:: src_images/objects/object_settings_shadows.png
+   :align: center
 
 *Shadows > Cast*
     The object will cast shadows.
@@ -163,11 +215,45 @@ Object Tab
 *Shadows > Receive*
     The object will receive shadows from other adjacent objects.
 
+.. _objects_billboarding_properties:
+
+Billboard Panel
+...............
+
+.. image:: src_images/objects/object_settings_billboard.png
+   :align: center
+
+*Billboard*
+    Use the object as a billboard (i.e. automatically orient relative to the camera).
+
+.. _billboarding_preserve:
+
+*Billboard > Preserve Global Orientation and Scale*
+    Take into account rotation and scale of the billboard object (in the world space). The object will be directed toward the camera with its side which is visible when viewing along the Y axis in Blender. Becomes available after enabling the ``Billboard`` checkbox.
+
+*Billboard > Billboard Type*
+    Billboard orientation mode. ``Spherical`` (by default) - the object is always oriented with one side toward the camera, regardless of view angle, ``Cylindrical`` - similar to ``Spherical``, but rotation is limited to Blender’s world Z axis. Becomes available after enabling Billboard
+
+.. _object_settings_reflections:
+
+Reflections Panel
+.................
+
+.. image:: src_images/objects/object_settings_reflections.png
+   :align: center
+
 *Reflections > Reflexible*
     When enabled the object is reflected in the dynamic mirror surfaces.
 
 *Reflections > Reflexible Only*
     The object will be reflected but will remain invisible itself. Becomes available after enabling ``Reflections > Reflexible``.
+
+    .. note::
+        If the ``Reflexible Only`` parameter is enabled simultaneously with the ``Shadows > Cast Only`` parameter, the engine will not render the object itself, but will render its shadow and reflection, like it is shown on the picture below.
+
+        .. image:: src_images/objects/objects_cast_reflexible_only.png
+           :align: center
+           :width: 100%
 
 *Reflections > Reflective*
     When enabled the object surface reflects other objects.
@@ -175,13 +261,39 @@ Object Tab
 *Reflections > Reflection Plane*
     Text field for name of an empty object which defines the reflection plane. Becomes available after enabling ``Reflections > Reflective``.
 
+.. _object_settings_selection:
+
+Selection and Outlining Panel
+.............................
+
+.. image:: src_images/objects/object_settings_selection.png
+   :align: center
+
 *Selection and Outlining > Selectable*
     Enable :ref:`object selection <mesh_selection>` with the mouse or another input device.
 
 *Selection and Outlining > Enable Outlining*
     Enable :ref:`outline glow <outline>` for the object.
 
+.. _object_settings_anchors:
+
+Anchors Panel
+.............
+
+*Anchors > Enable Anchor*
+    This parameter enables interface for adding anchors (2D tags) to objects. Available for ``EMPTY`` objects only. Described in the :ref:`corresponding section <objects_anchors>`.
+
+    .. image:: src_images/objects/objects_enable_anchors.png
+        :align: center
+        :width: 100%
+
 .. _objects_meta_tags:
+
+Meta Tags Panel
+...............
+
+.. image:: src_images/objects/object_settings_meta_tags.png
+   :align: center
 
 *Meta Tags*
     Interface for adding meta tags to the object:
@@ -198,28 +310,51 @@ Object Tab
     *Meta Tags > Description Source*
         Source type for the description: text or text file.
 
-*Anchors > Enable Anchor*
-    This parameter enables interface for adding anchors (2D tags) to objects. Available for ``EMPTY`` objects only. Described in the :ref:`corresponding section <objects_anchors>`.
+.. _object_settings_relations:
 
-    .. image:: src_images/objects/objects_enable_anchors.png
-        :align: center
-        :width: 100%
+Relations Panel
+...............
+
+.. image:: src_images/objects/object_settings_relations.png
+   :align: center
+
+*Relations > Parent*
+    Reference to the parent object.
+
+    If the parent object is a camera, ``Viewport Alignment`` settings are available.
+
+    .. image:: src_images/objects/objects_viewport_alignment.png
+       :align: center
+       :width: 100%
+
+    |
+
+    These settings can be used to align the object to an active camera. They are described in the :ref:`Camera chapter <camera_viewport_alignment>`.
+
+.. _object_settings_wind:
+
+Wind Bending Panel
+..................
+
+.. image:: src_images/objects/object_settings_wind.png
+   :align: center
 
 *Wind Bending*
     Enables wind bending procedural animation. Thoroughly described at the :ref:`outdoor rendering <wind_bending>` page.
 
-.. _objects_billboarding_properties:
+.. _object_settings_fx:
 
-*Billboard*
-    Use the object as a billboard (i.e. automatically orient relative to the camera).
+Special Effects Panel
+.....................
 
-.. _billboarding_preserve:
+.. image:: src_images/objects/object_settings_fx.png
+   :align: center
 
-*Billboard > Preserve Global Orientation and Scale*
-    Take into account rotation and scale of the billboard object (in the world space). The object will be directed toward the camera with its side which is visible when viewing along the Y axis in Blender. Becomes available after enabling the ``Billboard`` checkbox.
+*Special Effects > Disable Fogging*
+    Disable fog for the object.
 
-*Billboard > Billboard Type*
-    Billboard orientation mode. ``Spherical`` (by default) - the object is always oriented with one side toward the camera, regardless of view angle, ``Cylindrical`` - similar to ``Spherical``, but rotation is limited to Blender’s world Z axis. Becomes available after enabling Billboard
+*Special Effects > Caustics*
+    The object will render caustics effects from the adjacent water.
 
 Physics Tab
 -----------
@@ -241,6 +376,39 @@ Physics Tab
 
 *Character*
     Use the object for character physics. The character settings are described in detail in the :ref:`physics <physics>` section.
+
+.. _objects_constraints:
+
+Object Constraints
+==================
+
+Blend4Web engine supports the following object constraints:
+
+* ``Copy Location``,
+
+* ``Copy Rotation``,
+
+* ``Copy Transforms`` and
+
+* ``Track To``.
+
+.. note::
+
+    When object constraints are used in Blend4Web, the ``Space`` parameter is not taken into account (it is always set to ``World Space``).
+
+These constraints can be set up directly in Blender. Other types of constraints are not currently supported, but some API methods from the :b4wmod:`constraints` module act similarly. This include:
+
+* the ``Copy Location`` constraint can be emulated with the :b4wref:`constraints.append_copy_loc()`
+
+* the ``Copy Rotation`` constraint works similarly to the :b4wref:`constraints.append_copy_rot()` method.
+
+* the ``Copy Transforms`` constraint works similarly to the :b4wref:`constraints.append_copy_trans()` method.
+
+* The ``Limit Distance`` constraint can be emulated with the :b4wref:`constraints.append_follow()` method, though it should be noted that this method does not set a precise distance between objects (instead, it set a minimum and maximum possible distances).
+
+* the ``Track To`` constraint can be replaced with the :b4wref:`constraints.append_track()` method.
+
+Other constraints do not have distinctive counterparts in the API, although their behavior can be to certain extent imitated using API methods.
 
 .. _objects_anchors:
 
@@ -343,6 +511,8 @@ Use the following methods of the :b4wmod:`transform` module to move objects in t
 
 .. index:: get object
 
+.. _get_object_api:
+
 Get Object API
 ==============
 
@@ -442,7 +612,7 @@ Object selection is possible programmatically via API, for example, in the ``sce
     var obj = m_scenes.pick_object(x, y);
     // ...
 
-or using the :ref:`Logic Editor <nla_switch_select>`.
+or using the :ref:`Logic Editor <logic_switch_select>`.
 
 If the selectable object has enabled ``Enable Outlining`` and ``Outline on Select`` checkboxes on the ``Object > Selection`` and Outlining panel, then the ``pick_object`` function call will activate :ref:`outline glow animation <outline>`.
 
@@ -548,7 +718,6 @@ Let's save a reference to the object in the **aircraft** variable:
 
 Let's rotate it:
 
-    * The orientation of coordinate axes is different in Blender and in the engine. Upon export there will be a transformation [X Y Z] (Blender) -> [X -Z Y] (the engine). Therefore we need to rotate the object relative to the Y axis and not the Z axis.
     * A clockwise rotation corresponds to the rotation to the right (i.e. in the negative direction).
     * 60 degrees = :math:`\pi/3` radians.
 
@@ -557,13 +726,13 @@ As a result we get:
 .. code-block:: javascript
 
     // compose quaternion
-    var quat_60_Y_neg = m_quat.setAxisAngle([0, 1, 0], -Math.PI/3, m_quat.create());
+    var quat_60_Z_neg = m_quat.setAxisAngle([0, 0, 1], -Math.PI/3, m_quat.create());
 
     // get old rotation
     var quat_old = m_transform.get_rotation(aircraft);
 
-    // left multiply: quat60_Y_neg * quat_old
-    var quat_new = m_quat.multiply(quat_60_Y_neg, quat_old, m_quat.create());
+    // left multiply: quat60_Z_neg * quat_old
+    var quat_new = m_quat.multiply(quat_60_Z_neg, quat_old, m_quat.create());
 
     // set new rotation
     m_transform.set_rotation_v(aircraft, quat_new);
@@ -574,30 +743,15 @@ The optimized version which does not create new objects:
 .. code-block:: javascript
 
     // cache arrays as global vars
-    var AXIS_Y = new Float32Array([0, 1, 0])
+    var AXIS_Z = new Float32Array([0, 0, 1])
     var quat_tmp = new Float32Array(4);
     var quat_tmp2 = new Float32Array(4);
     ...
     // rotate
-    m_quat.setAxisAngle(AXIS_Y, -Math.PI/3, quat_tmp);
+    m_quat.setAxisAngle(AXIS_Z, -Math.PI/3, quat_tmp);
     m_transform.get_rotation(aircraft, quat_tmp2);
     m_quat.multiply(quat_tmp, quat_tmp2, quat_tmp);
     m_transform.set_rotation_v(aircraft, quat_tmp);
-
-
-.. _b4w_blender_coordinates:
-
-Differences Between Coordinate Systems of Blender and Blend4Web
-===============================================================
-
-In Blender’s coordinate system the ``UP`` vector, which points upwards, is co-directional with the Z axis. Blend4Web uses Y axis for this purpose, as it is customary in OpenGL. Thus the engine’s coordinates are rotated by 90° around the X axis relative to Blender. 
-
-.. image:: src_images/objects/axes.png
-   :align: center
-
-|
- 
-API methods use the engine’s coordinates, so they can work differently in comparison with setting Blender’s parameters.
 
 
 Moving via TSR Vectors
@@ -611,5 +765,126 @@ Here :math:`T_x, T_y, T_z` - the components of the translation vector, :math:`S`
 
 This vector can be operated via `tsr` module, as well as via `set_tsr()`/`get_tsr()` methods of the `transform` module.
 
+.. _line_rendering:
 
+Line Rendering
+==============
 
+Blend4Web engine also features an option to render lines defined by sets of points.
+
+.. image:: src_images/objects/objects_line_rendering.png
+   :align: center
+   :width: 100%
+
+API methods used for line rendering itself are located in the :b4wmod:`geometry` module, while the style of a rendered line (i.e. its color and thickness) can be set with the :b4wref:`material.set_line_params()` method of the :b4wmod:`material` module.
+
+To use line rendering, at least one ``Empty`` type object with enabled ``Line Rendering`` option needs to be present in the scene.
+
+To render a line, you first have to :ref:`retrieve a link <get_object_api>` to an ``Empty`` object. The origin point of this object will then be used as a center of coordinates when rendering lines.
+
+The line itself can be rendered by calling the :b4wref:`geometry.draw_line()` API method. Its first parameter is a link to an ``Empty`` object (see above), while the second one is an array of vertices that will be used for building a line. The method is also has a third, optional, parameter, that defines the rendering mode: whether the method will produce a single line or a set of lines defined by pairs of vertices (in the latter case, the total number of vertices should be even).
+
+If an ``Empty`` object is used to render more than one line at a time, only the last one will be visible. To render multiple lines, you will need to use multiple ``Empty`` objects.
+
+The following example shows a part of the coordinate axes object in the picture above rendered using lines:
+
+.. code-block:: javascript
+
+    var m_scenes    = require("scenes");
+    var m_material  = require("material");
+    var m_geometry  = require("geometry");
+    var m_rgba      = require("rgba");
+    ...
+
+    //setting up Empty object for line rendering
+    var line_1 = m_scenes.get_object_by_name("MyEmpty_1");
+    
+    //setting up style parameters for the lines
+    m_material.set_line_params(line_1, { width: 3
+                                         color: m_rgba.from_values(0, 0, 0, 1.0)
+                                        });
+    
+    //coordinates for main axes
+    var points_1 = new Float32Array([0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 5]);
+    
+    //drawing main axes
+    m_geometry.draw_line(line_1, points_1, true);
+    
+This code listing produces only the main axes of the object, because listing all of its elements will make the code long and repetitive. The other elements of the object are drawn it the same way.
+
+.. _lods:
+
+Levels Of Detail
+================
+
+Overview
+--------
+
+LODs, or levels of detail, are versions of a single object with various amounts of detail. Levels of detail are used for the purpose of optimization, and the idea here is that if an object is far from the camera, you can render more simple version of it – for example, the one with less polygons and simpler material. This can reduce the burden on the GPU without decreasing the quality of the render, as most of the details of the original object won’t be visible from the distance.
+
+LODs are often used in large-scale scenes with high object count. More compact scenes may not gain a major performance boost from using this feature. Video game locations such as islands, countrysides or town streets are most suitable for using LODs.
+
+LODs can be set up directly in Blender at the ``Levels of Detail`` :ref:`panel <object_settings_lod>`.
+
+.. image:: src_images/objects/objects_lod_list.png
+    :align: center
+    :width: 100%
+
+There, you can set levels of detail and distances at which they will be used for an individual object. Each level of detail is a separate object. The main rule is obvious: the lower the level of detail is positioned in the list, the simpler the corresponding object should be.
+
+You can make your objects simpler in different ways: by decreasing its polycount, by making the materials less complex (this is especially true for node materials) or by turning off various effect such as :ref:`shadows <shadows>`, :ref:`animations <animation>` or :ref:`Wind Bending <wind>`.
+
+The number of levels can be set as you see fit, depending on the overall scale of the scene.
+
+.. figure:: src_images/objects/objects_levels_compare.png
+    :align: center
+    :width: 100%
+
+    *Levels of detail for trees: original object at the left, its LOD on the right*
+
+Specifics and Differences From BGE
+----------------------------------
+
+Setting up LODs and using them in the engine has some specifics. Also, BGE mode in Blender has its own LOD system that is mostly identical to the one used in Blend4Web, but still has some differences that are mentioned below.
+
+#. When you are applying a LOD object to some other object, the position of the LOD object will not change. So, if you want the objects to occupy the same place in the runtime, you should manually place them in the same location in Blender. This is different from BGE, where a selected LOD object is automatically moved to the center of the main object.
+
+#. If you need to set the same LOD object for multiple different objects (for example, same-type trees, building, cars or shrubs), you should make a copy of it for every object (i.e., make as many copies as there are objects that will use this object as a LOD) and set these copies as LODs. Unlike BGE, copies are not generated automatically when you select the same LOD object for multiple base objects. To simplify creating same-type object, we recommend to put the base object and all its LODs to one group and then duplicate this group using Empty objects.
+
+#. If the object is supposed to change its position in the runtime, you should attach its LODs to it in Blender using parent-child link so LOD object would copy its transformations.
+
+Smooth LOD Switching
+--------------------
+
+One of the most notable shortcomings of the LOD system is the abrupt switching between levels of detail which is easy to notice and can be annoying.
+
+The engine supports smooth transition between LODs based on alpha test.
+
+.. figure:: src_images/objects/objects_lod_smoothing.png
+    :align: center
+    :width: 100%
+
+    *Smooth transition between the original object and its LOD.*
+
+The option used for this is called ``LOD Smooth Transitions`` and can be found on the ``Scene->Object Clustering & LOD`` :ref:`panel <scene_batching>`.
+
+It is intended for enabling smooth LOD transition and setting object types that this transition will be applied to. It should be noted that enabling this option might significantly decrease performance (it depends on the number of LOD objects and their materials).
+
+.. note::
+
+    Smooth LOD transition is not always required. For example, if you instantly transport your camera to some distant object, you probably don’t want LOD switching to occur right in front of it. In cases like this, the ``lod_leap_smooth_threshold`` parameter should be used. It defines the threshold distance (in meters) that the camera can cover in one frame. If this value is exceeded, LODs are switched instantaneously. This can be used to disable smooth LOD transition when camera is teleported to a new location or simply moves very fast.
+
+     .. code-block:: javascript
+
+            var m_cfg = require("config");
+
+            m_cfg.set("lod_leap_smooth_threshold", 5); // 5 meters
+
+Hysteresis
+----------
+
+LODs are switched at certain distances from the object. These level borders are set up on the ``Levels of Detail`` panel. If the camera is moving near a border like this, it can cross it often, which results in frequent LOD switching. Under such circumstances, LOD switching becomes very apparent and thus undesirable.
+
+This problem can be negated with the ``Max LOD Hysteresis Interval`` parameter located on the ``Scene->Object Clustering & LOD`` :ref:`panel <scene_batching>`. It sets an interval (in meters) that is used as a gap between two LOD levels.
+
+For example, if ``Max LOD Hysteresis Interval`` is set to 4 meters while the distance between detail levels is equal to the 20 meters, one level will be turned on at the distance of 18 meters and the other, at the distance of 22 meters. Using this option eliminates frequent LOD switching, as levels of detail no longer have definite border between them. The setting is adaptive and can adjust to different LOD distances, reducing the set interval, if needed.

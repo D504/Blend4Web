@@ -1,12 +1,23 @@
-#define SKIN_SLERP 0
+#ifndef SKIN_GLSLV
+#define SKIN_GLSLV
 
-#import u_frame_factor u_quatsb u_quatsa u_transb u_transa a_influence
-#import u_arm_rel_trans u_arm_rel_quat
-#import qrot tsr_translate tsr_translate_inv
+// #import u_frame_factor u_quatsb u_quatsa u_transb u_transa a_influence
+// #import u_arm_rel_trans u_arm_rel_quat
 
-#export skin
+/*==============================================================================
+                                    VARS
+==============================================================================*/
+#var DISABLE_TANGENT_SKINNING 0
+#var SKINNED 0
+#var FRAMES_BLENDING 0
+
+/*============================================================================*/
 
 #if SKINNED
+
+#include <math.glslv>
+
+#define SKIN_SLERP 0
 
 # if SKIN_SLERP
 /*
@@ -111,8 +122,7 @@ vec3 skin_point(in vec3 position,
                 in vec4 trana,
                 in float frame_factor)
 {
-    vec3 pos_armobj_space = tsr_translate(u_arm_rel_trans, u_arm_rel_quat,
-                                          vec4(position, 1.0));
+    vec3 pos_armobj_space = tsr_transform(u_arm_rel_trans, u_arm_rel_quat, position);
 #  if SKIN_SLERP
     vec4 quat = quat4_slerp(quatb, quata, frame_factor);
     vec4 tran = mix(tranb, trana, frame_factor);
@@ -129,8 +139,7 @@ vec3 skin_point(in vec3 position,
     vec3 pos_tran_rot = mix(pos_tran_rot_before, pos_tran_rot_after,
                             frame_factor);
 #  endif
-    return tsr_translate_inv(u_arm_rel_trans, u_arm_rel_quat,
-                             vec4(pos_tran_rot, 1.0));
+    return tsr_transform_inv(u_arm_rel_trans, u_arm_rel_quat, pos_tran_rot);
 }
 
 vec3 skin_vector(in vec3 vector, 
@@ -138,8 +147,7 @@ vec3 skin_vector(in vec3 vector,
                  in vec4 quata,
                  in float frame_factor)
 {
-    vec3 vec_armobj_space = tsr_translate(u_arm_rel_trans, u_arm_rel_quat,
-                                          vec4(vector, 0.0));
+    vec3 vec_armobj_space = tsr_transform_dir(u_arm_rel_trans, u_arm_rel_quat, vector);
 #  if SKIN_SLERP
     vec4 quat = quat4_slerp(quatb, quata, frame_factor);
     vec3 vector_rot = qrot(quat, vec_armobj_space);
@@ -148,30 +156,25 @@ vec3 skin_vector(in vec3 vector,
     vec3 vector_rot_after  = qrot(quata, vec_armobj_space);
     vec3 vector_rot = mix(vector_rot_before, vector_rot_after, frame_factor);
 #  endif
-    return tsr_translate_inv(u_arm_rel_trans, u_arm_rel_quat,
-                             vec4(vector_rot, 0.0));
+    return tsr_transform_inv_dir(u_arm_rel_trans, u_arm_rel_quat, vector_rot);
 }
 
 # else // FRAMES_BLENDING
 
 vec3 skin_point(in vec3 position, in vec4 quatb, in vec4 tranb)
 {
-    vec3 pos_armobj_space = tsr_translate(u_arm_rel_trans, u_arm_rel_quat,
-                                          vec4(position, 1.0));
+    vec3 pos_armobj_space = tsr_transform(u_arm_rel_trans, u_arm_rel_quat, position);
     vec3 pos_rot = qrot(quatb, pos_armobj_space);
     // uniform scale in w, translation in xyz
     vec3 pos_tran_rot = pos_rot * tranb.w + tranb.xyz;
-    return tsr_translate_inv(u_arm_rel_trans, u_arm_rel_quat,
-                             vec4(pos_tran_rot, 1.0));
+    return tsr_transform_inv(u_arm_rel_trans, u_arm_rel_quat, pos_tran_rot);
 }
 
 vec3 skin_vector(in vec3 vector, in vec4 quatb)
 {
-    vec3 vec_armobj_space = tsr_translate(u_arm_rel_trans, u_arm_rel_quat,
-                                          vec4(vector, 0.0));
+    vec3 vec_armobj_space = tsr_transform_dir(u_arm_rel_trans, u_arm_rel_quat, vector);
     vec3 vector_rot = qrot(quatb, vec_armobj_space);
-    return tsr_translate_inv(u_arm_rel_trans, u_arm_rel_quat,
-                             vec4(vector_rot, 0.0));
+    return tsr_transform_inv_dir(u_arm_rel_trans, u_arm_rel_quat, vector_rot);
 }
 # endif // FRAMES_BLENDING
 
@@ -197,8 +200,9 @@ void skin(inout vec3 position, inout vec3 tangent, inout vec3 binormal, inout ve
             int ind = int(influece[i]);
             float wght = fract(influece[i]);
 # if FRAMES_BLENDING
-            spos += wght * skin_point(position, u_quatsb[ind], u_quatsa[ind],
-                                        u_transb[ind], u_transa[ind], ff);
+            // NOTE: skin_point loop glitches on some mobiles
+            // spos += wght * skin_point(position, u_quatsb[ind], u_quatsa[ind],
+            //                             u_transb[ind], u_transa[ind], ff);
             stng += wght * skin_vector(tangent,  u_quatsb[ind], u_quatsa[ind], ff);
             sbnr += wght * skin_vector(binormal, u_quatsb[ind], u_quatsa[ind], ff);
             snrm += wght * skin_vector(normal,   u_quatsb[ind], u_quatsa[ind], ff);
@@ -211,6 +215,26 @@ void skin(inout vec3 position, inout vec3 tangent, inout vec3 binormal, inout ve
 #  endif
 # endif
         }
+// NOTE: hack for Yotaphone 2 (Adreno 330, Android 5.0)
+//  preventing flickering
+# if FRAMES_BLENDING
+        int ind = int(influece[0]);
+        float wght = fract(influece[0]);
+        spos += wght * skin_point(position, u_quatsb[ind], u_quatsa[ind],
+                            u_transb[ind], u_transa[ind], ff);
+        ind = int(influece[1]);
+        wght = fract(influece[1]);
+        spos += wght * skin_point(position, u_quatsb[ind], u_quatsa[ind],
+                            u_transb[ind], u_transa[ind], ff);
+        ind = int(influece[2]);
+        wght = fract(influece[2]);
+        spos += wght * skin_point(position, u_quatsb[ind], u_quatsa[ind],
+                            u_transb[ind], u_transa[ind], ff);
+        ind = int(influece[3]);
+        wght = fract(influece[3]);
+        spos += wght * skin_point(position, u_quatsb[ind], u_quatsa[ind],
+                            u_transb[ind], u_transa[ind], ff);
+# endif
         position = spos;
         normal   = snrm;
 # if !DISABLE_TANGENT_SKINNING
@@ -243,3 +267,5 @@ void skin(inout vec3 position, inout vec3 tangent, inout vec3 binormal, inout ve
 }
 
 #endif // SKINNED
+
+#endif

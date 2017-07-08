@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -33,12 +32,12 @@ exports.P_LOW    = 1;  // maximize performance
 exports.P_HIGH   = 2;  // use all requested features
 exports.P_ULTRA  = 3;  // use all requested features and maximize quality
 exports.P_CUSTOM = 4;  // use exports.defaults
+exports.P_AUTO   = 5;  // meta quality for auto configurators
 
 exports.context = {
     alpha              : true,
     antialias          : false,
-    premultipliedAlpha : true,
-    preserveDrawingBuffer : true
+    premultipliedAlpha : true
 }
 exports.context_save = m_util.clone_object_r(exports.context);
 
@@ -47,7 +46,7 @@ exports.defaults = {
 
     alpha_sort_threshold       : 0.1,
 
-    min_format_version         : [5, 7],
+    min_format_version         : [6, 2],
 
     max_fps                    : 10000, // not accurate
 
@@ -57,9 +56,9 @@ exports.defaults = {
 
     use_min50                  : false,
 
-    fps_measurement_interval   : 1.5,
+    fps_measurement_interval   : 1.0,
 
-    fps_callback_interval      : 10,
+    fps_callback_interval      : 5,
 
     background_color           : [0.0, 0.0, 0.0, 0.0],
 
@@ -71,13 +70,17 @@ exports.defaults = {
 
     force_low_quality_nodes    : false,
 
+    anisotropic_available      : true,
+
     anisotropic_filtering      : true,
+
+    texture_lod_available      : false,
 
     // init and show HUD on canvas provided by app
     show_hud_debug_info        : false,
 
     // required for shadows
-    depth_textures             : true,
+    depth_tex_available        : true,
 
     shadows                    : true,
 
@@ -120,11 +123,7 @@ exports.defaults = {
 
     shore_distance             : true,
 
-    max_texture_size           : 1024,
-
-    max_cube_map_size          : 512,
-
-    use_dds                    : true,
+    use_compression            : true,
 
     precision                  : "highp",
 
@@ -132,6 +131,10 @@ exports.defaults = {
     quality                    : exports.P_HIGH,
 
     allow_vertex_textures      : true,
+
+    lod_leap_smooth_threshold  : 3, // meters
+
+    assets_gzip_available      : false,
 
     no_phy_interp_hack         : false,
 
@@ -153,7 +156,7 @@ exports.defaults = {
 
     allow_hidpi                : false,
 
-    firefox_shadows_slink_hack : false,
+    shadows_color_slink_hack   : false,
 
     mobile_firefox_media_hack  : false,
 
@@ -161,9 +164,9 @@ exports.defaults = {
 
     enable_outlining           : true,
 
-    glow_materials             : true,
+    lod_smooth_transitions     : true,
 
-    max_vertex_uniform_vectors : 128,
+    glow_materials             : true,
 
     ie11_edge_touchscreen_hack : false,
 
@@ -171,11 +174,9 @@ exports.defaults = {
 
     loaded_data_version        : [0, 0],
 
-    edge_min_tex_size_hack     : false,
-
     quality_aa_method          : true,
 
-    amd_skinning_hack          : false,
+    skinning_hack              : false,
 
     url_params                 : null,
 
@@ -183,13 +184,21 @@ exports.defaults = {
 
     msaa_samples               : 4,
 
+    compared_mode_depth        : false,
+
     safari_canvas_alpha_hack   : false,
 
     safari_glow_hack           : false,
 
     resize_cubemap_canvas_hack : false,
 
+    resize_texture_canvas_hack : false,
+
     chrome_html_bkg_music_hack : false,
+
+    ie_edge_anchors_floor_hack : false,
+
+    ie11_edge_mouseoffset_hack : false,
 
     media_auto_activation      : true,
 
@@ -197,15 +206,31 @@ exports.defaults = {
 
     mac_os_shadow_hack         : false,
 
-    allow_shaders_debug_ext    : false,
-
     gl_debug                   : false,
 
     check_framebuffer_hack     : false,
 
-    gl_instanced_arrays        : null,
-    gl_draw_elemes_inst        : null,
-    gl_vert_attr_div           : null
+    allow_instanced_arrays_ext : false,
+
+    allow_vao_ext              : false,
+
+    compress_format            : "dds",
+
+    shadow_blur_samples        : "",
+
+    reflection_quality         : "",
+
+    srgb_type                  : "SRGB_SIMPLE",
+
+    ios_copy_tex_hack          : false,
+
+    rgba_fallback_shadows      : false,
+
+    debug_loading              : false,
+
+    phy_race_condition_hack    : false,
+
+    ff_compositing_hack        : false
 }
 
 exports.defaults_save = m_util.clone_object_r(exports.defaults);
@@ -221,16 +246,22 @@ exports.controls = {
 }
 
 exports.assets = {
-    dir: "ASSETS=../../deploy/assets/",
+    path: "",
+    // relative to engine sources (default value for developer version)
+    path_default: "B4W_ASSETS_PATH=__JS__/../deploy/assets/",
+    proj_path_default: "B4W_PROJ_ASSETS_PATH=__JS__/../projects/__NAME__/assets/",
     max_requests: 15,
     prevent_caching: true,
     min50_available: false,
-    dds_available: false
+    dds_available: false,
+    pvr_available: false
 }
 exports.assets_save = m_util.clone_object_r(exports.assets);
 
 exports.paths = {
-    shaders_dir         : "",
+    shaders_path         : "",
+    // relative to engine sources (default value for developer version)
+    shaders_path_default : "../shaders/",
     shaders_include_dir : "include/",
     shaders_postp_dir : "postprocessing/",
 
@@ -242,14 +273,11 @@ exports.paths = {
         "b4w.simple.min.js",
         "b4w.whitespace.min.js",
         "src/b4w.js",
-        "USER_DEFINED_MODULE"   // replaced when something compiled with the engine
+        "B4W_MAIN_MODULE"   // replaced when something compiled with the engine
     ],
 
-    // relative to engine sources (default value for developer version)
-    resources_dir: "../deploy/apps/common/",
-
-    smaa_search_texture_path: "",
-    smaa_area_texture_path: ""
+    smaa_search_texture_path: "smaa_search_texture.png",
+    smaa_area_texture_path: "smaa_area_texture.png"
 }
 
 exports.hmd_params = {
@@ -258,6 +286,8 @@ exports.hmd_params = {
         chromatic_aberration_coefs : [-0.015, 0.02, 0.025, 0.02]
     },
     "nonwebvr": {
+        distor_scale: 0.8,
+
         inter_lens_dist: 0.064,
         base_line_dist: 0.035,
         screen_to_lens_dist: 0.039,
@@ -274,16 +304,25 @@ exports.physics = {
     enabled: true,
     max_fps: 60,
     uranium_path: "",
+    uranium_bin: "",
+    // relative to engine sources (default value for developer version)
+    uranium_path_default: "B4W_URANIUM_PATH=../deploy/apps/common/",
+    asmjs_file: "uranium.js",
+    wasmjs_file: "uranium_wasm.js",
+    mem_file: "uranium.js.mem",
+    wasm_file: "uranium_wasm.wasm",
+    uranium_dir: "../deploy/apps/common/",
     calc_fps: false,
     ping: false,
-    use_workers: true
+    use_workers: true,
+    use_wasm: false
 }
 exports.physics_save = m_util.clone_object_r(exports.physics);
 
 exports.scenes = {
     grass_tex_size: 2*512,
     // default adjusted size
-    cubemap_tex_size: 384,
+    cubemap_tex_size: 256,
     cube_reflect_low: 32,
     cube_reflect_medium: 128,
     cube_reflect_high: 256,
@@ -314,11 +353,29 @@ exports.outlining = {
 
 exports.debug_subs = {
     enabled     : false,
-    subs_type   : "MAIN_OPAQUE",
+    subs_type   : 39,    // look subscene module for the right type number
     subs_number : 0,
     slink_type  : "COLOR"
 }
 exports.debug_subs_save = m_util.clone_object_r(exports.debug_subs);
+
+exports.context_limits = {
+    max_combined_texture_image_units : 8,
+    max_fragment_uniform_vectors     : 64,
+    max_texture_image_units          : 8,
+    max_varying_vectors              : 8,
+    max_vertex_attribs               : 15,
+    max_vertex_texture_image_units   : 0,
+    max_vertex_uniform_vectors       : 128,
+
+    max_cube_map_texture_size        : 1024,
+    max_renderbuffer_size            : 4096,
+    max_texture_size                 : 4096,
+    max_viewport_dims                : [4096, 4096],
+
+    depth_bits                       : 24
+}
+exports.context_limits_save = m_util.clone_object_r(exports.context_limits);
 
 /**
  * Override default values of engine settings according to quality param
@@ -357,6 +414,8 @@ exports.apply_quality = function() {
 
         cfg_scs.grass_tex_size = 4.0*512;
 
+        cfg_scs.cubemap_tex_size = 512;
+
         cfg_def.texture_min_filter = 3;
 
         cfg_def.anisotropic_filtering = true;
@@ -385,7 +444,11 @@ exports.apply_quality = function() {
 
         cfg_def.msaa_samples = 16;
 
+        cfg_def.srgb_type = "SRGB_PROPER";
+
         cfg_phy.max_fps = 120;
+
+        cfg_def.lod_smooth_transitions = true;
 
         break;
 
@@ -415,6 +478,8 @@ exports.apply_quality = function() {
 
         cfg_scs.grass_tex_size = 2*512;
 
+        cfg_scs.cubemap_tex_size = 256;
+
         cfg_def.texture_min_filter = 3;
 
         cfg_def.anisotropic_filtering = true;
@@ -441,9 +506,13 @@ exports.apply_quality = function() {
 
         cfg_def.glow_materials = true;
 
+        cfg_def.srgb_type = "SRGB_SIMPLE";
+
         cfg_def.msaa_samples = 4;
 
         cfg_phy.max_fps = 60;
+
+        cfg_def.lod_smooth_transitions = true;
 
         break;
 
@@ -473,6 +542,8 @@ exports.apply_quality = function() {
 
         cfg_scs.grass_tex_size = 1*512;
 
+        cfg_scs.cubemap_tex_size = 256;
+
         cfg_def.texture_min_filter = 2;
 
         cfg_def.anisotropic_filtering = false;
@@ -499,10 +570,20 @@ exports.apply_quality = function() {
 
         cfg_def.glow_materials = false;
 
+        cfg_def.srgb_type = "SRGB_SIMPLE";
+
         cfg_def.msaa_samples = 1;
 
         cfg_phy.max_fps = 60;
 
+        cfg_def.lod_smooth_transitions = false;
+
+        break;
+    case exports.P_CUSTOM:
+        // do nothing
+        break;
+    case exports.P_AUTO:
+        m_util.panic("Direct AUTO quality profile setting is forbidden");
         break;
     }
 }
@@ -541,8 +622,16 @@ function set(prop, value) {
     case "antialiasing":
         exports.defaults.antialiasing = value;
         break;
+    // @deprecated
+    case "assets_dir":
+    case "assets_path":
+        exports.assets.path = value;
+        break;
     case "assets_dds_available":
         exports.assets.dds_available = value;
+        break;
+    case "assets_pvr_available":
+        exports.assets.pvr_available = value;
         break;
     case "assets_min50_available":
         exports.assets.min50_available = value;
@@ -565,6 +654,9 @@ function set(prop, value) {
     case "console_verbose":
         exports.defaults.console_verbose = value;
         break;
+    case "compositing":
+        exports.defaults.compositing = value;
+        break;
     case "dof":
         exports.defaults.dof = value;
         break;
@@ -576,6 +668,12 @@ function set(prop, value) {
         break;
     case "stereo":
         exports.defaults.stereo = value;
+        break;
+    case "lod_leap_smooth_threshold":
+        exports.defaults.lod_leap_smooth_threshold = value;
+        break;
+    case "lod_smooth_transitions":
+        exports.defaults.lod_smooth_transitions = value;
         break;
     case "max_fps":
         exports.defaults.max_fps = value;
@@ -593,7 +691,17 @@ function set(prop, value) {
         exports.physics.enabled = value;
         break;
     case "physics_uranium_path":
-        exports.physics.uranium_path = value;
+        if (is_wasm_enabled()) {
+            exports.physics.uranium_path = value + exports.physics.wasmjs_file;
+            exports.physics.uranium_bin = value + exports.physics.wasm_file;
+        } else {
+            exports.physics.uranium_path = value + exports.physics.asmjs_file;
+            exports.physics.uranium_bin = value + exports.physics.mem_file;
+        }
+        exports.physics.uranium_dir = value;
+        break;
+    case "physics_use_wasm":
+        exports.physics.use_wasm = value;
         break;
     case "physics_calc_fps":
         exports.physics.calc_fps = value;
@@ -619,8 +727,10 @@ function set(prop, value) {
     case "sfx_mix_mode":
         exports.sfx.mix_mode = value;
         break;
+    // @deprecated
     case "shaders_dir":
-        exports.paths.shaders_dir = value;
+    case "shaders_path":
+        exports.paths.shaders_path = value;
         break;
     case "shadows":
         exports.defaults.shadows = value;
@@ -629,12 +739,15 @@ function set(prop, value) {
         exports.defaults.show_hud_debug_info = value;
         break;
     case "smaa":
+        m_print.error_deprecated_cfg("smaa");
         exports.defaults.smaa = value;
         break;
     case "smaa_search_texture_path":
+        m_print.error_deprecated_cfg("smaa_search_texture_path");
         exports.paths.smaa_search_texture_path = value;
         break;
     case "smaa_area_texture_path":
+        m_print.error_deprecated_cfg("smaa_area_texture_path");
         exports.paths.smaa_area_texture_path = value;
         break;
     case "ssao":
@@ -664,6 +777,24 @@ function set(prop, value) {
     case "gl_debug":
         exports.defaults.gl_debug = value;
         break;
+    case "srgb_type":
+        exports.defaults.srgb_type = value;
+        break;
+    case "shadow_blur_samples":
+        exports.defaults.shadow_blur_samples = value;
+        break;
+    case "reflection_quality":
+        exports.defaults.reflection_quality = value;
+        break;
+    case "assets_gzip_available":
+        exports.defaults.assets_gzip_available = value;
+        break;
+    case "debug_loading":
+        exports.defaults.debug_loading = value;
+        break;
+    case "msaa_samples":
+        exports.defaults.msaa_samples = value;
+        break;
     default:
         m_print.error("Unknown config property: " + prop);
         break;
@@ -690,8 +821,14 @@ exports.get = function(prop) {
         return exports.defaults.anisotropic_filtering;
     case "antialiasing":
         return exports.defaults.antialiasing;
+    // @deprecated
+    case "assets_dir":
+    case "assets_path":
+        return exports.assets.path;
     case "assets_dds_available":
         return exports.assets.dds_available;
+    case "assets_pvr_available":
+        return exports.assets.pvr_available;
     case "assets_min50_available":
         return exports.assets.min50_available;
     case "audio":
@@ -706,6 +843,8 @@ exports.get = function(prop) {
         return exports.defaults.canvas_resolution_factor;
     case "console_verbose":
         return exports.defaults.console_verbose;
+    case "compositing":
+        return exports.defaults.compositing;
     case "dof":
         return exports.defaults.dof;
     case "do_not_load_resources":
@@ -716,6 +855,10 @@ exports.get = function(prop) {
         return exports.defaults.god_rays;
     case "stereo":
         return exports.defaults.stereo;
+    case "lod_leap_smooth_threshold":
+        return exports.defaults.lod_leap_smooth_threshold;
+    case "lod_smooth_transitions":
+        return exports.defaults.lod_smooth_transitions;
     case "max_fps":
         return exports.defaults.max_fps;
     case "max_fps_physics":
@@ -727,7 +870,11 @@ exports.get = function(prop) {
     case "physics_enabled":
         return exports.physics.enabled;
     case "physics_uranium_path":
-        return exports.physics.uranium_path;
+        return exports.physics.uranium_dir;
+    case "physics_uranium_bin":
+        return exports.physics.uranium_bin;
+    case "physics_use_wasm":
+        return exports.physics.use_wasm;
     case "physics_calc_fps":
         return exports.physics.calc_fps;
     case "physics_use_workers":
@@ -744,8 +891,10 @@ exports.get = function(prop) {
         return exports.defaults.refractions;
     case "sfx_mix_mode":
         return exports.sfx.mix_mode;
+    // @deprecated
     case "shaders_dir":
-        return exports.paths.shaders_dir;
+    case "shaders_path":
+        return exports.paths.shaders_path;
     case "shadows":
         return exports.defaults.shadows;
     case "show_hud_debug_info":
@@ -774,6 +923,18 @@ exports.get = function(prop) {
         return exports.defaults.use_min50;
     case "gl_debug":
         return exports.defaults.gl_debug;
+    case "srgb_type":
+        return exports.defaults.srgb_type;
+    case "shadow_blur_samples":
+        return exports.defaults.shadow_blur_samples;
+    case "reflection_quality":
+        return exports.defaults.reflection_quality;
+    case "assets_gzip_available":
+        return exports.defaults.assets_gzip_available;
+    case "debug_loading":
+        return exports.defaults.debug_loading;
+    case "msaa_samples":
+        return exports.defaults.msaa_samples;
     default:
         m_print.error("Unknown config property: " + prop);
         break;
@@ -781,18 +942,37 @@ exports.get = function(prop) {
 }
 
 exports.reset = function() {
-    exports.context = m_util.clone_object_r(exports.context_save);
-    exports.defaults = m_util.clone_object_r(exports.defaults_save);
-    exports.assets = m_util.clone_object_r(exports.assets_save);
-    exports.physics = m_util.clone_object_r(exports.physics_save);
-    exports.scenes = m_util.clone_object_r(exports.scenes_save);
-    exports.sfx = m_util.clone_object_r(exports.sfx_save);
-    exports.debug_subs = m_util.clone_object_r(exports.debug_subs_save);
+    for (var i in exports.context_save)
+        exports.context[i] = exports.context_save[i];
+    for (var i in exports.defaults_save)
+        exports.defaults[i] = exports.defaults_save[i];
+    for (var i in exports.assets_save)
+        exports.assets[i] = exports.assets_save[i];
+    for (var i in exports.physics_save)
+        exports.physics[i] = exports.physics_save[i];
+    for (var i in exports.scenes_save)
+        exports.scenes[i] = exports.scenes_save[i];
+    for (var i in exports.sfx_save)
+        exports.sfx[i] = exports.sfx_save[i];
+    for (var i in exports.debug_subs_save)
+        exports.debug_subs[i] = exports.debug_subs_save[i];
+}
+
+exports.reset_limits = function() {
+    // NOTE: depth_bits is too subtle/hacky to change it manually here
+    var depth_bits = exports.context_limits.depth_bits;
+    for (var i in exports.context_limits_save)
+        exports.context_limits[i] = exports.context_limits_save[i];
+    exports.context_limits.depth_bits = depth_bits;
 }
 
 exports.is_built_in_data = is_built_in_data;
 function is_built_in_data() {
     return b4w.module_check(exports.paths.built_in_data_module);
+}
+
+function is_wasm_enabled() {
+    return exports.physics.use_wasm && window.WebAssembly;
 }
 
 /**
@@ -802,25 +982,22 @@ exports.set_paths = function() {
     var cfg_pth = exports.paths;
     var cfg_phy = exports.physics;
 
-    if (!is_built_in_data() && cfg_pth.shaders_dir == "")
-        cfg_pth.shaders_dir = js_src_dir() + "../shaders/";
+    if (!is_built_in_data() && cfg_pth.shaders_path == "")
+        cfg_pth.shaders_path = js_src_dir() + "/" + cfg_pth.shaders_path_default;
 
-    if (is_built_in_data()) {
-        cfg_pth.smaa_search_texture_path = "smaa_search_texture.png";
-        cfg_pth.smaa_area_texture_path = "smaa_area_texture.png";
-    } else if (cfg_pth.smaa_search_texture_path == ""
-            || cfg_pth.smaa_area_texture_path == "") {
-        var resources_dir = js_src_dir() + cfg_pth.resources_dir;
-
-        cfg_pth.smaa_search_texture_path = cfg_pth.smaa_search_texture_path ||
-                resources_dir + "smaa_search_texture.png";
-        cfg_pth.smaa_area_texture_path = cfg_pth.smaa_area_texture_path ||
-                resources_dir + "smaa_area_texture.png";
+    if (is_wasm_enabled()) {
+        var uranium_path = cfg_phy.uranium_path_default + cfg_phy.wasmjs_file;
+        var uranium_bin = cfg_phy.uranium_path_default + cfg_phy.wasm_file;
+    } else {
+        var uranium_path = cfg_phy.uranium_path_default + cfg_phy.asmjs_file;
+        var uranium_bin = cfg_phy.uranium_path_default + cfg_phy.mem_file;
     }
 
     if (cfg_phy.enabled && cfg_phy.uranium_path == "") {
-        var resources_dir = js_src_dir() + cfg_pth.resources_dir;
-        cfg_phy.uranium_path = resources_dir + "uranium.js";
+        cfg_phy.uranium_path = js_src_dir() + "/" +
+                uranium_path.replace("B4W_URANIUM_PATH=", "");
+        cfg_phy.uranium_bin = js_src_dir() + "/" +
+                uranium_bin.replace("B4W_URANIUM_PATH=", "");
     }
 }
 
@@ -833,6 +1010,7 @@ function js_src_dir() {
     var src_path = null;
 
     var scripts = document.getElementsByTagName('script');
+
     for (var i = 0; i < scripts.length; i++) {
         var src = scripts[i].src;
 
@@ -858,11 +1036,28 @@ function js_src_dir() {
     if (index >= 0)
         src_path = src_path.substring(0, index);
 
-    return src_path.substring(0, src_path.lastIndexOf("/") + 1);
+    return src_path.substring(0, src_path.lastIndexOf("/"));
 }
 
-exports.get_std_assets_path = function() {
-    return exports.assets.dir.replace("ASSETS=", "");
+exports.get_assets_path = function(name) {
+    var cfg_ass = exports.assets;
+
+    if (cfg_ass.path)
+        return cfg_ass.path;
+
+    var cfg_ass_def = cfg_ass.path_default;
+    var assets_repl_pref = "B4W_ASSETS_PATH=";
+
+    if (name) {
+        cfg_ass_def = cfg_ass.proj_path_default;
+        assets_repl_pref = "B4W_PROJ_ASSETS_PATH=";
+        cfg_ass_def = cfg_ass_def.replace("__NAME__", name);
+    }
+
+    cfg_ass_def = cfg_ass_def.replace(assets_repl_pref, "");
+    cfg_ass_def = cfg_ass_def.replace("__JS__", js_src_dir());
+
+    return cfg_ass_def;
 }
 
 }

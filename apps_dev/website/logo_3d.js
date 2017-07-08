@@ -2,13 +2,16 @@
 
 b4w.register("logo_3d_main", function(exports, require) {
 
-var m_app   = require("app");
-var m_cfg   = require("config");
-var m_cont  = require("container");
-var m_ctl   = require("controls");
-var m_data  = require("data");
-var m_main  = require("main");
-var m_scs   = require("scenes");
+var m_app      = require("app");
+var m_cfg      = require("config");
+var m_cont     = require("container");
+var m_ctl      = require("controls");
+var m_data     = require("data");
+var m_main     = require("main");
+var m_scs      = require("scenes");
+var m_version  = require("version");
+
+var DEBUG = (m_version.type() === "DEBUG");
 
 var CANVAS_CONTAINER_ID  = "main_canvas_container";
 var CANVAS_REPLACMENT    = "no_webgl_logo";
@@ -17,8 +20,49 @@ var ENGINE_PAUSE_TIMEOUT = 10000;
 var _canvas_elem = null;
 var _engine_pause_func = null;
 
+var _is_init = false;
+
 
 exports.init = function() {
+    onresize();
+}
+
+function onresize() {
+    if (!_is_init && window.innerWidth >= 768) {
+        init_engine();
+
+        return;
+    }
+
+    if (!_is_init && window.innerWidth < 768) {
+        window.addEventListener("resize", onresize);
+
+        return;
+    }
+
+    if (_is_init && window.innerWidth >= 768) {
+        var cont = m_cont.get_container();
+
+        cont.style.display = "block";
+
+        return;
+    }
+
+    if (_is_init && window.innerWidth < 768) {
+        var cont = m_cont.get_container();
+
+        cont.style.display = "none";
+
+        if (!m_main.is_paused())
+            m_main.pause();
+
+        return;
+    }
+}
+
+function init_engine() {
+    _is_init = true;
+
     m_app.init({
         canvas_container_id: CANVAS_CONTAINER_ID,
         callback: init_cb,
@@ -27,7 +71,8 @@ exports.init = function() {
         quality: m_cfg.P_HIGH,
         report_init_failure: false,
         alpha: true,
-        track_container_position: true,
+        assets_dds_available: !DEBUG,
+        assets_min50_available: !DEBUG,
         force_container_ratio: 661 / 316,
         autoresize: true
     });
@@ -61,11 +106,11 @@ function loaded_callback(data_id) {
     var canv_repl = document.getElementById(CANVAS_REPLACMENT);
     var cont = m_cont.get_container();
 
-    if (check_user_agent("iPad") || check_user_agent("iPhone"))
-        cont.style.width = "99%";
-
     if (canv_repl)
         canv_repl.style.display = "none";
+
+    if (cont)
+        cont.style.display = "block";
 
     _canvas_elem.oncontextmenu = function(e) {
         e.preventDefault();
@@ -88,6 +133,7 @@ function loaded_callback(data_id) {
 
     window.addEventListener("beforeunload", function() {
         _canvas_elem.style.display = "none";
+
         if (canv_repl)
             canv_repl.style.display = "block";
     })
@@ -98,6 +144,9 @@ function loaded_callback(data_id) {
     _canvas_elem.addEventListener("DOMMouseScroll", resume_engine, false);
     _canvas_elem.addEventListener("touchstart", resume_engine, false);
     _canvas_elem.addEventListener("touchmove", resume_engine, false);
+
+    window.removeEventListener("resize", onresize);
+    window.addEventListener("resize", onresize);
 }
 
 function resume_engine() {

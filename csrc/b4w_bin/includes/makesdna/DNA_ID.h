@@ -82,8 +82,6 @@ enum {
 	IDP_FLOAT            = 2,
 	IDP_ARRAY            = 5,
 	IDP_GROUP            = 6,
-	/* the ID link property type hasn't been implemented yet, this will require
-	 * some cleanup of blenkernel, most likely. */
 	IDP_ID               = 7,
 	IDP_DOUBLE           = 8,
 	IDP_IDPARRAY         = 9,
@@ -142,7 +140,6 @@ typedef struct ID {
  */
 typedef struct Library {
 	ID id;
-	ID *idblock;
 	struct FileData *filedata;
 	char name[1024];  /* path name used for reading, can be relative and edited in the outliner */
 
@@ -155,6 +152,10 @@ typedef struct Library {
 	struct Library *parent;	/* set for indirectly linked libs, used in the outliner and while reading */
 	
 	struct PackedFile *packedfile;
+
+	/* Temp data needed by read/write code. */
+	int temp_index;
+	short versionfile, subversionfile;  /* see BLENDER_VERSION, BLENDER_SUBVERSION, needed for do_versions */
 } Library;
 
 enum eIconSizes {
@@ -170,6 +171,13 @@ enum ePreviewImage_Flag {
 	PRV_USER_EDITED      = (1 << 1),  /* if user-edited, do not auto-update this anymore! */
 };
 
+/* for PreviewImage->tag */
+enum  {
+	PRV_TAG_DEFFERED           = (1 << 0),  /* Actual loading of preview is deffered. */
+	PRV_TAG_DEFFERED_RENDERING = (1 << 1),  /* Deffered preview is being loaded. */
+	PRV_TAG_DEFFERED_DELETE    = (1 << 2),  /* Deffered preview should be deleted asap. */
+};
+
 typedef struct PreviewImage {
 	/* All values of 2 are really NUM_ICON_SIZES */
 	unsigned int w[2];
@@ -182,12 +190,12 @@ typedef struct PreviewImage {
 	struct GPUTexture *gputexture[2];
 	int icon_id;  /* Used by previews outside of ID context. */
 
-	char pad[3];
-	char use_deferred;  /* for now a mere bool, if we add more deferred loading methods we can switch to bitflag. */
+	short tag;  /* Runtime data. */
+	char pad[2];
 } PreviewImage;
 
 #define PRV_DEFERRED_DATA(prv) \
-	(CHECK_TYPE_INLINE(prv, PreviewImage *), BLI_assert((prv)->use_deferred), (void *)((prv) + 1))
+	(CHECK_TYPE_INLINE(prv, PreviewImage *), BLI_assert((prv)->tag & PRV_TAG_DEFFERED), (void *)((prv) + 1))
 
 /**
  * Defines for working with IDs.
@@ -211,43 +219,50 @@ typedef struct PreviewImage {
  * Written to #BHead.code (for file IO)
  * and the first 2 bytes of #ID.name (for runtime checks, see #GS macro).
  */
-#define ID_SCE		MAKE_ID2('S', 'C') /* Scene */
-#define ID_LI		MAKE_ID2('L', 'I') /* Library */
-#define ID_OB		MAKE_ID2('O', 'B') /* Object */
-#define ID_ME		MAKE_ID2('M', 'E') /* Mesh */
-#define ID_CU		MAKE_ID2('C', 'U') /* Curve */
-#define ID_MB		MAKE_ID2('M', 'B') /* MetaBall */
-#define ID_MA		MAKE_ID2('M', 'A') /* Material */
-#define ID_TE		MAKE_ID2('T', 'E') /* Tex (Texture) */
-#define ID_IM		MAKE_ID2('I', 'M') /* Image */
-#define ID_LT		MAKE_ID2('L', 'T') /* Lattice */
-#define ID_LA		MAKE_ID2('L', 'A') /* Lamp */
-#define ID_CA		MAKE_ID2('C', 'A') /* Camera */
-#define ID_IP		MAKE_ID2('I', 'P') /* Ipo (depreciated, replaced by FCurves) */
-#define ID_KE		MAKE_ID2('K', 'E') /* Key (shape key) */
-#define ID_WO		MAKE_ID2('W', 'O') /* World */
-#define ID_SCR		MAKE_ID2('S', 'R') /* Screen */
-#define ID_SCRN		MAKE_ID2('S', 'N') /* (depreciated?) */
-#define ID_VF		MAKE_ID2('V', 'F') /* VFont (Vector Font) */
-#define ID_TXT		MAKE_ID2('T', 'X') /* Text */
-#define ID_SPK		MAKE_ID2('S', 'K') /* Speaker */
-#define ID_SO		MAKE_ID2('S', 'O') /* Sound */
-#define ID_GR		MAKE_ID2('G', 'R') /* Group */
-#define ID_ID		MAKE_ID2('I', 'D') /* (internal use only) */
-#define ID_AR		MAKE_ID2('A', 'R') /* bArmature */
-#define ID_AC		MAKE_ID2('A', 'C') /* bAction */
-#define ID_NT		MAKE_ID2('N', 'T') /* bNodeTree */
-#define ID_BR		MAKE_ID2('B', 'R') /* Brush */
-#define ID_PA		MAKE_ID2('P', 'A') /* ParticleSettings */
-#define ID_GD		MAKE_ID2('G', 'D') /* bGPdata, (Grease Pencil) */
-#define ID_WM		MAKE_ID2('W', 'M') /* WindowManager */
-#define ID_MC		MAKE_ID2('M', 'C') /* MovieClip */
-#define ID_MSK		MAKE_ID2('M', 'S') /* Mask */
-#define ID_LS		MAKE_ID2('L', 'S') /* FreestyleLineStyle */
-#define ID_PAL		MAKE_ID2('P', 'L') /* Palette */
-#define ID_PC		MAKE_ID2('P', 'C') /* PaintCurve  */
+typedef enum ID_Type {
+	ID_SCE  = MAKE_ID2('S', 'C'), /* Scene */
+	ID_LI   = MAKE_ID2('L', 'I'), /* Library */
+	ID_OB   = MAKE_ID2('O', 'B'), /* Object */
+	ID_ME   = MAKE_ID2('M', 'E'), /* Mesh */
+	ID_CU   = MAKE_ID2('C', 'U'), /* Curve */
+	ID_MB   = MAKE_ID2('M', 'B'), /* MetaBall */
+	ID_MA   = MAKE_ID2('M', 'A'), /* Material */
+	ID_TE   = MAKE_ID2('T', 'E'), /* Tex (Texture) */
+	ID_IM   = MAKE_ID2('I', 'M'), /* Image */
+	ID_LT   = MAKE_ID2('L', 'T'), /* Lattice */
+	ID_LA   = MAKE_ID2('L', 'A'), /* Lamp */
+	ID_CA   = MAKE_ID2('C', 'A'), /* Camera */
+	ID_IP   = MAKE_ID2('I', 'P'), /* Ipo (depreciated, replaced by FCurves) */
+	ID_KE   = MAKE_ID2('K', 'E'), /* Key (shape key) */
+	ID_WO   = MAKE_ID2('W', 'O'), /* World */
+	ID_SCR  = MAKE_ID2('S', 'R'), /* Screen */
+	ID_VF   = MAKE_ID2('V', 'F'), /* VFont (Vector Font) */
+	ID_TXT  = MAKE_ID2('T', 'X'), /* Text */
+	ID_SPK  = MAKE_ID2('S', 'K'), /* Speaker */
+	ID_SO   = MAKE_ID2('S', 'O'), /* Sound */
+	ID_GR   = MAKE_ID2('G', 'R'), /* Group */
+	ID_AR   = MAKE_ID2('A', 'R'), /* bArmature */
+	ID_AC   = MAKE_ID2('A', 'C'), /* bAction */
+	ID_NT   = MAKE_ID2('N', 'T'), /* bNodeTree */
+	ID_BR   = MAKE_ID2('B', 'R'), /* Brush */
+	ID_PA   = MAKE_ID2('P', 'A'), /* ParticleSettings */
+	ID_GD   = MAKE_ID2('G', 'D'), /* bGPdata, (Grease Pencil) */
+	ID_WM   = MAKE_ID2('W', 'M'), /* WindowManager */
+	ID_MC   = MAKE_ID2('M', 'C'), /* MovieClip */
+	ID_MSK  = MAKE_ID2('M', 'S'), /* Mask */
+	ID_LS   = MAKE_ID2('L', 'S'), /* FreestyleLineStyle */
+	ID_PAL  = MAKE_ID2('P', 'L'), /* Palette */
+	ID_PC   = MAKE_ID2('P', 'C'), /* PaintCurve  */
+	ID_CF   = MAKE_ID2('C', 'F'), /* CacheFile */
+} ID_Type;
 
-	/* NOTE! Fake IDs, needed for g.sipo->blocktype or outliner */
+/* Only used as 'placeholder' in .blend files for directly linked datablocks. */
+#define ID_ID       MAKE_ID2('I', 'D') /* (internal use only) */
+
+/* Deprecated. */
+#define ID_SCRN	    MAKE_ID2('S', 'N')
+
+/* NOTE! Fake IDs, needed for g.sipo->blocktype or outliner */
 #define ID_SEQ		MAKE_ID2('S', 'Q')
 			/* constraint */
 #define ID_CO		MAKE_ID2('C', 'O')
@@ -260,7 +275,7 @@ typedef struct PreviewImage {
 
 #define ID_FAKE_USERS(id) ((((ID *)id)->flag & LIB_FAKEUSER) ? 1 : 0)
 #define ID_REAL_USERS(id) (((ID *)id)->us - ID_FAKE_USERS(id))
-#define ID_REFCOUNT_USERS(id) (((ID *)id)->us - ((((ID *)id)->tag & LIB_TAG_EXTRAUSER_SET) ? 1 : 0) - ID_FAKE_USERS(id))
+#define ID_EXTRA_USERS(id) (((ID *)id)->tag & LIB_TAG_EXTRAUSER ? 1 : 0)
 
 #define ID_CHECK_UNDO(id) ((GS((id)->name) != ID_SCR) && (GS((id)->name) != ID_WM))
 
@@ -268,14 +283,16 @@ typedef struct PreviewImage {
 
 #define ID_MISSING(_id) (((_id)->tag & LIB_TAG_MISSING) != 0)
 
+#define ID_IS_LINKED_DATABLOCK(_id) (((ID *)(_id))->lib != NULL)
+
 #ifdef GS
 #  undef GS
 #endif
 #define GS(a)	(CHECK_TYPE_ANY(a, char *, const char *, char [66], const char[66]), (*((const short *)(a))))
 
-#define ID_NEW(a)		if (      (a) && (a)->id.newid ) (a) = (void *)(a)->id.newid
-#define ID_NEW_US(a)	if (      (a)->id.newid)       { (a) = (void *)(a)->id.newid;       (a)->id.us++; }
-#define ID_NEW_US2(a)	if (((ID *)a)->newid)          { (a) = ((ID  *)a)->newid;     ((ID *)a)->us++;    }
+#define ID_NEW_SET(_id, _idn) \
+	(((ID *)(_id))->newid = (ID *)(_idn), ((ID *)(_id))->newid->tag |= LIB_TAG_NEW, (void *)((ID *)(_id))->newid)
+#define ID_NEW_REMAP(a) if ((a) && (a)->id.newid) (a) = (void *)(a)->id.newid
 
 /* id->flag (persitent). */
 enum {
@@ -319,7 +336,8 @@ enum {
 	/* tag datablock has having actually increased usercount for the extra virtual user. */
 	LIB_TAG_EXTRAUSER_SET   = 1 << 7,
 
-	/* RESET_AFTER_USE tag newly duplicated/copied IDs. */
+	/* RESET_AFTER_USE tag newly duplicated/copied IDs.
+	 * Also used internally in readfile.c to mark datablocks needing do_versions. */
 	LIB_TAG_NEW             = 1 << 8,
 	/* RESET_BEFORE_USE free test flag.
      * TODO make it a RESET_AFTER_USE too. */
@@ -368,6 +386,47 @@ enum {
 	FILTER_ID_VF        = (1 << 25),
 	FILTER_ID_WO        = (1 << 26),
 	FILTER_ID_PA        = (1 << 27),
+	FILTER_ID_CF        = (1 << 28),
+};
+
+/* IMPORTANT: this enum matches the order currently use in set_lisbasepointers,
+ * keep them in sync! */
+enum {
+	INDEX_ID_LI = 0,
+	INDEX_ID_IP,
+	INDEX_ID_AC,
+	INDEX_ID_KE,
+	INDEX_ID_GD,
+	INDEX_ID_NT,
+	INDEX_ID_IM,
+	INDEX_ID_TE,
+	INDEX_ID_MA,
+	INDEX_ID_VF,
+	INDEX_ID_AR,
+	INDEX_ID_CF,
+	INDEX_ID_ME,
+	INDEX_ID_CU,
+	INDEX_ID_MB,
+	INDEX_ID_LT,
+	INDEX_ID_LA,
+	INDEX_ID_CA,
+	INDEX_ID_TXT,
+	INDEX_ID_SO,
+	INDEX_ID_GR,
+	INDEX_ID_PAL,
+	INDEX_ID_PC,
+	INDEX_ID_BR,
+	INDEX_ID_PA,
+	INDEX_ID_SPK,
+	INDEX_ID_WO,
+	INDEX_ID_MC,
+	INDEX_ID_SCR,
+	INDEX_ID_OB,
+	INDEX_ID_LS,
+	INDEX_ID_SCE,
+	INDEX_ID_WM,
+	INDEX_ID_MSK,
+	INDEX_ID_NULL,
 };
 
 #ifdef __cplusplus

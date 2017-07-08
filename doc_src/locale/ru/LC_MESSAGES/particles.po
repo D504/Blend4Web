@@ -1,21 +1,20 @@
-# SOME DESCRIPTIVE TITLE.
+# Blend4Web User Manual Russian Translation: Particles
 # Copyright (C) 2014-2016, Triumph
-# This file is distributed under the same license as the Blend4Web. User
-# Manual package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2016.
+# This file is distributed under the same license as Blend4Web.
+# Blend4Web Team <info [at] blend4web.com>, 2014.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: B4W 14.02.28\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-04-22 17:13+0300\n"
-"PO-Revision-Date: 2015-07-28 15:19+0300\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"Project-Id-Version: Blend4Web 16.08\n"
+"Report-Msgid-Bugs-To: https://www.blend4web.com/en/forums/forum/17/\n"
+"POT-Creation-Date: 2016-11-23 15:38+0300\n"
+"PO-Revision-Date: 2015-08-28 10:55+0300\n"
+"Last-Translator: Blend4Web Team <info [at] blend4web.com>\n"
+"Language-Team: Russian <info [at] blend4web.com>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.2.0\n"
+"Generated-By: Babel 2.3.4\n"
 
 #: ../particles.rst:7
 msgid "Particle System. Fluids"
@@ -147,7 +146,7 @@ msgstr "Общие настройки"
 
 #: ../particles.rst:65
 msgid "*Name*"
-msgstr ""
+msgstr "*Name*"
 
 #: ../particles.rst:65
 msgid "Particle system name. The default name is \"ParticleSystem\"."
@@ -155,7 +154,7 @@ msgstr "Название системы частиц. Значение по ум
 
 #: ../particles.rst:68
 msgid "*Settings*"
-msgstr ""
+msgstr "*Settings*"
 
 #: ../particles.rst:68
 msgid ""
@@ -167,7 +166,7 @@ msgstr ""
 
 #: ../particles.rst:71
 msgid "*Type*"
-msgstr ""
+msgstr "*Type*"
 
 #: ../particles.rst:71
 msgid ""
@@ -181,7 +180,7 @@ msgstr ""
 
 #: ../particles.rst:75
 msgid "*Seed*"
-msgstr ""
+msgstr "*Seed*"
 
 #: ../particles.rst:74
 msgid ""
@@ -197,7 +196,7 @@ msgstr "Настройки испускания"
 
 #: ../particles.rst:85
 msgid "*Emission > Number*"
-msgstr ""
+msgstr "*Emission > Number*"
 
 #: ../particles.rst:85
 msgid "Number of particles. The default value is 1000."
@@ -205,7 +204,7 @@ msgstr "Количество частиц. Значение по умолчан�
 
 #: ../particles.rst:88
 msgid "*Emission > Start*"
-msgstr ""
+msgstr "*Emission > Start*"
 
 #: ../particles.rst:88
 msgid ""
@@ -217,7 +216,7 @@ msgstr ""
 
 #: ../particles.rst:91
 msgid "*Emission > End*"
-msgstr ""
+msgstr "*Emission > End*"
 
 #: ../particles.rst:91
 msgid ""
@@ -229,7 +228,7 @@ msgstr ""
 
 #: ../particles.rst:94
 msgid "*Emission > Lifetime*"
-msgstr ""
+msgstr "*Emission > Lifetime*"
 
 #: ../particles.rst:94
 msgid "The lifetime of particles measured in frames. The default value is 50.0."
@@ -237,7 +236,7 @@ msgstr "Время жизни частиц в кадрах. Значение п�
 
 #: ../particles.rst:97
 msgid "*Emission > Lifetime > Random*"
-msgstr ""
+msgstr "*Emission > Lifetime > Random*"
 
 #: ../particles.rst:97
 msgid "The random factor for the lifetime. The default value is 0.0."
@@ -245,7 +244,7 @@ msgstr "Фактор случайности для времени жизни. З
 
 #: ../particles.rst:100
 msgid "*Emission > Emit From*"
-msgstr ""
+msgstr "*Emission > Emit From*"
 
 #: ../particles.rst:100
 msgid ""
@@ -257,7 +256,7 @@ msgstr ""
 
 #: ../particles.rst:103
 msgid "*Emission > Cyclic emission*"
-msgstr ""
+msgstr "*Emission > Cyclic emission*"
 
 #: ../particles.rst:103
 msgid ""
@@ -270,10 +269,22 @@ msgstr ""
 " ``Emission > Start``. По умолчанию выключено."
 
 #: ../particles.rst:106
-msgid "*Emission > Random Delay*"
-msgstr ""
+msgid "*Emission > Allow NLA*"
+msgstr "*Emission > Allow NLA*"
 
 #: ../particles.rst:106
+msgid ""
+"Activating this option allows particle emission to be controlled by NLA. "
+"Enabled by default."
+msgstr ""
+"Если эта опция включена, испускание частиц может контролироваться с помощью "
+"NLA. По умолчанию активировано."
+
+#: ../particles.rst:110
+msgid "*Emission > Random Delay*"
+msgstr "*Emission > Random Delay*"
+
+#: ../particles.rst:109
 msgid ""
 "The option enables a random emission time for particles. Disabled by "
 "default."
@@ -281,27 +292,13 @@ msgstr ""
 "Опция устанавливает случайный характер времени испускания частиц. По "
 "умолчанию выключено."
 
-#: ../particles.rst:110
-msgid "*Emission > Emit From > Distribution*"
-msgstr ""
-
-#: ../particles.rst:109
-msgid ""
-"Emission distribution settings: ``Jittered``, ``Random``, ``Grid``. "
-"Ignored by the engine. Internally the engine always uses ``Random`` "
-"distribution. The default is ``Jittered``."
-msgstr ""
-"Настройки распределения испускания: ``Jittered``, ``Random``, ``Grid``. "
-"Игнорируются движком. Всегда используется случайное распределение "
-"(``Random``). Значение по умолчанию ``Jittered``."
-
 #: ../particles.rst:113
 msgid "Direction Settings"
 msgstr "Настройки направления"
 
 #: ../particles.rst:116
 msgid "*Velocity > Emitter Geometry > Normal*"
-msgstr ""
+msgstr "*Velocity > Emitter Geometry > Normal*"
 
 #: ../particles.rst:116
 msgid ""
@@ -313,7 +310,7 @@ msgstr ""
 
 #: ../particles.rst:120
 msgid "*Velocity > Other > Random*"
-msgstr ""
+msgstr "*Velocity > Other > Random*"
 
 #: ../particles.rst:119
 msgid "Factor of randomization for emission direction. The default value is 0.0."
@@ -325,7 +322,7 @@ msgstr "Настройки вращения"
 
 #: ../particles.rst:126
 msgid "*Rotation > Angular Velocity > Mode*"
-msgstr ""
+msgstr "*Rotation > Angular Velocity > Mode*"
 
 #: ../particles.rst:126
 msgid ""
@@ -333,20 +330,20 @@ msgid ""
 "supports all the types of rotation and ``Emitter`` supports only "
 "``Velocity``."
 msgstr ""
-"Режим собственного вращения биллбордов частиц. Система частиц типа "
+"Режим собственного вращения билбордов частиц. Система частиц типа "
 "``Hair`` поддерживает все типы вращения, а система частиц типа "
 "``Emitter`` только ``Velocity``"
 
 #: ../particles.rst:130
 msgid "*Rotation > Angular Velocity > Factor*"
-msgstr ""
+msgstr "*Rotation > Angular Velocity > Factor*"
 
 #: ../particles.rst:129
 msgid ""
 "Factor of rotation velocity for particle billboards. The default value is"
 " 0.0."
 msgstr ""
-"Фактор скорости собственного вращения биллбордов частиц. Значение по "
+"Фактор скорости собственного вращения билбордов частиц. Значение по "
 "умолчанию 0.0."
 
 #: ../particles.rst:133
@@ -355,7 +352,7 @@ msgstr "Настройки физики"
 
 #: ../particles.rst:140
 msgid "*Physics > Type*"
-msgstr ""
+msgstr "*Physics > Type*"
 
 #: ../particles.rst:140
 msgid ""
@@ -369,7 +366,7 @@ msgstr ""
 
 #: ../particles.rst:143
 msgid "*Physics > Size*"
-msgstr ""
+msgstr "*Physics > Size*"
 
 #: ../particles.rst:143
 msgid "Particle size. The default value is 0.05."
@@ -377,7 +374,7 @@ msgstr "Размер частиц. Значение по умолчанию 0.05
 
 #: ../particles.rst:146
 msgid "*Physics > Mass*"
-msgstr ""
+msgstr "*Physics > Mass*"
 
 #: ../particles.rst:146
 msgid ""
@@ -389,7 +386,7 @@ msgstr ""
 
 #: ../particles.rst:150
 msgid "*Physics > Forces > Brownian*"
-msgstr ""
+msgstr "*Physics > Forces > Brownian*"
 
 #: ../particles.rst:149
 msgid "Exported but not used by the engine."
@@ -401,7 +398,7 @@ msgstr "Настройки отображения"
 
 #: ../particles.rst:160
 msgid "*Render > Material*"
-msgstr ""
+msgstr "*Render > Material*"
 
 #: ../particles.rst:160
 msgid ""
@@ -415,7 +412,7 @@ msgstr ""
 
 #: ../particles.rst:163
 msgid "*Render > Emitter*"
-msgstr ""
+msgstr "*Render > Emitter*"
 
 #: ../particles.rst:163
 msgid "Enables emitter rendering on the scene. Enabled by default."
@@ -423,7 +420,7 @@ msgstr "Опция включения отображения эмиттера н
 
 #: ../particles.rst:166
 msgid "*Render > Type*"
-msgstr ""
+msgstr "*Render > Type*"
 
 #: ../particles.rst:166
 msgid ""
@@ -438,12 +435,12 @@ msgstr ""
 "``Object``, ``Group``, ``Billboard``. Движком различаются режимы "
 "``Object`` и ``Group``, использующиеся для инстансинга объектов и групп "
 "объектов, соответственно. Другие режимы игнорируются. Для удобства "
-"отображения биллбордов рекомендуется включать режим ``Billboard``. "
+"отображения билбордов рекомендуется включать режим ``Billboard``. "
 "Значение по умолчанию ``Halo``."
 
 #: ../particles.rst:169
 msgid "*Render > Billboard Align*"
-msgstr ""
+msgstr "*Render > Billboard Align*"
 
 #: ../particles.rst:169
 msgid ""
@@ -451,26 +448,26 @@ msgid ""
 "plane``, ``YZ plane``, ``ZX plane`` - align to the corresponding plane "
 "(in the world coordinate system of Blender). The default is ``View``."
 msgstr ""
-"Способ ориентирования биллбордов: ``View`` - поворачивать к камере, ``XY "
+"Способ ориентирования билбордов: ``View`` - поворачивать к камере, ``XY "
 "plane``, ``YZ plane``, ``ZX plane`` - ориентировать в соответствующей "
 "плоскости (в мировой системе координат Blender'a). Значение по умолчанию "
 "``View``."
 
 #: ../particles.rst:178
 msgid "*Render > Tilt*"
-msgstr ""
+msgstr "*Render > Tilt*"
 
 #: ../particles.rst:172
 msgid ""
 "This group of parameters controls the initial tilt of the billboard "
 "planes. It consists of two parameters:"
 msgstr ""
-"Эта группа параметров управляет начальным наклоном биллбордов. Включает "
+"Эта группа параметров управляет начальным наклоном билбордов. Включает "
 "два параметра:"
 
 #: ../particles.rst:175
 msgid "*Angle*"
-msgstr ""
+msgstr "*Angle*"
 
 #: ../particles.rst:175
 msgid ""
@@ -478,13 +475,13 @@ msgid ""
 "The value of 1 rotates by 180 degrees (i.e. turns the billboard upside "
 "down). Set to zero by default."
 msgstr ""
-"Угол поворота биллбордов. Значение может меняться от -1 до 1. Значение, "
-"равное 1, поворачивает биллборд на 180 градусов (т.е., переворачивает его"
+"Угол поворота билбордов. Значение может меняться от -1 до 1. Значение, "
+"равное 1, поворачивает билборд на 180 градусов (т.е., переворачивает его"
 " вверх ногами). По умолчанию значение равно нулю."
 
 #: ../particles.rst:178
 msgid "*Random*"
-msgstr ""
+msgstr "*Random*"
 
 #: ../particles.rst:178
 msgid ""
@@ -508,7 +505,7 @@ msgstr ""
 
 #: ../particles.rst:184
 msgid "*Render > Coordinate System*"
-msgstr ""
+msgstr "*Render > Coordinate System*"
 
 #: ../particles.rst:184
 msgid ""
@@ -521,7 +518,7 @@ msgstr ""
 
 #: ../particles.rst:187
 msgid "*Render > Soft Particles*"
-msgstr ""
+msgstr "*Render > Soft Particles*"
 
 #: ../particles.rst:187
 msgid ""
@@ -539,7 +536,7 @@ msgstr "Настройки влияния силовых полей"
 
 #: ../particles.rst:195
 msgid "*Field Weights > Gravity*"
-msgstr ""
+msgstr "*Field Weights > Gravity*"
 
 #: ../particles.rst:195
 msgid "Gravity influence factor (Earth's attraction). The default value is 1.0."
@@ -549,7 +546,7 @@ msgstr ""
 
 #: ../particles.rst:199
 msgid "*Field Weights > Wind*"
-msgstr ""
+msgstr "*Field Weights > Wind*"
 
 #: ../particles.rst:198
 msgid ""
@@ -568,7 +565,7 @@ msgstr "Специальные настройки движка"
 
 #: ../particles.rst:206
 msgid "*Export Options > Do not export*"
-msgstr ""
+msgstr "*Export Options > Do not export*"
 
 #: ../particles.rst:205
 msgid "Don't export."
@@ -677,4 +674,20 @@ msgstr "система частиц"
 #: ../particles.rst:3
 msgid "fluids"
 msgstr "флюиды"
+
+#~ msgid "*Emission > Emit From > Distribution*"
+#~ msgstr ""
+
+#~ msgid ""
+#~ "Emission distribution settings: ``Jittered``, "
+#~ "``Random``, ``Grid``. Ignored by the "
+#~ "engine. Internally the engine always "
+#~ "uses ``Random`` distribution. The default "
+#~ "is ``Jittered``."
+#~ msgstr ""
+#~ "Настройки распределения испускания: ``Jittered``,"
+#~ " ``Random``, ``Grid``. Игнорируются движком. "
+#~ "Всегда используется случайное распределение "
+#~ "(``Random``). Значение по умолчанию "
+#~ "``Jittered``."
 

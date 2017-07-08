@@ -2,23 +2,26 @@
 
 b4w.register("raytest", function(exports, require) {
 
-var m_anim   = require("animation");
-var m_app    = require("app");
-var m_cam    = require("camera");
-var m_cfg    = require("config");
-var m_cont   = require("container");
-var m_cons   = require("constraints");
-var m_ctl    = require("controls");
-var m_data   = require("data");
-var m_math   = require("math");
-var m_obj    = require("objects");
-var m_phy    = require("physics");
-var m_quat   = require("quat");
-var m_scenes = require("scenes");
-var m_trans  = require("transform");
-var m_tsr    = require("tsr");
-var m_util   = require("util");
-var m_vec3   = require("vec3");
+var m_anim    = require("animation");
+var m_app     = require("app");
+var m_cam     = require("camera");
+var m_cfg     = require("config");
+var m_cont    = require("container");
+var m_cons    = require("constraints");
+var m_ctl     = require("controls");
+var m_data    = require("data");
+var m_math    = require("math");
+var m_obj     = require("objects");
+var m_phy     = require("physics");
+var m_quat    = require("quat");
+var m_scenes  = require("scenes");
+var m_trans   = require("transform");
+var m_tsr     = require("tsr");
+var m_util    = require("util");
+var m_vec3    = require("vec3");
+var m_version = require("version");
+
+var DEBUG = (m_version.type() === "DEBUG");
 
 var APP_ASSETS_PATH = m_cfg.get_std_assets_path() + "code_snippets/raytest/";
 
@@ -26,9 +29,11 @@ exports.init = function() {
     m_app.init({
         autoresize: true,
         callback: init_cb,
-        canvas_container_id: "canvas_cont",
+        canvas_container_id: "main_canvas_container",
         physics_enabled: true,
         show_fps: true,
+        assets_dds_available: !DEBUG,
+        assets_min50_available: !DEBUG,
         console_verbose: true
     });
 }
@@ -52,7 +57,7 @@ function load_cb(data_id) {
 }
 
 function init_logic() {
-    
+
     var from = new Float32Array(3);
     var pline = m_math.create_pline();
     var to = new Float32Array(3);
@@ -71,7 +76,7 @@ function init_logic() {
 
         m_tsr.set_trans(hit_pos, decal_tsr);
 
-        m_quat.rotationTo(m_util.AXIS_Y, hit_norm, decal_rot);
+        m_quat.rotationTo(m_util.AXIS_Z, hit_norm, decal_rot);
         m_trans.set_rotation_v(decal, decal_rot);
         m_tsr.set_quat(decal_rot, decal_tsr);
 
@@ -80,7 +85,7 @@ function init_logic() {
 
             m_tsr.invert(obj_tsr, obj_tsr);
             m_tsr.multiply(obj_tsr, decal_tsr, decal_tsr);
-            
+
             var offset = m_tsr.get_trans_view(decal_tsr);
             var rot_offset = m_tsr.get_quat_view(decal_tsr);
             m_cons.append_stiff(decal, obj_hit, offset, rot_offset);

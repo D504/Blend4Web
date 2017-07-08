@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@ import imp
 
 import blend4web
 
-b4w_modules = ["server", "addon_prefs", "translator"]
+b4w_modules = ["server", "addon_prefs", "translator", "render_engine"]
 for m in b4w_modules:
     exec(blend4web.load_module_script.format(m))
 
@@ -29,9 +29,10 @@ def b4w_fast_preview(self, context):
     if addon_prefs.has_valid_sdk_path():
         is_started = server.B4WLocalServer.get_server_status() == server.SUB_THREAD_START_SERV_OK
         
-        if context.scene.render.engine=="BLEND4WEB":
+        if (context.scene.render.engine == "BLEND4WEB" 
+        		or context.scene.render.engine == "CYCLES"):
             self.layout.operator("b4w.preview",
-                        text=p_("Fast Preview", "Operator"), icon="ZOOM_ALL")
+                        text=p_("Fast Preview", "Operator"), icon_value=render_engine.custom_icons["b4w_icon"].icon_id)
 
 def register():
     bpy.types.VIEW3D_HT_header.append(b4w_fast_preview)

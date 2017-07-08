@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 b4w.module["__loader"] = function(exports, require) {
@@ -22,6 +21,9 @@ b4w.module["__loader"] = function(exports, require) {
 var m_graph  = require("__graph");
 var m_print  = require("__print");
 var m_util   = require("__util");
+var m_cfg    = require("__config");
+
+var cfg_def  = m_cfg.defaults;
 
 var THREAD_IDLE = 0;
 var THREAD_LOADING = 1;
@@ -34,7 +36,6 @@ var THREAD_STAGE_LOOP = 1;
 var THREAD_STAGE_AFTER = 2;
 var THREAD_STAGE_IDLE = 3;
 
-var DEBUG_MODE = false;
 var DEBUG_COLOR = "color: #f0f;";
 
 var MAX_LOAD_TIME_MS = 16;
@@ -75,18 +76,18 @@ exports.create_scheduler = function() {
 /**
  * Create scheduler thread.
  * @param {Object3D} stages Loading stages
- * @param {String} path Path to main .json file
+ * @param {string} path Path to main .json file
  * @param {Function} loaded_callback Callback on all/non-background stages loading
  * @param {Function} stageload_cb Callback on stage loading
  * @param {Function} complete_load_cb Callback on all stages loading (currently it's a low-level service callback)
- * @param {Boolean} wait_complete_loading Perform callback on all or all non-background stages loading
- * @param {Boolean} do_not_load_resources To load or not to load application resources
- * @param {Boolean} load_hidden Hide loaded and disable physics objects
- * @returns {Number} Id of loaded data.
+ * @param {boolean} wait_complete_loading Perform callback on all or all non-background stages loading
+ * @param {boolean} do_not_load_resources To load or not to load application resources
+ * @param {boolean} load_hidden Hide loaded and disable physics objects
+ * @returns {number} Id of loaded data.
  */
 exports.create_thread = function(stages, path, loaded_callback, 
         stageload_cb, complete_load_cb, wait_complete_loading, 
-        do_not_load_resources, load_hidden) {
+        do_not_load_resources, load_hidden, is_preloading) {
 
     var scheduler = get_scheduler();
 
@@ -116,7 +117,9 @@ exports.create_thread = function(stages, path, loaded_callback,
         stages_queue: null,
         has_video_textures: false,
         has_background_music: false,
-        init_wa_context: false
+        init_wa_context: false,
+
+        is_preloading: is_preloading
     }
 
     var graph = create_loading_graph(thread.is_primary, stages, 
@@ -247,7 +250,7 @@ function init_stage(stage) {
 exports.update_scheduler = function(bpy_data_array) {
     var scheduler = get_scheduler();
 
-    if (!scheduler || is_finished(scheduler))
+    if (!scheduler || is_finished())
         return;
 
     if (scheduler.make_idle_iteration) {
@@ -266,8 +269,8 @@ exports.update_scheduler = function(bpy_data_array) {
             if (thread.status == THREAD_IDLE) {
                 thread.status = THREAD_LOADING;
                 thread.time_load_start = performance.now();
-                thread.stageload_cb(0, 0);
-                if (DEBUG_MODE)
+                thread.stageload_cb(0, 0, thread.id);
+                if (cfg_def.debug_loading)
                     m_print.log("%cTHREAD " + thread.id 
                             + ": 0% LOADING START 0ms", DEBUG_COLOR);
             }
@@ -309,7 +312,7 @@ function finish_thread(scheduler, thread, bpy_data) {
     thread.complete_load_cb(bpy_data, thread);
     thread.status = THREAD_FINISHED;
     scheduler.active_threads--;
-    if (DEBUG_MODE) {
+    if (cfg_def.debug_loading) {
         var ms = Math.round(performance.now() 
                 - thread.time_load_start);
         m_print.log("%cTHREAD " + thread.id + ": 100% LOADING END " 
@@ -410,7 +413,7 @@ function process_stage(thread, stage, bpy_data) {
     // don't process skipped stages
     if (stage.skip) {
         stage.is_finished = true;
-        if (DEBUG_MODE)
+        if (cfg_def.debug_loading)
             m_print.log("%cTHREAD " + thread.id + ": SKIP STAGE " + stage.name, 
                     DEBUG_COLOR);
 
@@ -419,7 +422,7 @@ function process_stage(thread, stage, bpy_data) {
     }
 
     // debug message for start stage loading
-    if (DEBUG_MODE && stage.status == THREAD_STAGE_BEFORE) {
+    if (cfg_def.debug_loading && stage.status == THREAD_STAGE_BEFORE) {
         var percents = get_load_percents(thread);
         var message = "LOADING START " +  stage.name;
         var ms = Math.round(performance.now() - thread.time_load_start);
@@ -486,7 +489,7 @@ function stage_finish_cb(thread, stage) {
     stage.status = THREAD_STAGE_IDLE;
     stage_loading_action(thread, stage, 1);
 
-    if (DEBUG_MODE) {
+    if (cfg_def.debug_loading) {
         var percents = get_load_percents(thread);
         var message = "LOADING END " +  stage.name;
         var ms = Math.round(performance.now() - thread.time_load_start);
@@ -499,7 +502,7 @@ function stage_finish_cb(thread, stage) {
  * Perform callback for partially loading
  * @param {Object3D} thread Scheduler
  * @param {Object3D} stage Stage object
- * @param {Number} rate Stage load rate
+ * @param {number} rate Stage load rate
  */
 exports.stage_part_finish_cb = stage_part_finish_cb;
 function stage_part_finish_cb(thread, stage, rate) {
@@ -517,7 +520,8 @@ function stage_loading_action(thread, stage, rate) {
         var percents = get_load_percents(thread);
 
         if (thread.curr_percents != percents || rate == 1) {
-            thread.stageload_cb(percents, performance.now() - thread.time_load_start);
+            thread.stageload_cb(percents, performance.now() 
+                    - thread.time_load_start, thread.id);
             thread.curr_percents = percents;
 
             // NOTE: skip next thread iteration to liquidate loading bar 
@@ -530,7 +534,7 @@ function stage_loading_action(thread, stage, rate) {
 /**
  * Skip certain stage
  * @param {Object3D} thread Scheduler thread
- * @param {String} name Stage name
+ * @param {string} name Stage name
  */
 exports.skip_stage_by_name = function(thread, name) {
     var stage = get_stage_by_name(thread, name);
@@ -554,9 +558,6 @@ function get_stage_by_name(thread, name) {
 
 function skip_stage(stage) {
     stage.skip = true;
-    // force stage to coincide with total amount of loading data;
-    // (for stages that need to be calculated)
-    stage.load_rate = 1;
 }
 
 // release some thread properties not needed after thread is over; 
@@ -564,7 +565,7 @@ function skip_stage(stage) {
 function release_thread(thread) {
     thread.stageload_cb = null;
     thread.complete_load_cb = null;
-    if (!DEBUG_MODE)
+    if (!cfg_def.debug_loading)
         thread.stage_graph = null;
     thread.stages_queue = null;
     // NOTE: thread.loaded_cb needed for aborted threads
@@ -584,8 +585,6 @@ function thread_is_finished(thread) {
 
 /**
  * Get primary thread/scene loaded status
- * @param {Object3D} scheduler Scheduler
- * @param {Number} thread_id Thread/scene id
  */
 exports.is_primary_loaded = function(data_id) {
     var scheduler = get_scheduler();
@@ -601,7 +600,7 @@ exports.is_primary_loaded = function(data_id) {
 }
 
 exports.graph_to_dot = function(data_id) {
-    if (!DEBUG_MODE) {
+    if (!cfg_def.debug_loading) {
         m_print.error("Debug mode isn't enabled. Can not retrieve the graph.");
         return;
     }

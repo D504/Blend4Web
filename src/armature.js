@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -50,7 +49,10 @@ function init_bone_pointer() {
         tsr_bone_rest:     m_tsr.create(),
         tsr_bone_pose:     m_tsr.create(),
         tsr_local_rest:    m_tsr.create(),
+        tsr_local_rest_i:  m_tsr.create(),
         tsr_local_pose:    m_tsr.create(),
+        tsr_local_pose_b:   m_tsr.create(),
+        tsr_local_pose_a:   m_tsr.create(),
         tsr_basis:         m_tsr.create(),
         tsr_channel_cache: m_tsr.create(),
 
@@ -82,13 +84,15 @@ function update_object(bpy_armobj, armobj) {
         var mat_bas = new Float32Array(pose_bone["matrix_basis"]);
 
         var tail = bpointer.tail;
-        m_vec3.subtract(arm_bone["tail_local"], arm_bone["head_local"], tail);
+        m_vec3.subtract(m_util.f32(arm_bone["tail_local"]),
+                m_util.f32(arm_bone["head_local"]), tail);
         // translate tail offset from armature to bone space
         m_util.vecdir_multiply_matrix(tail, mat_loc_inv, tail);
 
         m_tsr.from_mat4(mat_loc, bpointer.tsr_local_rest);
         m_tsr.from_mat4(mat_bas, bpointer.tsr_basis);
         m_tsr.copy(bpointer.tsr_local_rest, bpointer.tsr_local_pose);
+        m_tsr.invert(bpointer.tsr_local_rest, bpointer.tsr_local_rest_i);
     }
 
     for (var i = 0; i < arm_bones.length; i++) {

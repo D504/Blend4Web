@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -175,8 +175,8 @@ class B4W_VertexAnimBakeOperator(bpy.types.Operator):
             co = vertex.co
             normal = vertex.normal
             # rotate by 90 degrees around X axis
-            va_verts[-1].posnor = [co[0], co[2], -co[1],
-                                    normal[0], normal[2], -normal[1]]
+            va_verts[-1].posnor = [co[0], co[1], co[2],
+                                    normal[0], normal[1], normal[2]]
 
     def bake(self, obj, va_item):
 

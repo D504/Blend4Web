@@ -64,9 +64,6 @@ Generic Settings
 
 *Mapping > Coordinates*
     Texture coordinates type. Supported types are ``UV`` (use UV map), ``Normal`` (use direction at the camera; available only for diffuse maps; used for the creation of **material capture**, **matcap**) and ``Generated``. The default value is ``Generated``.
- 
-    .. note::
-        Blend4Web engine currently supports no more than two UV maps per material. If the material has more than two UV maps, additional maps will be ignored during the export.
 
 *Mapping > Size*
     Scaling the UV map along respective axes. The default values are 1.0.
@@ -154,6 +151,8 @@ A normal map is used for specifying the distribution of surface normals (perpend
 
 Activation
 ----------
+
+Set the ``Image > Color Space`` parameter to ``Non-Color``.
 
 Enable the ``Geometry > Normal`` checkbox on the ``Textures > Influence`` panel.
 
@@ -316,7 +315,7 @@ Specifics of Mobile Devices
 
 The peculiarities for mobile devices are as follows:
 
-#. Normal operation of video textures on iPhones is not possible because these devices play back videos via the standard iOS video player. For these devices you need to convert your videos to special ``.seq`` format by using our :ref:`converter <converter>`.
+#. Normal operation of video textures on iPhone is not possible because these devices play back videos via the standard iOS video player. For these devices you need to convert your videos to special ``.seq`` format by using our :ref:`converter <converter>`.
 #. some devices only support playing back only one video file.
 #. stable operation is not guaranteed if the ``Offset`` value is not zero.
 #. not all devices support changing the video playback rate.
@@ -467,18 +466,21 @@ On the ``Textures > Export Options`` panel, you can set up properties for these 
 
 .. _render_to_texture_scene:
 
-3D scene
---------
+Render-To-Texture
+-----------------
 
-A 3D scene's real-time rendered image can be used as a texture by an object from another scene ("main" scene). This technique is known as `render-to-texture` (RTT) and can be activated by following these steps:
+An image of a 3D scene rendered in real time also can be used as a texture for an object in another scene ("main" scene). This technique is known as `render-to-texture` (RTT) and can be activated by following these steps:
 
-#. Create an additional source scene.
-#. Rename it for convenience.
-#. Create a ``World``.
-#. Add the objects you need.
-#. Setup the camera view.
-#. Create a UV map for the target object in the main scene.
-#. Set the ``None`` type for a texture of the target object.
+#. Create an additional scene that will be rendered to the texture.
+#. For convenience, give this scene a unique name.
+#. Create a ``World`` setting for this scene.
+#. Add the objects you need to the scene.
+#. Add a camera to the scene and set it up.
+#. Then, switch to the main scene.
+#. Select the target object and create a UV map for it.
+#. Create a texture that will act as the rendering target.
+#. Set the ``None`` type for this texture.
+#. Set the ``UV`` value for the ``Coordinates`` parameter under the ``Mapping`` tab.
 #. Select the ``Scene`` type in the ``Export Options > Source Type`` menu.
 #. Specify the name of the source scene in the ``Export Options > Source ID`` field.
 #. Set the texture size in the ``Export Options > Source Size`` field (in pixels).
@@ -498,8 +500,8 @@ The engine also supports the cyclic rendering of scenes to each other.
 
 .. _render_to_texture_canvas:
 
-Canvas
-------
+Canvas textures
+---------------
 
 A <canvas> HTML element can be used as a texture. It can be modified via API.
 

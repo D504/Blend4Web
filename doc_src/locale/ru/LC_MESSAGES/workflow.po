@@ -1,31 +1,27 @@
-# SOME DESCRIPTIVE TITLE.
+# Blend4Web User Manual Russian Translation: Workflow
 # Copyright (C) 2014-2016, Triumph
-# This file is distributed under the same license as the Blend4Web. User
-# Manual package.
-# FIRST AUTHOR <EMAIL@ADDRESS>, 2016.
+# This file is distributed under the same license as Blend4Web.
+# Blend4Web Team <info [at] blend4web.com>, 2014.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: B4W 14.03.28\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-07-22 17:49+0300\n"
-"PO-Revision-Date: 2015-11-26 21:18+0300\n"
-"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"Project-Id-Version: Blend4Web 16.08\n"
+"Report-Msgid-Bugs-To: https://www.blend4web.com/en/forums/forum/17/\n"
+"POT-Creation-Date: 2017-05-25 17:05+0300\n"
+"PO-Revision-Date: 2015-08-28 10:55+0300\n"
+"Last-Translator: Blend4Web Team <info [at] blend4web.com>\n"
+"Language-Team: Russian <info [at] blend4web.com>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.2.0\n"
+"Generated-By: Babel 2.3.4\n"
 
-#: ../workflow.rst:5
 msgid "Workflow"
 msgstr "Рабочий процесс"
 
-#: ../workflow.rst
 msgid "Table of Contents"
 msgstr "Содержание"
 
-#: ../workflow.rst:11
 msgid ""
 "Developing any product is a creative process with many participants who "
 "have different skills and experience. However, no matter how complex it "
@@ -33,38 +29,183 @@ msgid ""
 " stage in which the bulk of assets and source code is authored."
 msgstr ""
 "Создание любого продукта является творческим процессом, в котором могут "
-"участвовать множество людей, с различными навыками и опытом. Однако вне "
+"участвовать множество людей, с различными навыками и опытом. Однако, вне "
 "зависимости от его сложности и конечного результата, всегда можно "
 "выделить стадию производства, на которой создаётся основной объём "
 "ресурсов (ассетов) и исходного кода."
 
-#: ../workflow.rst:17
+msgid "Any work with the Blend4Web engine should start with running Blender."
+msgstr "Работа с движком Blend4Web должна начинаться с запуска Blender."
+
+msgid ""
+"Select ``Blend4Web`` from the render engine list at the top panel in the "
+"main Blender window, and you will see how the program interface have "
+"changed. Some parameters will disappear, and new ones will take their "
+"place. The most important of these new parameters are located in the "
+"``Properties`` window (usually placed at the right side of the main "
+"window), on the Render panel."
+msgstr ""
+"Выберите ``Blend4Web`` из списка систем рендеринга в верхней панели "
+"главного окна Blender. Обратите внимание, как при этом изменился "
+"интерфейс программы: некоторые параметры исчезли, а их место заняли "
+"новые. Самые важные из этих новых настроек расположены в окне настроек "
+"(``Properties``, обычно находится справа от главного окна), на панели Render."
+
+msgid ""
+"If the ``Development Tools`` tab shows the Development server is off "
+"message, this means that the development server is not working. It can be"
+" enabled with the ``Start Server`` button on the same panel. The server "
+"can also be configured to run on startup with the ``Run On Startup`` "
+"option found in the add-on settings (``User Preferences → Add-Ons → "
+"Blend4Web``)."
+msgstr ""
+"Если в окне ``Development Tools`` выводится сообщение Development server "
+"is off, значит, не запущен сервер разработки. Запустить его можно кнопкой"
+" ``Start Server`` на той же вкладке, а настроить запуск по умолчанию — в "
+"разделе настроек аддона ``User Preferences → Add-Ons → Blend4Web`` (опция"
+" ``Run On Startup``)."
+
+msgid ""
+"If any problems occur as you try to run development server, please "
+"consult the :ref:`Problems and Solutions <problems_and_solutions>` "
+"chapter."
+msgstr ""
+"Если при попытке запустить сервер разработки возникают какие-либо "
+"проблемы, обратитесь к разделу документации :ref:`«Проблемы и решения» "
+"<problems_and_solutions>`."
+
+msgid ""
+"The ``SDK Index`` button opens the :ref:`index page "
+"<getting_started_launching_viewer>` that can be found by this address: "
+"http://localhost:6687."
+msgstr ""
+"Кнопка ``SDK Index`` вызывает :ref:`индексную страницу <getting_started_launching_viewer>`, "
+"расположенную по адресу http://localhost:6687."
+
+msgid ""
+"The ``Fast Preview`` button opens the :ref:`Scene Viewer <viewer>` and "
+"loads the scene that is open in Blender at the moment. This is a useful "
+"feature for planning and debugging your scenes."
+msgstr ""
+"Кнопка ``Fast Preview`` вызывает :ref:`Просмотрщик сцен <viewer>` и "
+"загружает в него сцену, открытую в Blender. Полезная функция при "
+"проектировании и отладке сцены."
+
+msgid ""
+"The ``Project Manager`` button opens the :ref:`Project Manager "
+"<project_management>` — a powerful and easy to use tool  for working with"
+" Blend4Web projects. Using Project Manager is the most simple way to "
+"start working with Blend4Web."
+msgstr ""
+"Кнопка ``Project Manager`` вызывает :ref:`Менеджер проектов "
+"<project_management>`, удобное и мощное средство для работы с проектами "
+"Blend4Web. Использование Менеджера проектов — наиболее простой способ "
+"начать работу с Blend4Web."
+
 msgid "When using Blend4Web the workflow is the following:"
 msgstr ""
-"При использовании Blend4Web, производственный процесс можно представить "
+"При использовании Blend4Web производственный процесс можно представить "
 "следующим образом:"
 
-#: ../workflow.rst:19
-msgid "Authoring 3D scenes in Blender."
+msgid "Creating a New Project."
+msgstr "Создание нового проекта."
+
+msgid "Creating Scenes"
+msgstr "Создание сцен"
+
+msgid "Preparing a Scene to Use in Blend4Web"
 msgstr "Подготовка трёхмерных сцен в программе Blender."
 
-#: ../workflow.rst:20
 msgid "Exporting scenes."
 msgstr "Экспорт сцен."
 
-#: ../workflow.rst:21
-msgid "Running, tweaking and debugging scenes in the Viewer."
-msgstr "Запуск, настройка и отладка сцены в программе-просмотрщике."
+msgid "Application Development."
+msgstr "Разработка приложения."
 
-#: ../workflow.rst:22
-msgid "Creating the target application."
-msgstr "Создание целевого веб-приложения."
+msgid "Project Building."
+msgstr "Сборка проекта."
 
-#: ../workflow.rst:27
-msgid "Authoring Scenes"
-msgstr "Подготовка сцен"
+msgid "Project Deploying."
+msgstr "Размещение проекта."
 
-#: ../workflow.rst:29
+msgid "Creating a New Project"
+msgstr "Создание нового проекта"
+
+msgid "The work on a project, of course, should always start with creating it."
+msgstr "Разумеется, работа над проектом должна начинаться с его создания."
+
+msgid ""
+"The easiest way to create a new project is to use the :ref:`Project "
+"Manager <project_manager>`. To do it, run the Project Manager (either "
+"from Blender or from index page) and press the Create New Project button "
+"at the top of the Project Manager’s main window."
+msgstr ""
+"Наиболее простой способ создать новый проект - использовать "
+":ref:`Менеджер проектов <project_manager>`. Для этого достаточно "
+"запустить Менеджер проектов (из Blender или с индексной страницы) и "
+"нажать кнопку Create New Project в верхней части главной страницы "
+"менеджера."
+
+msgid ""
+"The other way is to use the *project.py* command line script, which is "
+"more versatile. Working with this script is described :ref:`here "
+"<creating_a_project>`."
+msgstr ""
+"Другой способ - использовать консольную утилиту *project.py*. Этот подход"
+" предоставляет больше возможностей для тонкой настройки проекта и описан "
+":ref:`здесь <creating_a_project>`."
+
+msgid ""
+"Scenes are contained in blend files. Project Manager can automatically "
+"create a blend file with a basic scene upon creating a new project. "
+"Additional blend files can be created and attached to a project."
+msgstr ""
+"Сцены содержатся в blend-файлах. При создании нового проекта менеджер "
+"проектов может автоматически создать blend-файл с базовой сценой. Также к"
+" проекту можно подключать дополнительные blend-файлы."
+
+msgid ""
+"Scenes for Blend4Web are created in the same manner as the scenes for "
+"Blender itself, with only minor differences. The process of working on a "
+"scene could be separated into several stages:"
+msgstr ""
+"Сцены для Blend4Web создаются почти так же, как сцены для самого Blender."
+" Процесс работы над сценой можно разделить на несколько этапов:"
+
+msgid "Modeling the scene objects"
+msgstr "Создание объектов сцены"
+
+msgid ":ref:`Setting up materials <materials>`"
+msgstr ":ref:`Настройка материалов <materials>`"
+
+msgid ":ref:`Animating objects <animation>`"
+msgstr ":ref:`Создание анимации <animation>`"
+
+msgid ""
+":ref:`Creating scene logic <logic_editor>` (this part is exclusive for "
+"Blend4Web engine and does not apply to regular Blender scenes)"
+msgstr ""
+":ref:`Создание нодовой логики <logic_editor>` для сцены. Этот этап "
+"применим только к движку Blend4Web, но не к самому Blender."
+
+msgid ""
+"It should be noted that not every project may require all of these "
+"stages. More simple scene might not feature any animations or even any "
+"materials aside from the default ones."
+msgstr ""
+"Следует заметить, что не все из этих этапов необходимы при работе над "
+"проектом. Простая сцена может не содержать анимации или даже материалов "
+"(кроме стандартных)."
+
+msgid ""
+"The order of the stages is also not strict and can be interchanged to a "
+"certain degree (for example, you won't probably animate an object before "
+"creating it, but you can create a material for it beforehand)."
+msgstr ""
+"Порядок этапов также не задан жёстко и может изменяться в определённых "
+"пределах (например, анимировать объект возможно только после его "
+"создания, но материал для него может быть создан и загодя)."
+
 msgid ""
 "Besides the usual stages such as modeling, texturing, animation etc a "
 "scene should be prepared for working in the engine."
@@ -72,30 +213,27 @@ msgstr ""
 "Помимо обычных операций по моделированию, текстурированию, анимации и "
 "т.д. должна быть осуществлена подготовка сцены для работы в движке."
 
-#: ../workflow.rst:32
 msgid "General recommendations:"
 msgstr "Общие рекомендации:"
 
-#: ../workflow.rst:34
 msgid ""
 "We strongly recommend to save your blend files in the "
-"``blender/project_name`` directory. Auxiliary files which are not "
-"intended for loading in your app (for example, references), should be "
-"located there as well."
+"``projects/project_name/blender`` directory. Auxiliary files which are "
+"not intended for loading in your app (for example, references), should be"
+" located there as well."
 msgstr ""
 "Настоятельно рекомендуется сохранять blend-файлы в директории "
-"``blender/имя_проекта``. Там же должны находиться вспомогательные файлы, "
-"не предназначенные для загрузки в приложение (например, референсы)."
+"``projects/имя_проекта/blender``. Там же должны находиться "
+"вспомогательные файлы, не предназначенные для загрузки в приложение "
+"(например, референсы)."
 
-#: ../workflow.rst:36
 msgid ""
 "Images and media files should be external and located in the "
-"``deploy/assets/project_name`` directory."
+"``projects/project_name/assets`` directory."
 msgstr ""
 "Изображения и медиа-файлы должны быть внешними и находиться в директории "
-"``deploy/assets/имя_проекта``."
+"``projects/имя_проекта/assets``."
 
-#: ../workflow.rst:38
 msgid ""
 "Files from which you export should contain resources which are actually "
 "required in your application (objects, materials, textures, animation "
@@ -105,7 +243,6 @@ msgstr ""
 "необходимые в разрабатываемом приложении ресурсы (объекты, материалы, "
 "текстуры, анимацию и т.д.)."
 
-#: ../workflow.rst:40
 msgid ""
 "Scene components should have distinct names. They should not be named "
 "\\\"Cube.001\\\", \\\"Material\\\" or \\\"Armature\\\"."
@@ -113,19 +250,41 @@ msgstr ""
 "Составные части сцен должны иметь отличающие названия. Они не должны "
 "называться \\“Cube.001\\”, \\“Material\\”, \\“Armature\\”."
 
-#: ../workflow.rst:42
-msgid ""
-"We recommend you to practice linking components from other files "
-"(libraries)."
+msgid "We recommend you to link components from other files (libraries)."
 msgstr ""
-"Рекомендуется практиковать добавление по ссылке (linking) компонентов из "
-"других файлов (библиотек)."
+"Рекомендуется добавлять компоненты из других файлов (библиотек) по ссылке"
+" (linking)."
 
-#: ../workflow.rst:50
+msgid "Displaying Scenes in the Viewer"
+msgstr "Отображение сцен в просмотрщике"
+
+msgid ""
+"When using the :ref:`local development server <local_development_server>`"
+" it's possible to preview current scene using ``Fast Preview`` button "
+"located at the bottom of Blender's 3D View window, and also on the "
+"``Render -> Development Server`` panel in Blender. In this case the scene"
+" will be exported inside some temporary storage and loaded in the Viewer "
+"app."
+msgstr ""
+"При использовании :ref:`локального сервера разработки "
+"<local_development_server>` возможно сделать предварительный просмотр "
+"сцены используя кнопку ``Fast Preview``, расположенную в нижней части "
+"окна 3D View Blender'а, а также на панели ``Render -> Development "
+"Server`` в Blender. В этом случае будет произведён автоматический экспорт"
+" сцены во временное хранилище с последующей загрузкой в просмотрщике."
+
+msgid ""
+"The other method is using :ref:`Run in Viewer <run_in_viewer>` export "
+"option. In this case the scene will be displayed in the Viewer app "
+"immediately after the export."
+msgstr ""
+"Другой способ - использовать опцию экспорта сцены :ref:`Run in Viewer "
+"<run_in_viewer>`. В этом случая сцена показывается в просмотрщике сразу "
+"после экспорта."
+
 msgid "Exporting Scenes"
 msgstr "Экспорт сцен"
 
-#: ../workflow.rst:52
 msgid ""
 "The export procedure converts the scene from the Blender format to one of"
 " the formats used by Blend4Web."
@@ -133,34 +292,30 @@ msgstr ""
 "Процедура экспорта преобразует данные сцены из формата, понятного "
 "Blender, в формат, понятный Blend4Web."
 
-#: ../workflow.rst:59
 msgid "There are two formats: JSON and HTML."
 msgstr "Экспорт может осуществляться в два формата: JSON и HTML."
 
-#: ../workflow.rst:61
 msgid ""
 "The HTML format is used for simple stand-alone applications, where all "
 "the resources are packed into one HTML file that can then be easily "
 "deployed to a web page."
 msgstr ""
 "Формат HTML применяется для простых, самодостаточных проектов, в которых "
-"все ресурсы упакованы в один файл, который легко можно разместить на "
-"веб-странице."
+"все ресурсы упакованы в один файл. Полученный файл легко можно разместить"
+" на веб-странице."
 
-#: ../workflow.rst:63
 msgid ""
 "The JSON format can be used for creating such projects as well, but it "
 "also offers numerous extra features making it possible to create complex "
 "projects that require programming. Format differences and export options "
 "are described in the :ref:`Export Formats <export_formats>` chapter."
 msgstr ""
-"Формат JSON также может применяться для создания подобных проектов, но "
-"также он предлагает множество дополнительных возможностей для создания "
-"сложных проектов, требующих программирования. Различия между форматами и "
-"настройки экспорта описаны в разделе :ref:`\"Форматы экспорта\" "
-"<export_formats>`."
+"Формат JSON также может применяться для создания подобных приложений, но "
+"кроме этого он предлагает множество дополнительных возможностей для "
+"создания сложных проектов, требующих программирования. Различия между "
+"форматами и настройки экспорта описаны в разделе :ref:`\"Форматы "
+"экспорта\" <export_formats>`."
 
-#: ../workflow.rst:65
 msgid ""
 "To export the scene, select ``Blend4Web (.json)`` or ``Blend4Web "
 "(.html)`` option from the ``File > Export`` menu, or type ``b4w export`` "
@@ -170,7 +325,6 @@ msgstr ""
 "(.json)`` или ``Blend4Web (.html)`` либо наберите ``b4w export`` в меню "
 "поиска команд (вызывается по клавише ``ПРОБЕЛ``)."
 
-#: ../workflow.rst:70
 msgid ""
 "If the scene uses Blender features not yet supported by the Blend4Web "
 "engine, errors may occur during export. Export errors are listed in "
@@ -180,7 +334,6 @@ msgstr ""
 "Blend4Web, при экспорте могут возникнуть ошибки. Ошибки экспорта "
 "перечислены в :ref:`этой таблице <export_errors>`."
 
-#: ../workflow.rst:72
 msgid ""
 "Export options are described in detail in the :ref:`corresponding section"
 " <export_opts>`."
@@ -188,104 +341,14 @@ msgstr ""
 "Опции экспорта подробно описаны в :ref:`соответствующем разделе "
 "<export_opts>`."
 
-#: ../workflow.rst:80
-msgid "Displaying Scenes in the Viewer"
-msgstr "Отображение сцен в просмотрщике"
-
-#: ../workflow.rst:82
-msgid ""
-"When using the :ref:`local development server <local_development_server>`"
-" it's possible to preview current scene using ``Fast Preview`` button, "
-"located on the ``Scene->Development Server`` panel in Blender. In this "
-"case the scene will be exported inside some temporary storage and loaded "
-"in the Viewer app."
-msgstr ""
-"При использовании :ref:`локального сервера разработки "
-"<local_development_server>` возможно сделать предварительный просмотр "
-"сцены используя кнопку ``Fast Preview``, расположенную на панели "
-"``Scene->Development Server`` в Blender. В этом случае будет произведён "
-"автоматический экспорт сцены во временное хранилище с последующей "
-"загрузкой в просмотрщике."
-
-#: ../workflow.rst:88
-msgid ""
-"The other method is using :ref:`Run in Viewer <run_in_viewer>` export "
-"option. In this case the scene will be displayed in the Viewer app "
-"immediately after the export."
-msgstr ""
-"Другой способ это использовать опцию экспорта сцены :ref:`Run in Viewer "
-"<run_in_viewer>`. В этом случая сцена показывается в просмотрщике сразу "
-"после экспорта."
-
-#: ../workflow.rst:92
-msgid ""
-"For the long-term storage of the scene in the scene list of the viewer, "
-"it's required to manually add the entry to the "
-"``apps_dev/viewer/assets.json`` text file. This file is opened "
-"automatically in Blender if you are using Blend4Web SDK."
-msgstr ""
-"При необходимости долгосрочного хранения сцены в списке сцен "
-"просмотрщика, нужно вручную добавить запись в текстовой файл "
-"``apps_dev/viewer/assets.json``, который доступен при открытии Blender'a "
-"при использовании Blend4Web SDK."
-
-#: ../workflow.rst:97
-msgid "Use the \\\"Text Editor\\\" to modify it:"
-msgstr "Для редактирования файла откройте \"Text Editor\":"
-
-#: ../workflow.rst:104
-msgid "Then select the ``assets.json`` file in the window to edit it:"
-msgstr ""
-"В появившемся окне вы сможете выбрать файл ``assets.json`` и "
-"отредактировать его:"
-
-#: ../workflow.rst:111
-msgid ""
-"To add a new scene you need to know the category in which it should be "
-"displayed. The category normally corresponds to the project name and to "
-"the name of the directory where the corresponding files are stored."
-msgstr ""
-"Для добавления новой сцены нужно знать категорию, в которой она должна "
-"отображаться. Категория обычно соответствует названию проекта и имени "
-"директории, где хранятся соответствующие файлы."
-
-#: ../workflow.rst:117
-msgid "Example"
-msgstr "Пример"
-
-#: ../workflow.rst:119
-msgid ""
-"For example below you can see a part of ``assets.json``. In this file "
-"there are two projects - \\\"Capri\\\" and \\\"Fridge\\\" each with "
-"corresponding scenes::"
-msgstr ""
-"Ниже приведена примерная часть файла ``assets.json``, в которой находятся"
-" два проекта \\\"Capri\\\" и \\\"Fridge\\\" с соответствующими сценами в "
-"каждом проекте::"
-
-#: ../workflow.rst:149
-msgid ""
-"To add a new scene you can copy and paste a similar scene's description "
-"to the required category and then edit its name and path to the exported "
-"file."
-msgstr ""
-"Добавление можно осуществить копированием и вставкой описания похожей "
-"сцены в нужной категории и последующим редактированием ее названия и пути"
-" к экспортному файлу."
-
-#: ../workflow.rst:152
-msgid ""
-"A successfully added scene should appear in the scenes' list of the "
-"viewer in the required category"
-msgstr ""
-"В случае успешного добавления сцена должна появиться в списке сцен "
-"просмотрщика в нужной категории."
-
-#: ../workflow.rst:160
 msgid "Application Development"
 msgstr "Разработка приложения"
 
-#: ../workflow.rst:162
+msgid ""
+"This section only applies to the project types other than Web Player HTML"
+" and Web Player JSON."
+msgstr "Этот раздел не актуален проектов типа Web Player HTML и Web Player JSON."
+
 msgid ""
 "At this stage an application is created. Logic for scene loading and user"
 " interaction is written using JavaScript. The application developer notes"
@@ -296,18 +359,128 @@ msgstr ""
 "Документация для разработчиков приложений приведена в "
 ":ref:`соответствующем разделе <developers>`."
 
-#: ../workflow.rst:45
-msgid "export"
-msgstr "экспорт"
+msgid "Project Building"
+msgstr "Сборка проекта"
 
-#: ../workflow.rst:75
+msgid ""
+"After development of a project is completed, it should be built so it can"
+" then be used outside of the SDK."
+msgstr ""
+"После того, как работа над проектом завершена, его следует собрать, чтобы"
+" иметь возможность использовать проект вне SDK."
+
+msgid ""
+"Project building can be performed by clicking the ``build project`` link "
+"in the :ref:`Project Manager <project_manager>`."
+msgstr ""
+"Сборка проекта запускается при нажатии на ссылку ``build project`` в "
+":ref:`Менеджере проектов <project_manager>`."
+
+msgid ""
+"Before building a project, you might want to :ref:`convert media "
+"resources <converter>` used in the project, which can help to minimize "
+"its size."
+msgstr ""
+"Также, перед сборкой проекта можно :ref:`конвертировать медиаресурсы "
+"<converter>`, используемые в проекте, чтобы уменьшить его размер."
+
+msgid "Project Deploying"
+msgstr "Размещение проекта"
+
+msgid ""
+"After project development is completed, the project can be deployed so it"
+" can be used outside of the Blend4Web SDK. Project deployment is "
+"performed by clicking the ``deploy project`` link that can be found in "
+"the ``Operations`` command list on the right side of the project entry in"
+" the main window of the :ref:`Project Manager <project_manager>`."
+msgstr ""
+"После того, как работа над проектом завершена, проект следует разместить."
+" Размещение проекта осуществляется при нажатии на ссылку ``deploy "
+"project`` в списке команд ``Operations``, который находится справа от "
+"имени проекта в главном окне :ref:`Менеджере проектов <project_manager>`."
+
+msgid ""
+"Clicking this link will cause Project Manager to perform all necessary "
+"operations and to deploy the project."
+msgstr ""
+"При нажатии на эту ссылку Менеджер проектов выполняет все операции, "
+"необходимые для размещения проекта."
+
+msgid ""
+"The deployed project has a form of an archive that contains all project "
+"files. This archive can be saved to any place on your disc with the use "
+"of a standard Save File dialogue in the web browser you are using."
+msgstr ""
+"Размещённый проект имеет форму архива, содержащего все файлы проекта. "
+"Этот архив может быть сохранён на жёсткий диск при помощи стандартных "
+"средств сохранения файлов в веб-браузере."
+
+msgid "A complete project can be placed on a web server."
+msgstr "Законченный проект может быть размещён на веб-сервере."
+
+msgid ""
+"To do it, extract the project files from the archive downloaded from the "
+"Project Manager and upload them to your web server (while retaining inner"
+" file structure) by means of FTP, SSH or any other file transfer protocol"
+" supported by the server. After doing this, you only need to place the "
+"project on a web page using, for example, an ``iframe`` container."
+msgstr ""
+"Для этого следует извлечь файлы проекта из архива, который вы загрузили "
+"из Менеджера проектов, и загрузить их на сервер (сохраняя внутреннюю "
+"структуру каталогов) при помощи FTP, SSH или любого другого протокола, "
+"поддерживаемого сервером. После этого проект следует разместить на "
+"веб-странице, например, при помощи контейнера ``iframe``."
+
+msgid ""
+"Deploying project to web server is described in a :ref:`dedicated section"
+" <project_deploy>` of the :ref:`Project Manager <project_manager>` "
+"chapter."
+msgstr ""
+"Размещение проектов на веб-сервере описано в :ref:`особом разделе "
+"<project_deploy>` главы :ref:`Менеджер проектов <project_manager>`."
+
 msgid "viewer"
 msgstr "просмотрщик"
 
-#: ../workflow.rst:75
 msgid "adding scenes"
 msgstr "добавление сцен"
 
+msgid "export"
+msgstr "экспорт"
+
 #~ msgid ""
 #~ msgstr ""
+
+#~ msgid "Use the \\\"Text Editor\\\" to modify it:"
+#~ msgstr "Для редактирования файла откройте \"Text Editor\":"
+
+#~ msgid "Then select the ``assets.json`` file in the window to edit it:"
+#~ msgstr ""
+
+#~ msgid "Example"
+#~ msgstr "Пример"
+
+#~ msgid "Authoring 3D scenes in Blender."
+#~ msgstr "Подготовка трёхмерных сцен в программе Blender."
+
+#~ msgid "Running, tweaking and debugging scenes in the Viewer."
+#~ msgstr "Запуск, настройка и отладка сцены в программе-просмотрщике."
+
+#~ msgid "Building the project."
+#~ msgstr "Сборка проекта."
+
+#~ msgid "Creating the target application."
+#~ msgstr "Создание целевого веб-приложения."
+
+#~ msgid "Creating a Scene"
+#~ msgstr "Создание сцен"
+
+#~ msgid "Authoring Scenes"
+#~ msgstr "Подготовка сцен"
+
+#~ msgid "Deploying Project"
+#~ msgstr "Размещение проекта"
+
+#~ msgid "Deploying Project To A Web Server"
+#~ msgstr "Размещение проекта на веб-сервере"
 

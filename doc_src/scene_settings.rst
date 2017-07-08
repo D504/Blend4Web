@@ -24,6 +24,50 @@ Render Panel
 All scene parameters that concern the image rendering are found on this panel.
 
 
+.. _render_development_server:
+
+Development Tools
+-----------------
+
+Development Server settings. Described thoroughly in :ref:`its own section <local_development_server>`.
+
+.. image:: src_images/scene_settings/render_development_server.png
+   :align: center
+   :width: 100%
+
+.. _render_shading:
+
+Shading
+-------
+
+This panel contains various shading options.
+
+.. image:: src_images/scene_settings/render_shading.png
+   :align: center
+   :width: 100%
+
+*Set Recommended Options*
+    This button is used to achieve maximum consistency between the look of a 3D scene in Blender viewport and in web browser. Pressing this button:
+
+    * enables **World Space Shading**,
+    * switches material mode to **GLSL**,
+    * switches viewport shading mode to **Material** and
+    * sets the main camera fit to **Vertical**.
+
+*World Space Shading*
+    This option turns on and off **World Space Shading** (world space interpretation of lighting data will be used for object shading). Disabled by default.
+
+.. _render_shadows:
+
+Shadows
+-------
+
+Shadows settings. Described thoroughly in :ref:`its own section<shadows>`.
+
+.. image:: src_images/scene_settings/render_shadows.png
+   :align: center
+   :width: 100%
+
 .. _render_reflections:
 
 Reflections and Refractions
@@ -44,41 +88,16 @@ Reflection and refraction effect settings.
 *Quality*
     Quality settings for the reflection effect. Can be set to ``HIGH`` (the highest reflection quality), ``MEDIUM`` (medium quality) or to ``LOW`` (the lowest quality). Set to ``MEDIUM`` by default.
 
-.. _render_motion_blur:
+.. _render_object_outlining:
 
-Motion Blur
------------
-
-Motion blur settings. Described thoroughly :ref:`in its own section <motion_blur>`.
-
-.. image:: src_images/scene_settings/render_motion_blur.png
-   :align: center
-   :width: 100%
-
-
-.. _render_bloom:
-
-Bloom
------
-
-Bloom effect settings. Described thoroughly in :ref:`its own section <bloom>`.
-
-.. image:: src_images/scene_settings/render_bloom.png
-   :align: center
-   :width: 100%
-
-
-.. _render_color_correction:
-
-Color Correction
+Object Outlining
 ----------------
 
-Color correction settings. Described thoroughly in :ref:`its own section <color_correction>`.
+Outlining effect settings. Described thoroughly in :ref:`its own section<outline>`.
 
-.. image:: src_images/scene_settings/render_color_correction.png
+.. image:: src_images/scene_settings/render_object_outlining.png
    :align: center
    :width: 100%
-
 
 .. _render_glow_materials:
 
@@ -91,42 +110,9 @@ Glow Material effect settings. Described thoroughly in :ref:`its own section <gl
    :align: center
    :width: 100%
 
+.. note::
 
-.. _render_object_outlining:
-
-Object Outlining
-----------------
-
-Outlining effect settings. Described thoroughly in :ref:`its own section<outline>`.
-
-.. image:: src_images/scene_settings/render_object_outlining.png
-   :align: center
-   :width: 100%
-
-
-.. _render_ssao:
-
-Ambient Occlusion (SSAO)
-------------------------
-
-Screen-space ambient occlusion (SSAO) settings. Described thoroughly in :ref:`its own section <ssao>`.
-
-.. image:: src_images/scene_settings/render_ambient_occlusion.png
-   :align: center
-   :width: 100%
-
-
-.. _render_god_rays:
-
-God Rays
---------
-
-God Rays effect settings. Described thoroughly in :ref:`its own section <god_rays>`.
-
-.. image:: src_images/scene_settings/render_god_rays.png
-   :align: center
-   :width: 100%
-
+    For dynamically loaded objects, ``AUTO`` setting is interpreted as ``OFF``, if no materials with glow are present in the scene. If you are using dynamic loading, you should set this parameter to ``ON``.
 
 .. _render_anti_aliasing:
 
@@ -139,26 +125,71 @@ Anti-Aliasing settings. Described thoroughly in :ref:`its own section<antialiasi
    :align: center
    :width: 100%
 
+.. _render_anisotropic_filtering:
 
-.. _render_shadows:
+Anisotropic Filtering
+---------------------
 
-Shadows
--------
+This parameter can be used to enable or disable anisotropic filtering and also to set the number of texture samples used for it. By default, anisotropic filtering is disabled.
 
-Shadows settings. Described thoroughly in :ref:`its own section<shadows>`.
-
-.. image:: src_images/scene_settings/render_shadows.png
+.. image:: src_images/scene_settings/render_anisotropic_filtering.png
    :align: center
    :width: 100%
 
-.. _render_development_server:
+Available values: ``16x``, ``8x``, ``4x``, ``2x`` and ``OFF`` (default value).
 
-Development Server
-------------------
+.. _render_bloom:
 
-Development Server settings. Described thoroughly in :ref:`its own section <local_development_server>`.
+Bloom
+-----
 
-.. image:: src_images/scene_settings/render_development_server.png
+Bloom effect settings. Described thoroughly in :ref:`its own section <bloom>`.
+
+.. image:: src_images/scene_settings/render_bloom.png
+   :align: center
+   :width: 100%
+
+.. _render_motion_blur:
+
+Motion Blur
+-----------
+
+Motion blur settings. Described thoroughly :ref:`in its own section <motion_blur>`.
+
+.. image:: src_images/scene_settings/render_motion_blur.png
+   :align: center
+   :width: 100%
+
+.. _render_ssao:
+
+Ambient Occlusion (SSAO)
+------------------------
+
+Screen-space ambient occlusion (SSAO) settings. Described thoroughly in :ref:`its own section <ssao>`.
+
+.. image:: src_images/scene_settings/render_ambient_occlusion.png
+   :align: center
+   :width: 100%
+
+.. _render_god_rays:
+
+God Rays
+--------
+
+God Rays effect settings. Described thoroughly in :ref:`its own section <god_rays>`.
+
+.. image:: src_images/scene_settings/render_god_rays.png
+   :align: center
+   :width: 100%
+
+.. _render_color_correction:
+
+Color Correction
+----------------
+
+Color correction settings. Described thoroughly in :ref:`its own section <color_correction>`.
+
+.. image:: src_images/scene_settings/render_color_correction.png
    :align: center
    :width: 100%
 
@@ -181,6 +212,19 @@ Timeline settings.
 
 *Frame Rate*
     Number of the frames per second. Set to 24 by default. This parameter only affect the animation playback speed (not the scene itself).
+
+.. _render_dynamic_grass:
+
+Dynamic Grass
+-------------
+
+Enables and disables :ref:`dynamic grass <particles_grass>` effect.
+
+.. image:: src_images/scene_settings/render_dynamic_grass.png
+   :align: center
+   :width: 100%
+
+Possible values: ``ON``, ``OFF`` and ``AUTO``. Set to ``AUTO`` by default.
 
 .. _scene:
 
@@ -341,25 +385,38 @@ Physics settings.
 
 .. _scene_batching:
 
-Cluster Batching
-----------------
+Object Clustering & LOD
+-----------------------
 
-This parameter enables the use of cluster batching. It can be used for optimization purposes. This is disabled by default.
+Settings for object clustering and Levels Of Detail.
 
-.. note::
-    If this parameter is disabled, the engine will try to combine all static objects into one.
-
-.. image:: src_images/scene_settings/scene_cluster_batching.png
+.. image:: src_images/scene_settings/scene_object_clustering.png
    :align: center
    :width: 100%
 
 *Cluster Size*
-    The size of the cluster used for batching (in meters). Set to 30 by default. If this parameter is set to zero, objects will not be combined.
+    The size of the cluster used for batching (in meters). Can be used for optimization purposes. If this parameter is set to zero, the engine will try to combine all objects in the scene. Set to zero by default.
+
+*LOD Cluster Size Multiplier*
+    This parameter is used to subdivide clusters (based on LOD distance specified individually for each object) into smaller ones to make transitions between different levels of detail less noticeable. The size of that smaller clusters is defined by object LOD distance multiplied by the value of this parameter. Higher values lead to bigger clusters which increases performance but makes transition between LODs more noticeable, while lower values make said transitions less noticeable at the cost of decreased performance. Can be used for optimization purposes. Set to 0.5 by default.
+
+*LOD Smooth Transitions* 
+    Defines what objects will use smooth transitions while switching their LOD levels. Has the following options:
+
+    * OFF - smooth transitions are disabled (fastest).
+    * NON-OPAQUE - use smooth transitions for objects with ``Add``, ``Alpha Clip``, ``Alpha Blend``, ``Alpha Sort`` and ``Alpha Anti-Aliasing`` :ref:`materials <alpha_blend>`.
+    * ALL - smooth transitions will be used for all objects (slowest).
+
+    Choosing the "ALL" value can noticeably decrease application performance, so use it with caution. Default value is "NON-OPAQUE".
+
+*Max LOD Hysteresis Interval*
+
+    The length of the interval (in meters) used for switching LOD levels. The half of this value is added/subtracted from the distance threshold in order to make two different thresholds for switching to the lower and to the higher LOD level. This should reduce LOD "popping" effect. Set to 4.0 by default.
 
 .. _scene_objects_selection:
 
-Objects Selection
------------------
+Object Selection
+----------------
 
 Object selection settings. Objects can be selected both with the API function :b4wref:`scenes.pick_object()` and with the :ref:`logic nodes <logic_editor>`.
 
@@ -452,14 +509,14 @@ Sky settings.
 *Zenith Color*
     Sky color in the zenith.
 
-*Ambient Color*
-    The color of the ambient lighting.
-
 *Reflect World*
     Render the sky while rendering reflections.
 
 *Render Only Reflection*
     Render the sky *only* while rendering reflections.
+
+*World Background*
+    Enables and disables ``World Background`` option (located under the ``Display`` tab of the ``3D View`` panel). When this option is activated, background colors are rendered in the viewport window the same way they would be in the engine itself.
 
 .. _world_environment_lighting:
 
@@ -515,6 +572,29 @@ Procedural Sky
 .. image:: src_images/scene_settings/world_procedural_sky.png
    :align: center
    :width: 100%
+
+.. _world_animation:
+
+Animation
+---------
+
+Environment animation settings.
+
+.. image:: src_images/scene_settings/world_animation.png
+   :align: center
+   :width: 100%
+
+*Apply Default Animation*
+    If this parameter is enabled, the engine will start playback of the animation assigned to the environment upon loading.
+
+*Behavior*
+    Sets the behavior of the default animation. Available options are:
+    
+    * ``Loop`` - the animation will be played repeatedly.
+    * ``Finish Stop`` - the animation will be played once.
+    * ``Finish Reset`` - the animation will be played once, and then switched back to the first frame.
+
+    This option is only available if the ``Apply Default Animation`` parameter is enabled.
 
 
 .. _world_export_options:

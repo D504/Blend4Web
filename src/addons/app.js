@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -28,7 +27,6 @@
 
 b4w.module["app"] = function(exports, require) {
 
-var m_anim  = require("animation");
 var m_cam   = require("camera");
 var m_cfg   = require("config");
 var m_cons  = require("constraints");
@@ -40,6 +38,7 @@ var m_input = require("input");
 var m_main  = require("main");
 var m_phy   = require("physics");
 var m_print = require("print");
+var m_screen = require("screen");
 var m_scs   = require("scenes");
 var m_trans = require("transform");
 var m_util  = require("util");
@@ -83,8 +82,8 @@ var CAM_SMOOTH_ROT_TRANS_MOUSE = 0.08;
 var CAM_SMOOTH_ROT_TRANS_TOUCH = 0.12;
 
 // Constants used for camera physics
-var COLL_RESPONSE_NORMAL_FACTOR = 0.01;
 var CHAR_HEAD_POSITION          = 0.5;
+var CAM_COLL_DELTA              = 0.25
 
 // NOTE: EPSILON_DELTA << EPSILON_DISTANCE to prevent camera freezing near pivot
 var EPSILON_DISTANCE = 0.001;
@@ -97,6 +96,8 @@ var AXIS_THRESHOLD = 0.1;
 var TRANS_GMPD_KOEF = 0.002;
 var ZOOM_GMPD_KOEF = 0.05;
 
+var LOW_BANDWIDTH_LIMIT = 1.5;
+
 // Cached HTML elements
 var _fps_logger_elem = null;
 
@@ -105,13 +106,15 @@ var _fps_logger_elem = null;
 var _disable_default_pivot   = false;
 var _disable_letter_controls = false;
 var _disable_zoom            = false;
+var _element                 = null;
+var _allow_element_exit      = false;
+var _disable_gamepad_controls = false;
 
 // Cached arrays
 var _vec2_tmp  = new Float32Array(2);
 var _vec2_tmp2 = new Float32Array(2);
 var _vec3_tmp  = new Float32Array(3);
 var _vec3_tmp2 = new Float32Array(3);
-var _vec3_tmp3 = new Float32Array(3);
 var _quat4_tmp = new Float32Array(4);
 var _velocity_tmp = {};
 
@@ -121,42 +124,44 @@ var _limits_tmp = {};
  * Application initialization callback.
  * @callback AppInitCallback
  * @param {HTMLElement} canvas Initialized canvas element.
- * @param {Boolean} success Success flag.
+ * @param {boolean} success Success flag.
  */
 
 /**
  * Initialize the engine.
  * The "options" object may be extended by adding properties from the engine's
- * configuration (see {@link module:config|confg} module).
+ * configuration (see {@link module:config|config} module).
  * In that case they will be applied before engine initialization.
  * @param {Object}   [options={}] Initialization options.
- * @param {String}   [options.canvas_container_id=null] Canvas container ID.
+ * @param {string}   [options.canvas_container_id=null] Canvas container ID.
  * @param {AppInitCallback} [options.callback=function(){}] Initialization callback.
- * @param {Boolean}  [options.error_purge_elements=null] Remove interface
+ * @param {boolean}  [options.error_purge_elements=null] Remove interface
  * elements after error.
- * @param {Boolean}  [options.show_hud_debug_info=false] Show HUD with
+ * @param {boolean}  [options.show_hud_debug_info=false] Show HUD with
  * developer info.
- * @param {Boolean}  [options.show_fps=false] Show FPS counter.
- * @param {String}   [options.fps_elem_id=null] Custom fps counter id.
- * @param {String}   [options.fps_wrapper_id=null] Show FPS wrapper with
+ * @param {boolean}  [options.show_fps=false] Show FPS counter.
+ * @param {string}   [options.fps_elem_id=null] Custom fps counter id.
+ * @param {string}   [options.fps_wrapper_id=null] Show FPS wrapper with
  * current id.
- * @param {Boolean}  [options.report_init_failure=true] Show elements with info
+ * @param {boolean}  [options.report_init_failure=true] Show elements with info
  * about init failure
- * @param {Boolean}  [options.pause_invisible=true] Pause engine simulation if
+ * @param {boolean}  [options.pause_invisible=true] Pause engine simulation if
  * page is not visible (in other tab or minimized).
- * @param {Boolean}  [options.key_pause_enabled=true] Enable key pause
- * @param {Boolean}  [options.autoresize=false] Automatically resize canvas to
+ * @param {boolean}  [options.key_pause_enabled=true] Enable key pause
+ * @param {boolean}  [options.autoresize=false] Automatically resize canvas to
  * match the size of container element.
- * @param {Number}  [options.force_container_ratio=0] Automatically resize
+ * @param {number}  [options.force_container_ratio=0] Automatically resize
  * canvas container height, based on its width and passed ratio value.
+ * @param {boolean} [options.min_capabilities=false] Set min capability mode
+ * @param {boolean} [options.debug_loading=false] Print loading info into the console
  * @cc_externs canvas_container_id callback show_hud_debug_info
  * @cc_externs sfx_mix_mode show_fps fps_elem_id error_purge_elements
  * @cc_externs report_init_failure pause_invisible key_pause_enabled
- * @cc_externs alpha alpha_sort_threshold assets_dds_available
+ * @cc_externs alpha alpha_sort_threshold assets_dds_available assets_pvr_available
  * @cc_externs assets_min50_available quality fps_wrapper_id
  * @cc_externs console_verbose physics_enabled autoresize track_container_position
  * @cc_externs force_container_ratio from to elem prop cb duration opt_prefix
- * @cc_externs opt_suffix
+ * @cc_externs opt_suffix min_capabilities srgb_type debug_loading
  */
 
 exports.init = function(options) {
@@ -170,12 +175,15 @@ exports.init = function(options) {
     var force_container_ratio = 0;
     var fps_wrapper_id = null;
     var key_pause_enabled = true;
+    var min_capabilities = false;
     var pause_invisible = true;
     var report_init_failure = true;
     var sfx_mix_mode = false;
     var show_fps = false;
     var show_hud_debug_info = false;
     var track_container_position = false;
+    var quality = m_cfg.get("quality");
+
     for (var opt in options) {
         switch (opt) {
         case "canvas_container_id":
@@ -186,9 +194,6 @@ exports.init = function(options) {
             break;
         case "autoresize":
             autoresize = options.autoresize;
-            break;
-        case "do_not_use_onload":
-            // ignore deprecated option
             break;
         case "show_hud_debug_info":
             show_hud_debug_info = options.show_hud_debug_info;
@@ -201,6 +206,8 @@ exports.init = function(options) {
             break;
         case "track_container_position":
             track_container_position = options.track_container_position;
+            m_print.error_once("track_container_position deprecated. " +
+                    "Not needed anymore. Use the container.client_to_canvas_coords method.");
             break;
         case "fps_wrapper_id":
             fps_wrapper_id = options.fps_wrapper_id;
@@ -223,11 +230,20 @@ exports.init = function(options) {
         case "force_container_ratio":
             force_container_ratio = options.force_container_ratio;
             break;
+        case "min_capabilities":
+            min_capabilities = options.min_capabilities;
+            break;
+        case "quality":
+            quality = options.quality;
+            break;
         default:
             m_cfg.set(opt, options[opt]);
             break;
         }
     }
+
+    if (quality != m_cfg.P_AUTO)
+        m_cfg.set("quality", quality);
 
     var on_key_pause = function(e) {
         if (e.keyCode == m_ctl.KEY_P) {
@@ -290,7 +306,26 @@ exports.init = function(options) {
             });
         }
 
-        callback(canvas_elem, true);
+        if (min_capabilities)
+            m_cfg.reset_limits();
+
+        if (quality == m_cfg.P_AUTO) {
+            m_dbg.test_performance(function(time, bw) {
+                if (time == 0) {
+                    m_print.log("QUALITY TEST RESULT: UNSUPPORTED, using HIGH");
+                    m_cfg.apply_quality(m_cfg.P_HIGH);
+                } else if (bw < LOW_BANDWIDTH_LIMIT) {
+                    m_print.log("QUALITY TEST RESULT: LOW (" + bw.toFixed(1) + " GB/s)");
+                    m_cfg.apply_quality(m_cfg.P_LOW);
+                } else {
+                    m_print.log("QUALITY TEST RESULT: HIGH (" + bw.toFixed(1) + " GB/s)");
+                    m_cfg.apply_quality(m_cfg.P_HIGH);
+                }
+
+                callback(canvas_elem, true);
+            });
+        } else
+            callback(canvas_elem, true);
     };
 
     var onunload_cb = function() {
@@ -350,6 +385,13 @@ function setup_canvas(canvas_container_id, init_hud_canvas,
     var canvas_elem = document.createElement("canvas");
     var append_to = document.getElementById(canvas_container_id);
 
+    if (!append_to) {
+
+        m_print.error("Warning: canvas container \"" + canvas_container_id +
+            "\" not found, appending to body");
+        append_to = document.body;
+    }
+
     canvas_elem.style.position = "absolute";
     canvas_elem.style.left = 0;
     canvas_elem.style.top = 0;
@@ -368,19 +410,12 @@ function setup_canvas(canvas_container_id, init_hud_canvas,
     } else
         var canvas_elem_hud = null;
 
-    if (!append_to) {
-
-        m_print.error("Warning: canvas container \"" + canvas_container_id +
-            "\" not found, appending to body");
-        append_to = document.body;
-    }
-
     append_to.appendChild(canvas_elem);
 
     if (!m_main.init(canvas_elem, canvas_elem_hud)) {
         if (report_init_failure)
             report_app_error("Browser could not initialize WebGL", "For more info visit",
-                    "https://www.blend4web.com/doc/en/problems_and_solutions.html", purge_elements);
+                    "https://www.blend4web.com/doc/en/problems_and_solutions.html#problems-upon-startup", purge_elements);
         return false;
     }
 
@@ -401,12 +436,14 @@ function create_fps_logger_elem(fps_elem_id, fps_wrapper_id) {
         _fps_logger_elem.innerHTML = 0;
         _fps_logger_elem.style.cssText =
             "position:absolute;" +
-            "top: 23px;" +
+            "font-family: Arial, sans-serif;" +
+            "top: 20px;" +
             "right: 20px;" +
-            "font-size: 45px;" +
+            "text-shadow: 0px 0px 6px #000;" +
+            "font-size: 40px;" +
             "line-height: 50px;" +
             "font-weight: bold;" +
-            "color: #000;";
+            "color: #fff;";
 
         m_cont.insert_to_container(_fps_logger_elem, "JUST_AFTER_CANVAS");
     }
@@ -430,16 +467,6 @@ function elem_cloned(elem_id) {
     target.parentNode.replaceChild(new_element, target);
 
     return new_element;
-}
-
-/**
- * Fit canvas elements to match the size of container element.
- * @method module:app.resize_to_container
- * @deprecated use {@link module:container.resize_to_container} instead.
- */
-exports.resize_to_container = function() {
-    m_print.error_deprecated("app.resize_to_container", "container.resize_to_container");
-    m_cont.resize_to_container();
 }
 
 exports.set_onclick = function(elem_id, callback) {
@@ -470,7 +497,7 @@ function trans_hover_cam_horiz_local(camobj, dir, fact) {
 
     var obj_quat = m_trans.get_rotation(camobj, _quat4_tmp);
     var abs_dir = m_util.quat_to_dir(obj_quat, dir, _vec3_tmp);
-    abs_dir[1] = 0;
+    abs_dir[2] = 0;
     m_vec3.normalize(abs_dir, abs_dir);
     m_vec3.scale(abs_dir, dist * fact, abs_dir);
 
@@ -486,7 +513,7 @@ function zoom_hover_cam(camobj, fact) {
         var angle_factor = (limits.down - y_angle) / (limits.down - limits.up);
         var dist_limits = m_cam.hover_get_distance_limits(camobj, _limits_tmp);
         angle_factor = Math.max(angle_factor, HOVER_ZOOM_FACTOR_MIN / dist_limits.max);
-        m_cam.hover_rotate(camobj, 0, angle_factor * fact);
+        m_cam.rotate_camera(camobj, 0, angle_factor * fact);
     }
 }
 
@@ -515,7 +542,7 @@ function trans_targ_cam_local(camobj, fact_view, elapsed) {
     else
         fact_view = dist * calc_fact_from(fact);
 
-    m_trans.move_local(camobj, 0, fact_view, 0);
+    m_trans.move_local(camobj, 0, 0, fact_view);
 }
 
 function get_dest_mouse_touch(obj, value, fact, dist, dest_value) {
@@ -554,24 +581,31 @@ function get_dest_zoom(obj, value, velocity_zoom, dest_value, dev_fact,
  * Assign keyboard and mouse controls to the active camera.
  * (arrow keys, ADSW, wheel and others)
  * @method module:app.enable_camera_controls
- * @param {Boolean} [disable_default_pivot=false] Do not use the possible
+ * @param {boolean} [disable_default_pivot=false] Do not use the possible
  * camera-defined pivot point
- * @param {Boolean} [disable_letter_controls=false] Disable keyboard letter controls
+ * @param {boolean} [disable_letter_controls=false] Disable keyboard letter controls
  * (only arrow keys will be used to control the camera)
- * @param {Boolean} [disable_zoom=false] Disable zoom
- * @param {HTMLElement} [element=Canvas container element] HTML element to add event listeners to
- * @param {Boolean} [allow_element_exit=false] Continue receiving mouse events
+ * @param {boolean} [disable_zoom=false] Disable zoom
+ * @param {HTMLElement} [element] HTML element to add event listeners to. The canvas container will be use by default.
+ * @param {boolean} [allow_element_exit=false] Continue receiving mouse events
  * even when the mouse is leaving the HTML element
+ * @param {boolean} [disable_gamepad_controls=false] Disable gamepad controls
+ * @example 
+ * var m_app = require("app");
+ * m_app.enable_camera_controls();
  */
 
 exports.enable_camera_controls = enable_camera_controls;
 
 function enable_camera_controls(disable_default_pivot, disable_letter_controls,
-                                disable_zoom, element, allow_element_exit) {
-
+                                disable_zoom, element, allow_element_exit,
+                                disable_gamepad_controls) {
     _disable_default_pivot = disable_default_pivot;
     _disable_letter_controls = disable_letter_controls;
     _disable_zoom = disable_zoom;
+    _element = element;
+    _allow_element_exit = allow_element_exit;
+    _disable_gamepad_controls = disable_gamepad_controls;
 
     var obj = m_scs.get_active_camera();
     enable_cam_controls_resetting(obj);
@@ -582,15 +616,15 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
 
     switch (m_cam.get_move_style(obj)) {
     case m_cam.MS_TARGET_CONTROLS:
-        var use_pivot = !disable_default_pivot;
+        use_pivot = !disable_default_pivot;
         break;
     case m_cam.MS_EYE_CONTROLS:
-        var character = m_scs.get_first_character();
+        character = m_scs.get_first_character();
         break;
     case m_cam.MS_STATIC:
         return;
     case m_cam.MS_HOVER_CONTROLS:
-        var use_hover = true;
+        use_hover = true;
         break;
     }
 
@@ -607,7 +641,7 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
             if (coll_dist < 0) {
                 var coll_norm = m_ctl.get_sensor_payload(obj, id, 0).coll_norm;
                 var recover_offset = _vec3_tmp;
-                m_vec3.scale(coll_norm, -0.25 * coll_dist, recover_offset);
+                m_vec3.scale(coll_norm, -CAM_COLL_DELTA * coll_dist, recover_offset);
                 var trans = m_trans.get_translation(obj, _vec3_tmp2);
                 m_vec3.add(trans, recover_offset, trans);
                 m_trans.set_translation_v(obj, trans);
@@ -623,9 +657,9 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
         var quat  = m_trans.get_rotation(obj);
         var char_quat = m_util.cam_quat_to_mesh_quat(quat);
 
-        trans[1] -= CHAR_HEAD_POSITION;
+        trans[2] -= CHAR_HEAD_POSITION;
         m_phy.set_transform(character, trans, char_quat);
-        m_cons.append_stiff_trans(obj, character, [0, 0.5, 0]);
+        m_cons.append_stiff_trans(obj, character, [0, 0, 0.5]);
 
         var char_dir = new Float32Array(2);
 
@@ -654,40 +688,40 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
                     char_dir[0] = 1;
                 else if (use_hover) {
                     var hover_angle = m_cam.get_camera_angles(obj, _vec2_tmp2)[1];
-                    var axis = (Math.abs(hover_angle) >= Math.PI / 4) ? m_util.AXIS_MZ : m_util.AXIS_MY;
+                    var axis = (Math.abs(hover_angle) >= Math.PI / 4) ? m_util.AXIS_Y : m_util.AXIS_MZ;
                     trans_hover_cam_horiz_local(obj, axis,
                             velocity.trans * HOVER_KEY_TRANS_FACTOR * elapsed);
                 } else if (use_pivot)
                     trans_targ_cam_local(obj, -velocity.zoom, elapsed);
                 else
-                    trans_eye_cam_local(obj, 0, -velocity.trans * elapsed, 0);
+                    trans_eye_cam_local(obj, 0, 0, -velocity.trans * elapsed);
                 break;
             case "BACKWARD":
                 if (character)
                     char_dir[0] = -1;
                 else if (use_hover) {
                     var hover_angle = m_cam.get_camera_angles(obj, _vec2_tmp2)[1];
-                    var axis = (Math.abs(hover_angle) >= Math.PI / 4) ? m_util.AXIS_Z : m_util.AXIS_Y;
+                    var axis = (Math.abs(hover_angle) >= Math.PI / 4) ? m_util.AXIS_MY : m_util.AXIS_Z;
                     trans_hover_cam_horiz_local(obj, axis,
                             velocity.trans * HOVER_KEY_TRANS_FACTOR * elapsed);
                 } else if (use_pivot)
                     trans_targ_cam_local(obj, velocity.zoom, elapsed);
                 else
-                    trans_eye_cam_local(obj, 0, velocity.trans * elapsed, 0);
+                    trans_eye_cam_local(obj, 0, 0, velocity.trans * elapsed);
                 break;
             case "UP":
                 if (use_hover)
                     zoom_hover_cam(obj, - velocity.zoom * HOVER_KEY_ZOOM_FACTOR 
                             * elapsed);
                 else if (!character)
-                    trans_eye_cam_local(obj, 0, 0, -velocity.trans * elapsed);
+                    trans_eye_cam_local(obj, 0, velocity.trans * elapsed, 0);
                 break;
             case "DOWN":
                 if (use_hover)
                     zoom_hover_cam(obj, velocity.zoom * HOVER_KEY_ZOOM_FACTOR 
                             * elapsed);
                 else if (!character)
-                    trans_eye_cam_local(obj, 0, 0, velocity.trans * elapsed);
+                    trans_eye_cam_local(obj, 0, -velocity.trans * elapsed, 0);
                 break;
             case "LEFT":
                 if (character)
@@ -709,34 +743,34 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
                 break;
             case "ROT_LEFT":
                 if (use_pivot)
-                    m_cam.target_rotate(obj, -velocity.rot
+                    m_cam.rotate_camera(obj, -velocity.rot
                             * TARGET_EYE_KEY_ROT_FACTOR * elapsed, 0);
                 else
-                    m_cam.eye_rotate(obj, velocity.rot * TARGET_EYE_KEY_ROT_FACTOR
+                    m_cam.rotate_camera(obj, velocity.rot * TARGET_EYE_KEY_ROT_FACTOR
                             * elapsed, 0);
                 break;
             case "ROT_RIGHT":
                 if (use_pivot)
-                    m_cam.target_rotate(obj, velocity.rot
+                    m_cam.rotate_camera(obj, velocity.rot
                             * TARGET_EYE_KEY_ROT_FACTOR * elapsed, 0);
                 else
-                    m_cam.eye_rotate(obj, -velocity.rot * TARGET_EYE_KEY_ROT_FACTOR
+                    m_cam.rotate_camera(obj, -velocity.rot * TARGET_EYE_KEY_ROT_FACTOR
                             * elapsed, 0);
                 break;
             case "ROT_UP":
                 if (use_pivot)
-                    m_cam.target_rotate(obj, 0, -velocity.rot
+                    m_cam.rotate_camera(obj, 0, -velocity.rot
                             * TARGET_EYE_KEY_ROT_FACTOR * elapsed);
                 else
-                    m_cam.eye_rotate(obj, 0, velocity.rot
+                    m_cam.rotate_camera(obj, 0, velocity.rot
                             * TARGET_EYE_KEY_ROT_FACTOR * elapsed);
                 break;
             case "ROT_DOWN":
                 if (use_pivot)
-                    m_cam.target_rotate(obj, 0, velocity.rot
+                    m_cam.rotate_camera(obj, 0, velocity.rot
                             * TARGET_EYE_KEY_ROT_FACTOR * elapsed);
                 else
-                    m_cam.eye_rotate(obj, 0, -velocity.rot
+                    m_cam.rotate_camera(obj, 0, -velocity.rot
                             * TARGET_EYE_KEY_ROT_FACTOR * elapsed);
                 break;
             default:
@@ -765,13 +799,29 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
         }
     }
 
-    var gmpd_indices = m_input.check_enable_gamepad_indices();
-    if (gmpd_indices.length)
-        var gamepad_id = gmpd_indices[gmpd_indices.length - 1];
-    else
-        var gamepad_id = 0;
-
     var key_w, key_s, key_a, key_d, key_r, key_f, gmpd_btn_6, gmpd_btn_7;
+    var key_up, key_down, key_left, key_right, lh_axis, lv_axis, rh_axis, rv_axis;
+
+    if (!disable_gamepad_controls) {
+        var gmpd_indices = m_input.check_enable_gamepad_indices();
+        if (gmpd_indices.length)
+            var gamepad_id = gmpd_indices[gmpd_indices.length - 1];
+        else
+            var gamepad_id = 0;
+
+        gmpd_btn_6 = m_ctl.create_gamepad_btn_sensor(m_input.GMPD_BUTTON_6,
+                gamepad_id);
+        gmpd_btn_7 = m_ctl.create_gamepad_btn_sensor(m_input.GMPD_BUTTON_7,
+                gamepad_id);
+        lh_axis = m_ctl.create_gamepad_axis_sensor(m_input.GMPD_AXIS_0, gmpd_indices);
+        lv_axis = m_ctl.create_gamepad_axis_sensor(m_input.GMPD_AXIS_1, gmpd_indices);
+
+        rh_axis = m_ctl.create_gamepad_axis_sensor(m_input.GMPD_AXIS_2, gmpd_indices);
+        rv_axis = m_ctl.create_gamepad_axis_sensor(m_input.GMPD_AXIS_3, gmpd_indices);
+    } else
+        gmpd_btn_6 = gmpd_btn_7 = lh_axis = lv_axis = rh_axis = rv_axis =
+                m_ctl.create_custom_sensor(0);
+
     if (!disable_letter_controls) {
         key_w = m_ctl.create_keyboard_sensor(m_ctl.KEY_W);
         key_s = m_ctl.create_keyboard_sensor(m_ctl.KEY_S);
@@ -779,29 +829,20 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
         key_d = m_ctl.create_keyboard_sensor(m_ctl.KEY_D);
         key_r = m_ctl.create_keyboard_sensor(m_ctl.KEY_R);
         key_f = m_ctl.create_keyboard_sensor(m_ctl.KEY_F);
-        gmpd_btn_6 = m_ctl.create_gamepad_btn_sensor(m_input.GMPD_BUTTON_6,
-                gamepad_id);
-        gmpd_btn_7 = m_ctl.create_gamepad_btn_sensor(m_input.GMPD_BUTTON_7,
-                gamepad_id);
+
+        key_up = m_ctl.create_keyboard_sensor(m_ctl.KEY_UP);
+        key_down = m_ctl.create_keyboard_sensor(m_ctl.KEY_DOWN);
+        key_left = m_ctl.create_keyboard_sensor(m_ctl.KEY_LEFT);
+        key_right = m_ctl.create_keyboard_sensor(m_ctl.KEY_RIGHT);
     } else
-        key_w = key_s = key_a = key_d = key_r = key_f = gmpd_btn_6 =
-                gmpd_btn_7 = m_ctl.create_custom_sensor(0);
+        key_w = key_s = key_a = key_d = key_r = key_f =
+                key_up = key_down = key_left = key_right =
+                m_ctl.create_custom_sensor(0);
 
-    var key_up = m_ctl.create_keyboard_sensor(m_ctl.KEY_UP);
-    var key_down = m_ctl.create_keyboard_sensor(m_ctl.KEY_DOWN);
-    var key_left = m_ctl.create_keyboard_sensor(m_ctl.KEY_LEFT);
-    var key_right = m_ctl.create_keyboard_sensor(m_ctl.KEY_RIGHT);
-
-    var lh_axis = m_ctl.create_gamepad_axis_sensor(m_input.GMPD_AXIS_0, gmpd_indices);
-    var lv_axis = m_ctl.create_gamepad_axis_sensor(m_input.GMPD_AXIS_1, gmpd_indices);
-
-    var rh_axis = m_ctl.create_gamepad_axis_sensor(m_input.GMPD_AXIS_2, gmpd_indices);
-    var rv_axis = m_ctl.create_gamepad_axis_sensor(m_input.GMPD_AXIS_3, gmpd_indices);
-
-    var key_single_logic = null;
-    var key_double_logic = function(s) {
-        return s[0] && (s[1] || s[2]);
-    }
+    // var key_single_logic = null;
+    // var key_double_logic = function(s) {
+    //     return s[0] && (s[1] || s[2]);
+    // }
      var key_triple_logic = function(s) {
         return s[0] && (s[1] || s[2] || s[3]);
     }
@@ -967,11 +1008,11 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
                 var right_mult = HOVER_MOUSE_ROT_MULT_PX * velocity.rot;
             }
 
-            if (m_ctl.get_sensor_payload(obj, id, 0) === 1) {
+            if (m_ctl.get_sensor_payload(obj, id, 0).which === 1) {
                 dest_x_mouse += (param == "X") ? -value * left_mult : 0;
                 dest_y_mouse += (param == "Y") ? -value * left_mult : 0;
-            } else if (m_ctl.get_sensor_payload(obj, id, 0) === 2
-                    || m_ctl.get_sensor_payload(obj, id, 0) === 3) {
+            } else if (m_ctl.get_sensor_payload(obj, id, 0).which === 2
+                    || m_ctl.get_sensor_payload(obj, id, 0).which === 3) {
                 dest_pan_x_mouse += (param == "X") ? -value * right_mult : 0;
                 dest_pan_y_mouse += (param == "Y") ? -value * right_mult : 0;
             }
@@ -981,38 +1022,39 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
     // camera panning with gamepad
     var dest_pan_x_gmpd = 0;
     var dest_pan_y_gmpd = 0;
+    if (!disable_gamepad_controls) {
+        var gmpd_panning_x_pos_cb = function(obj, id, pulse) {
+            m_cam.get_velocities(obj, velocity);
+            dest_pan_x_gmpd += velocity.trans * TRANS_GMPD_KOEF;
+        }
+        var gmpd_panning_y_pos_cb = function(obj, id, pulse) {
+            m_cam.get_velocities(obj, velocity);
+            dest_pan_y_gmpd += velocity.zoom * ZOOM_GMPD_KOEF;
+        }
+        var gmpd_panning_x_neg_cb = function(obj, id, pulse) {
+            m_cam.get_velocities(obj, velocity);
+            dest_pan_x_gmpd -= velocity.trans * TRANS_GMPD_KOEF;
+        }
+        var gmpd_panning_y_neg_cb = function(obj, id, pulse) {
+            m_cam.get_velocities(obj, velocity);
+            dest_pan_y_gmpd -= velocity.zoom * ZOOM_GMPD_KOEF;
+        }
 
-    var gmpd_panning_x_pos_cb = function(obj, id, pulse) {
-        m_cam.get_velocities(obj, velocity);
-        dest_pan_x_gmpd += velocity.trans * TRANS_GMPD_KOEF;
-    }
-    var gmpd_panning_y_pos_cb = function(obj, id, pulse) {
-        m_cam.get_velocities(obj, velocity);
-        dest_pan_y_gmpd += velocity.zoom * ZOOM_GMPD_KOEF;
-    }
-    var gmpd_panning_x_neg_cb = function(obj, id, pulse) {
-        m_cam.get_velocities(obj, velocity);
-        dest_pan_x_gmpd -= velocity.trans * TRANS_GMPD_KOEF;
-    }
-    var gmpd_panning_y_neg_cb = function(obj, id, pulse) {
-        m_cam.get_velocities(obj, velocity);
-        dest_pan_y_gmpd -= velocity.zoom * ZOOM_GMPD_KOEF;
-    }
-
-    if (use_pivot) {
-        m_ctl.create_sensor_manifold(obj, "GMPD_PAN_Y_POS", m_ctl.CT_CONTINUOUS,
-                [gmpd_btn_6], null, gmpd_panning_y_pos_cb);
-        m_ctl.create_sensor_manifold(obj, "GMPD_PAN_Y_NEG", m_ctl.CT_CONTINUOUS,
-                [gmpd_btn_7], null, gmpd_panning_y_neg_cb);
-        m_ctl.create_sensor_manifold(obj, "GMPD_PAN_X_POS", m_ctl.CT_CONTINUOUS,
-                [lh_axis], function(s) {return s[0] < -AXIS_THRESHOLD}, gmpd_panning_x_neg_cb);
-        m_ctl.create_sensor_manifold(obj, "GMPD_PAN_X_NEG", m_ctl.CT_CONTINUOUS,
-                [lh_axis], function(s) {return s[0] > AXIS_THRESHOLD}, gmpd_panning_x_pos_cb);
-    } else if (use_hover) {
-        m_ctl.create_sensor_manifold(obj, "GMPD_PAN_X_POS", m_ctl.CT_CONTINUOUS,
-                [rh_axis], function(s) {return s[0] < -AXIS_THRESHOLD}, gmpd_panning_x_neg_cb);
-        m_ctl.create_sensor_manifold(obj, "GMPD_PAN_X_NEG", m_ctl.CT_CONTINUOUS,
-                [rh_axis], function(s) {return s[0] > AXIS_THRESHOLD}, gmpd_panning_x_pos_cb);
+        if (use_pivot) {
+            m_ctl.create_sensor_manifold(obj, "GMPD_PAN_Y_POS", m_ctl.CT_CONTINUOUS,
+                    [gmpd_btn_6], null, gmpd_panning_y_pos_cb);
+            m_ctl.create_sensor_manifold(obj, "GMPD_PAN_Y_NEG", m_ctl.CT_CONTINUOUS,
+                    [gmpd_btn_7], null, gmpd_panning_y_neg_cb);
+            m_ctl.create_sensor_manifold(obj, "GMPD_PAN_X_POS", m_ctl.CT_CONTINUOUS,
+                    [lh_axis], function(s) {return s[0] < -AXIS_THRESHOLD}, gmpd_panning_x_neg_cb);
+            m_ctl.create_sensor_manifold(obj, "GMPD_PAN_X_NEG", m_ctl.CT_CONTINUOUS,
+                    [lh_axis], function(s) {return s[0] > AXIS_THRESHOLD}, gmpd_panning_x_pos_cb);
+        } else if (use_hover) {
+            m_ctl.create_sensor_manifold(obj, "GMPD_PAN_X_POS", m_ctl.CT_CONTINUOUS,
+                    [rh_axis], function(s) {return s[0] < -AXIS_THRESHOLD}, gmpd_panning_x_neg_cb);
+            m_ctl.create_sensor_manifold(obj, "GMPD_PAN_X_NEG", m_ctl.CT_CONTINUOUS,
+                    [rh_axis], function(s) {return s[0] > AXIS_THRESHOLD}, gmpd_panning_x_pos_cb);
+        }
     }
 
     if (allow_element_exit) {
@@ -1040,9 +1082,9 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
         var mouse_move_x = m_ctl.create_mouse_move_sensor("X", element);
         var mouse_move_y = m_ctl.create_mouse_move_sensor("Y", element);
         var mouse_down = m_ctl.create_mouse_click_sensor(element);
-        m_ctl.create_sensor_manifold(obj, "MOUSE_X", m_ctl.CT_LEVEL,
+        m_ctl.create_sensor_manifold(obj, "MOUSE_X", m_ctl.CT_POSITIVE,
                 [mouse_down, mouse_move_x], null, mouse_cb, "X");
-        m_ctl.create_sensor_manifold(obj, "MOUSE_Y", m_ctl.CT_LEVEL,
+        m_ctl.create_sensor_manifold(obj, "MOUSE_Y", m_ctl.CT_POSITIVE,
                 [mouse_down, mouse_move_y], null, mouse_cb, "Y");
     }
 
@@ -1065,11 +1107,11 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
             else
                 var r_mult = TARGET_EYE_TOUCH_ROT_MULT_PX * velocity.rot;
             var value = m_ctl.get_sensor_value(obj, id, 0);
-            if (m_ctl.get_sensor_payload(obj, id, 0)
+            if (m_ctl.get_sensor_payload(obj, id, 0).gesture
                     === m_ctl.PL_SINGLE_TOUCH_MOVE) {
                 dest_x_touch += (param == "X") ? -value * r_mult : 0;
                 dest_y_touch += (param == "Y") ? -value * r_mult : 0;
-            } else if (m_ctl.get_sensor_payload(obj, id, 0)
+            } else if (m_ctl.get_sensor_payload(obj, id, 0).gesture
                     ===  m_ctl.PL_MULTITOUCH_MOVE_PAN) {
                 if (!use_hover) {
                     var pan_mult = TARGET_EYE_TOUCH_PAN_MULT_PX * velocity.trans;
@@ -1082,9 +1124,9 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
         }
     }
 
-    m_ctl.create_sensor_manifold(obj, "TOUCH_X", m_ctl.CT_LEVEL,
+    m_ctl.create_sensor_manifold(obj, "TOUCH_X", m_ctl.CT_POSITIVE,
             [touch_move_x], null, touch_cb, "X");
-    m_ctl.create_sensor_manifold(obj, "TOUCH_Y", m_ctl.CT_LEVEL,
+    m_ctl.create_sensor_manifold(obj, "TOUCH_Y", m_ctl.CT_POSITIVE,
             [touch_move_y], null, touch_cb, "Y");
 
     // camera rotation and translation smoothing
@@ -1143,7 +1185,7 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
             dest_pan_y_gmpd -= trans_y_gmpd;
 
             if (use_pivot) {
-                m_cam.target_rotate(obj, x_mouse + x_touch,
+                m_cam.rotate_camera(obj, x_mouse + x_touch,
                         y_mouse + y_touch);
 
                 var dist = m_cam.target_get_distance(obj);
@@ -1159,14 +1201,14 @@ function enable_camera_controls(disable_default_pivot, disable_letter_controls,
 
                 if (y_mouse + y_touch) {
                     var hover_angle = m_cam.get_camera_angles(obj, _vec2_tmp2)[1];
-                    var axis = (Math.abs(hover_angle) > Math.PI / 4) ? m_util.AXIS_Z : m_util.AXIS_Y;
+                    var axis = (Math.abs(hover_angle) > Math.PI / 4) ? m_util.AXIS_MY : m_util.AXIS_Z;
                     trans_hover_cam_horiz_local(obj, axis, (y_mouse + y_touch)
                             * HOVER_MOUSE_TOUCH_TRANS_FACTOR);
                 }
 
-                m_cam.hover_rotate(obj, trans_x_mouse + trans_x_touch + trans_x_gmpd, 0);
+                m_cam.rotate_camera(obj, trans_x_mouse + trans_x_touch + trans_x_gmpd, 0);
             } else {
-                m_cam.eye_rotate(obj, (x_mouse + x_touch) * EYE_ROTATION_DECREMENT,
+                m_cam.rotate_camera(obj, (x_mouse + x_touch) * EYE_ROTATION_DECREMENT,
                         (y_mouse + y_touch) * EYE_ROTATION_DECREMENT);
 
                 if (character) {
@@ -1210,7 +1252,8 @@ function enable_cam_controls_resetting(cam) {
     function reset_controls_cb(cam, id, pulse) {
         disable_camera_controls();
         enable_camera_controls(_disable_default_pivot, _disable_letter_controls,
-                _disable_zoom);
+                _disable_zoom, _element, _allow_element_exit,
+                _disable_gamepad_controls);
     }
     m_ctl.create_sensor_manifold(cam, "CHANGE_MOVE_STYLE", m_ctl.CT_POSITIVE,
             [cb_sensor], null, reset_controls_cb);
@@ -1219,41 +1262,26 @@ function enable_cam_controls_resetting(cam) {
 /**
  * Disable controls for the active camera.
  * @method module:app.disable_camera_controls
+ * @example 
+ * var m_app = require("app");
+ * m_app.disable_camera_controls();
  */
 exports.disable_camera_controls = disable_camera_controls;
 function disable_camera_controls() {
     var cam = m_scs.get_active_camera();
 
+    if (m_ctl.check_sensor_manifold(cam, "TOGGLE_CHAR_MOVE_TYPE")
+            && m_scs.get_first_character())
+        m_cons.remove(cam);
+
     var cam_std_manifolds = ["FORWARD", "BACKWARD", "ROT_UP", "ROT_DOWN",
             "ROT_LEFT", "ROT_RIGHT", "UP", "DOWN", "LEFT", "RIGHT",
             "MOUSE_WHEEL", "TOUCH_ZOOM", "ZOOM_INTERPOL", "MOUSE_X", "MOUSE_Y",
-            "TOUCH_X", "TOUCH_Y", "ROT_TRANS_INTERPOL", "CHANGE_MOVE_STYLE"];
+            "TOUCH_X", "TOUCH_Y", "ROT_TRANS_INTERPOL", "CHANGE_MOVE_STYLE", 
+            "TOGGLE_CHAR_MOVE_TYPE"];
 
     for (var i = 0; i < cam_std_manifolds.length; i++)
         m_ctl.remove_sensor_manifold(cam, cam_std_manifolds[i]);
-
-    if (m_cam.get_move_style(cam) == m_cam.MS_EYE_CONTROLS && m_scs.get_first_character())
-        m_cons.remove(cam);
-}
-
-/**
- * Set the movement style for the active camera and reload controls assigned by
- * {@link module:app.enable_camera_controls|enable_camera_controls()}.
- * @method module:app.set_camera_move_style
- * @param {CameraMoveStyle} move_style New camera movement style.
- * @deprecated use {@link module:camera.static_setup|camera.static_setup} or 
- * {@link module:camera.eye_setup|camera.eye_setup} or 
- * {@link module:camera.target_setup|camera.target_setup} or 
- * {@link module:camera.hover_setup|camera.hover_setup} or 
- * {@link module:camera.hover_setup_rel|camera.hover_setup_rel} instead.
-
- */
-exports.set_camera_move_style = function(move_style) {
-    m_print.error_deprecated_arr("app.set_camera_move_style", [
-            "camera.static_setup", "camera.eye_setup", "camera.target_setup", 
-            "camera.hover_setup", "camera.hover_setup_rel"]);
-    var camera = m_scs.get_active_camera();
-    m_cam.set_move_style(camera, move_style);
 }
 
 /**
@@ -1276,13 +1304,13 @@ exports.enable_object_controls = function(obj, element) {
                 if (is_vehicle)
                     m_phy.vehicle_throttle(obj, 1);
                 else
-                    m_trans.move_local(obj, 0, 0, trans_speed * elapsed);
+                    m_trans.move_local(obj, 0, -trans_speed * elapsed, 0);
                 break;
             case "BACKWARD":
                 if (is_vehicle)
                     m_phy.vehicle_throttle(obj, -1);
                 else
-                    m_trans.move_local(obj, 0, 0, -trans_speed * elapsed);
+                    m_trans.move_local(obj, 0, trans_speed * elapsed, 0);
                 break;
             case "LEFT":
                 if (is_vehicle)
@@ -1355,27 +1383,6 @@ exports.disable_object_controls = function(obj) {
 }
 
 /**
- * Enable engine controls.
- * Registers common event listeners for input sensors. If you need different
- * set of event handlers/parameters, register event listeners manually by
- * using register_* functions from {@link module:controls}.
- * @param {Boolean} [allow_element_exit=false] Continue receiving mouse events
- * even when the mouse is leaving the HTML element.
- * @deprecated Not need anymore.
- */
-exports.enable_controls = function(allow_element_exit) {
-    m_print.error_once("app.enable_controls() deprecated");
-}
-
-/**
- * Disable engine controls.
- * @deprecated Not need anymore.
- */
-exports.disable_controls = function() {
-    m_print.error_once("app.disable_controls() deprecated");
-}
-
-/**
  * Enable debug controls:
  * <ul>
  * <li>K - make camera debug shot
@@ -1394,7 +1401,6 @@ exports.enable_debug_controls = function() {
             m_ctl.KEY_T, function() {m_dbg.plot_telemetry();});
 }
 
-exports.request_fullscreen = request_fullscreen;
 /**
  * Request fullscreen mode.
  * Security issues: execute by user event.
@@ -1402,101 +1408,42 @@ exports.request_fullscreen = request_fullscreen;
  * @param {HTMLElement} elem Element
  * @param {FullscreenEnabledCallback} enabled_cb Enabled callback
  * @param {FullscreenDisabledCallback} disabled_cb Disabled callback
+ * @deprecated Use {@link module:screen.request_fullscreen} instead
  */
-function request_fullscreen(elem, enabled_cb, disabled_cb) {
+exports.request_fullscreen = function(elem, enabled_cb, disabled_cb) {
+    m_print.error_deprecated("request_fullscreen", "screen.request_fullscreen");
+    m_screen.request_fullscreen(elem, enabled_cb, disabled_cb);
+};
 
-    enabled_cb = enabled_cb || function() {};
-    disabled_cb = disabled_cb || function() {};
-
-    function on_fullscreen_change() {
-        if (document.fullscreenElement === elem ||
-                document.webkitFullScreenElement === elem ||
-                document.mozFullScreenElement === elem ||
-                document.webkitIsFullScreen ||
-                document.msFullscreenElement === elem) {
-            //m_print.log("Fullscreen enabled");
-            enabled_cb();
-        } else {
-            document.removeEventListener("fullscreenchange",
-                    on_fullscreen_change, false);
-            document.removeEventListener("webkitfullscreenchange",
-                    on_fullscreen_change, false);
-            document.removeEventListener("mozfullscreenchange",
-                    on_fullscreen_change, false);
-            document.removeEventListener("MSFullscreenChange",
-                    on_fullscreen_change, false);
-            //m_print.log("Fullscreen disabled");
-            disabled_cb();
-        }
-    }
-
-    document.addEventListener("fullscreenchange", on_fullscreen_change, false);
-    document.addEventListener("webkitfullscreenchange", on_fullscreen_change, false);
-    document.addEventListener("mozfullscreenchange", on_fullscreen_change, false);
-    document.addEventListener("MSFullscreenChange", on_fullscreen_change, false);
-
-    elem.requestFullScreen = elem.requestFullScreen ||
-            elem.webkitRequestFullScreen || elem.mozRequestFullScreen
-            || elem.msRequestFullscreen;
-    if (elem.requestFullScreen)
-        elem.requestFullScreen();
-    else
-        m_print.error("B4W App: request fullscreen method is not supported");
-}
-
-exports.exit_fullscreen = exit_fullscreen;
 /**
  * Exit fullscreen mode.
  * @method module:app.exit_fullscreen
+ * @deprecated Use {@link module:screen.exit_fullscreen} instead
  */
-function exit_fullscreen() {
+exports.exit_fullscreen = function() {
+    m_print.error_deprecated("exit_fullscreen", "screen.exit_fullscreen");
+    m_screen.exit_fullscreen();
+};
 
-    var exit_fs = document.exitFullscreen || document.webkitExitFullscreen ||
-            document.mozCancelFullScreen || document.msExitFullscreen;
-
-    if (typeof exit_fs != "function")
-        m_print.error("B4W App: exit fullscreen method is not supported");
-
-    exit_fs.apply(document);
-}
-
-exports.check_fullscreen = check_fullscreen;
 /**
  * Check whether fullscreen mode is available.
  * @method module:app.check_fullscreen
- * @returns {Boolean} Result of the check.
+ * @returns {boolean} Result of the check.
+ * @deprecated Use {@link module:screen.check_fullscreen} instead
  */
-function check_fullscreen() {
-
-    var fullscreenEnabled = window.document.fullscreenEnabled ||
-                            window.document.mozFullScreenEnabled ||
-                            window.document.msFullscreenEnabled ||
-                            window.document.webkitFullscreenEnabled;
-
-    if (fullscreenEnabled)
-        return true;
-
-    return false;
-}
-
-function toggle_camera_collisions_usage() {
-    var camobj = m_scs.get_active_camera();
-
-    if (m_anim.is_detect_collisions_used(camobj)) {
-        m_anim.detect_collisions(camobj, false);
-    } else {
-        m_anim.detect_collisions(camobj, true);
-    }
-}
+exports.check_fullscreen = function() {
+    m_print.error_deprecated("check_fullscreen", "screen.check_fullscreen");
+    return m_screen.check_fullscreen();
+};
 
 exports.report_app_error = report_app_error;
 /**
  * Report an application error.
- * Creates standard HTML elements with error info and inserts them in the page body.
+ * Creates standard HTML elements with error info and inserts them into the page body.
  * @method module:app.report_app_error
- * @param {String} text_message Message to place on upper element.
- * @param {String} link_message Message to place on bottom element.
- * @param {String} link Link to place on bottom element.
+ * @param {string} text_message Message to place on upper element.
+ * @param {string} link_message Message to place on bottom element.
+ * @param {string} link Link to place on bottom element.
  * @param {HTMLElement[]} purge_elements Array of elements to destroy just before the error
  * elements are inserted.
  */
@@ -1530,7 +1477,7 @@ function report_app_error(text_message, link_message, link, purge_elements) {
 
 /**
  * Retrieve parameters of the page's URL.
- * @param {Boolean} [allow_param_array=false] Create arrays of parameters if they share the same name.
+ * @param {boolean} [allow_param_array=false] Create arrays of parameters if they share the same name.
  * @returns {Object|Null} URL parameters in a key-value format.
  */
 exports.get_url_params = function(allow_param_array) {
@@ -1573,12 +1520,12 @@ exports.get_url_params = function(allow_param_array) {
  * Animate css-property value.
  * @method module:app.css_animate
  * @param {HTMLElement} elem HTML-element.
- * @param {String} prop Animated css-property.
- * @param {Number} from Value from.
- * @param {Number} to Value to.
- * @param {Number} timeout Time for animation.
- * @param {String} [opt_prefix] Prefix of css-property (" scale(", "%" and etc).
- * @param {String} [opt_suffix] Suffix of css-property (" px", "%" and etc).
+ * @param {string} prop Animated css-property.
+ * @param {number} from Value from.
+ * @param {number} to Value to.
+ * @param {number} timeout Time for animation.
+ * @param {string} [opt_prefix] Prefix of css-property (" scale(", "%" and etc).
+ * @param {string} [opt_suffix] Suffix of css-property (" px", "%" and etc).
  * @param {GenericCallback} [opt_callback] Finish callback function.
  */
 exports.css_animate = function(elem, prop, from, to, timeout, opt_prefix, opt_suffix, opt_callback) {
@@ -1622,10 +1569,10 @@ exports.css_animate = function(elem, prop, from, to, timeout, opt_prefix, opt_su
  * Animate html tag attribute.
  * @method module:app.attr_animate
  * @param {HTMLElement} elem HTML-element.
- * @param {String} attr_name Animated attribute name.
- * @param {Number} from Value from.
- * @param {Number} to Value to.
- * @param {Number} timeout Time for animation.
+ * @param {string} attr_name Animated attribute name.
+ * @param {number} from Value from.
+ * @param {number} to Value to.
+ * @param {number} timeout Time for animation.
  * @param {GenericCallback} [opt_callback] Finish callback function.
  */
 exports.attr_animate = function(elem, attr_name, from, to, timeout, opt_callback) {
@@ -1675,14 +1622,14 @@ function animate(elem, from, to, timeout, anim_cb) {
 /**
  * Queue object params.
  * @typedef {Object} QueueObject
- * @property {String} type Animation type.
+ * @property {string} type Animation type.
  * @property {HTMLElement} elem Animated html element.
- * @property {String} prop Animated property.
- * @property {Number} from Initial property value.
- * @property {Number} to Target property value.
- * @property {Number} duration Animation duration in ms.
- * @property {String} [opt_prefix=''] Prefix for the css property.
- * @property {String} [opt_suffix=''] Prefix for the css property.
+ * @property {string} prop Animated property.
+ * @property {number} from Initial property value.
+ * @property {number} to Target property value.
+ * @property {number} duration Animation duration in ms.
+ * @property {string} [opt_prefix=''] Prefix for the css property.
+ * @property {string} [opt_suffix=''] Prefix for the css property.
  * @property {AnimFinishCallback} [cb=function(){}] Animation finish callback.
  */
 
@@ -1738,7 +1685,7 @@ function smooth_coeff_rot_trans_touch() {
 /**
  * Set smooth factor for camera rotation.
  * @method module:app.set_camera_smooth_factor
- * @param {Number} value New smooth factor
+ * @param {number} value New smooth factor
  */
 exports.set_camera_smooth_factor = function(value) {
     _smooth_factor = value;
@@ -1747,7 +1694,7 @@ exports.set_camera_smooth_factor = function(value) {
 /**
  * Get smooth factor for camera rotation.
  * @method module:app.get_camera_smooth_factor
- * @returns {Number} Smooth factor
+ * @returns {number} Smooth factor
  */
 exports.get_camera_smooth_factor = function() {
     return _smooth_factor;

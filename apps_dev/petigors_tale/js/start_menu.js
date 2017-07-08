@@ -15,11 +15,9 @@ var m_scs    = require("scenes");
 var m_cfg    = require("config");
 var m_print  = require("print");
 var m_sfx    = require("sfx");
-var m_time   = require("time");
 var m_assets = require("assets");
-var m_obj    = require("objects");
+var m_mat    = require("material");
 var m_cont   = require("container");
-var m_util   = require("util");
 var m_nla    = require("nla");
 var m_trans  = require("transform");
 var m_version = require("version");
@@ -27,7 +25,6 @@ var m_phy   = require("physics");
 var m_math  = require("math");
 
 var m_vec3  = require("vec3");
-var m_quat  = require("quat");
 
 var m_conf = require("game_config");
 
@@ -109,13 +106,13 @@ function intro_load_cb(data_id) {
     _mouse_x = _canvas_elem.width / 2;
     _mouse_y = _canvas_elem.height / 2;
 
-    m_assets.enqueue([["config", m_assets.AT_JSON, "js/intro_config.json"]],
-            process_config, null);
+    m_assets.enqueue([{id:"config", type:m_assets.AT_JSON, url:"js/intro_config.json"}],
+            process_config);
 
     var camobj = m_scs.get_active_camera();
     m_cam.get_camera_angles(camobj, _default_cam_rot);
 
-    setTimeout(function(){
+    setTimeout(function() {
             var canvas_cont = m_cont.get_container();
             canvas_cont.style.opacity = 1;
         }, 1000);
@@ -165,19 +162,19 @@ function setup_language(config) {
         lang_val = 0
 
     var lang_obj = m_scs.get_object_by_dupli_name_list(config["language_obj"].split("*"));
-    m_obj.set_nodemat_value(lang_obj,
+    m_mat.set_nodemat_value(lang_obj,
                             ["main_menu_stone", "language_switcher"],
                             lang_val);
 
     if (!m_main.detect_mobile()) {
         _back_to_menu_button = m_scs.get_object_by_name(config["back_to_menu_obj_name"]);
-        m_obj.set_nodemat_value(_back_to_menu_button,
+        m_mat.set_nodemat_value(_back_to_menu_button,
                                 ["back_to_main_menu", "back_button_language"],
                                 lang_val);
     }
 }
 
-function process_config(data, uri, type, path) {
+function process_config(data, id, type, url) {
     setup_buttons(data);
     setup_music(data);
     setup_language(data);
@@ -309,7 +306,7 @@ function button_glow_cb(obj, id, pulse) {
         if (cur_glow_val !== undefined &&
                 binfo.glow_curr_value != cur_glow_val)
             for (var i = 0; i < binfo.glow_objs.length; i++)
-                m_obj.set_nodemat_value(binfo.glow_objs[i],
+                m_mat.set_nodemat_value(binfo.glow_objs[i],
                                 [binfo.material, binfo.value_node_name],
                                  binfo.glow_curr_value);
 
@@ -336,15 +333,14 @@ function rotate_cam_cb(obj, id, pulse) {
 
     m_cam.get_camera_angles(camobj, _vec2_tmp);
 
-    var c_width = _canvas_elem.width;
     var dx = (default_x - _mouse_x) / _canvas_elem.width * _cam_rot_fac;
     var dy = (default_y - _mouse_y) / _canvas_elem.height * _cam_rot_fac;
     var x = _default_cam_rot[0] - dx;
     var y = -_default_cam_rot[1] - dy;
 
     _vec3_tmp[0] = _cam_pivot[0] + _cam_dist * Math.sin(x);
-    _vec3_tmp[1] = _cam_pivot[1] + _cam_dist * Math.sin(y);
-    _vec3_tmp[2] = _cam_pivot[2] + _cam_dist * Math.cos(x);
+    _vec3_tmp[1] = _cam_pivot[1] - _cam_dist * Math.cos(x);
+    _vec3_tmp[2] = _cam_pivot[2] + _cam_dist * Math.sin(y);
 
     m_cam.static_set_look_at(camobj, _vec3_tmp, _cam_pivot);
     m_cam.correct_up(camobj);
@@ -355,9 +351,8 @@ function main_canvas_mouse_move(e) {
     if (e.preventDefault)
         e.preventDefault();
 
-    var x = e.clientX;
-    var y = e.clientY;
-
+    var x = e.offsetX;
+    var y = e.offsetY;
     _mouse_x = x;
     _mouse_y = y;
 
@@ -377,26 +372,28 @@ function main_canvas_touch(e) {
     var touch = touches[0];
     var x = touch.clientX;
     var y = touch.clientY;
-    process_screen_click(x, y);
+    var canvas_xy = m_cont.client_to_canvas_coords(x, y, _vec2_tmp);
+    process_screen_click(canvas_xy[0], canvas_xy[1]);
 }
 
 function main_canvas_click(e) {
     if (e.preventDefault)
         e.preventDefault();
-    var x = e.clientX;
-    var y = e.clientY;
+    var x = e.offsetX;
+    var y = e.offsetY;
     process_screen_click(x, y);
 }
 
 function process_screen_click(x, y) {
     var obj = m_scs.pick_object(x, y);
     if (obj) {
+        _selected_obj = obj;
         if (_buttons_info[obj.name]) {
-            var binfo = _buttons_info[obj.name];
+            var level_name = _buttons_info[obj.name].level_name
 
-            if (binfo.level_name) {
+            if (level_name) {
                 cleanup_events();
-                setTimeout(function() {load_level(binfo.level_name)},
+                setTimeout(function() {load_level(level_name)},
                            1000 * m_conf.LEVEL_LOAD_DELAY);
             } else if (!m_main.detect_mobile()) {
                 play_ending_speaker();
@@ -448,7 +445,7 @@ function load_HQ_elements() {
 function play_ending_speaker(speaker) {
     for (var i = 0; i < _playlist_spks.length; i++) {
         var spk = _playlist_spks[i];
-        if (m_sfx.is_play(spk))
+        if (m_sfx.is_playing(spk))
             m_sfx.duck(spk, 0, 1);
     }
     m_sfx.duck(_intro_spk, 0, 1);
@@ -461,18 +458,20 @@ function play_ending_speaker(speaker) {
 }
 
 function load_level(level_name) {
-    var json_path = ASSETS_PATH + level_name + ".json";
-
-    m_data.unload(m_data.DATA_ID_ALL);
-
-    var preloader_cont = document.getElementById("preloader_cont");
-    preloader_cont.style.visibility = "visible"
-    m_data.load(json_path,
-                function(data_id) {
-                    game_main.level_load_cb(data_id, level_name, preloader_cb,
-                                            intro_load_cb, load_level);
-                },
-                preloader_cb, true);
+    if (level_name == "quest")
+        window.open("quest.html","_self");
+    else {
+        m_data.unload(m_data.DATA_ID_ALL);
+        var json_path = ASSETS_PATH + level_name + ".json";
+        var preloader_cont = document.getElementById("preloader_cont");
+        preloader_cont.style.visibility = "visible"
+        m_data.load(json_path,
+                    function(data_id) {
+                        game_main.level_load_cb(data_id, level_name, preloader_cb,
+                                                intro_load_cb, load_level);
+                    },
+                    preloader_cb, true);
+    }
 }
 
 function preloader_cb(percentage) {
@@ -541,6 +540,9 @@ function menu_initialization() {
             console_verbose: true,
             alpha: false,
             physics_use_workers: !is_mobile,
+            assets_dds_available: !is_debug,
+            assets_pvr_available: !is_debug,
+            assets_min50_available: !is_debug,
             show_fps: is_debug,
             autoresize: true
         });

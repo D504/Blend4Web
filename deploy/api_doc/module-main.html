@@ -142,7 +142,7 @@ Implements methods to initialize and change the global params of the engine.</di
 
         
             
-<li> <a href="#.canvas_data_url">canvas_data_url<span class="signature">(callback)</span><span class="type-signature"></span></a></li>
+<li> <a href="#.canvas_data_url">canvas_data_url<span class="signature">(callback, format<span class="signature-attributes">opt</span>, quality<span class="signature-attributes">opt</span>, auto_revoke<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></a></li>
 
         
             
@@ -154,15 +154,11 @@ Implements methods to initialize and change the global params of the engine.</di
 
         
             
-<li> <a href="#.detect_mobile">detect_mobile<span class="signature">()</span><span class="type-signature"> &rarr; {Boolean}</span></a></li>
+<li> <a href="#.detect_mobile">detect_mobile<span class="signature">()</span><span class="type-signature"> &rarr; {boolean}</span></a></li>
 
         
             
-<li> <a href="#.get_canvas_elem">get_canvas_elem<span class="signature">()</span><span class="type-signature"> &rarr; {HTMLCanvasElement}</span></a></li>
-
-        
-            
-<li> <a href="#.global_timeline">global_timeline<span class="signature">()</span><span class="type-signature"> &rarr; {Number}</span></a></li>
+<li> <a href="#.get_renderer_info">get_renderer_info<span class="signature">()</span><span class="type-signature"> &rarr; {RendererInfo|Null}</span></a></li>
 
         
             
@@ -170,7 +166,7 @@ Implements methods to initialize and change the global params of the engine.</di
 
         
             
-<li> <a href="#.is_paused">is_paused<span class="signature">()</span><span class="type-signature"> &rarr; {Boolean}</span></a></li>
+<li> <a href="#.is_paused">is_paused<span class="signature">()</span><span class="type-signature"> &rarr; {boolean}</span></a></li>
 
         
             
@@ -183,10 +179,6 @@ Implements methods to initialize and change the global params of the engine.</di
         
             
 <li> <a href="#.reset">reset<span class="signature">()</span><span class="type-signature"></span></a></li>
-
-        
-            
-<li> <a href="#.resize">resize<span class="signature">(width, height, update_canvas_css<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></a></li>
 
         
             
@@ -350,7 +342,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line563">line 563</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line532">line 532</a>
     </li></ul></dd>
     
 
@@ -372,7 +364,7 @@ This method allows registration of multiple callbacks.
 
     
 
-    <h4 class="name" id=".canvas_data_url">canvas_data_url<span class="signature">(callback)</span><span class="type-signature"></span></h4>
+    <h4 class="name" id=".canvas_data_url">canvas_data_url<span class="signature">(callback, format<span class="signature-attributes">opt</span>, quality<span class="signature-attributes">opt</span>, auto_revoke<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
 
     
 
@@ -404,7 +396,11 @@ This method allows registration of multiple callbacks.
         <th>Type</th>
 
         
+        <th>Attributes</th>
+        
 
+        
+        <th>Default</th>
         
 
         <th class="last">Description</th>
@@ -422,17 +418,149 @@ This method allows registration of multiple callbacks.
             <td class="type">
             
                 
-<span class="param-type">DataURLCallback</span>
+<span class="param-type">BlobURLCallback</span>
 
 
             
             </td>
 
             
+                <td class="attributes">
+                
 
+                
+
+                
+                </td>
             
 
-            <td class="description last">DataURL callback</td>
+            
+                <td class="default">
+                
+                </td>
+            
+
+            <td class="description last">BlobURL callback.</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>format</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    "image/png"
+                
+                </td>
+            
+
+            <td class="description last">The image format ("image/png", "image/jpeg",
+"image/webp" and so on).</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>quality</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    1.0
+                
+                </td>
+            
+
+            <td class="description last">Number between 0 and 1 for types: "image/jpeg",
+"image/webp".</td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>auto_revoke</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">boolean</span>
+
+
+            
+            </td>
+
+            
+                <td class="attributes">
+                
+                    &lt;optional><br>
+                
+
+                
+
+                
+                </td>
+            
+
+            
+                <td class="default">
+                
+                    true
+                
+                </td>
+            
+
+            <td class="description last">Automatically revoke blob object.
+If auto_revoke is false then application must revoke blob URL via the following call <a href="https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL"> URL.revokeObjectURL(blobURL)</a>.</td>
         </tr>
 
     
@@ -485,7 +613,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line541">line 541</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line520">line 520</a>
     </li></ul></dd>
     
 
@@ -571,7 +699,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line280">line 280</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line261">line 261</a>
     </li></ul></dd>
     
 
@@ -657,7 +785,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line302">line 302</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line283">line 283</a>
     </li></ul></dd>
     
 
@@ -679,7 +807,7 @@ This method allows registration of multiple callbacks.
 
     
 
-    <h4 class="name" id=".detect_mobile">detect_mobile<span class="signature">()</span><span class="type-signature"> &rarr; {Boolean}</span></h4>
+    <h4 class="name" id=".detect_mobile">detect_mobile<span class="signature">()</span><span class="type-signature"> &rarr; {boolean}</span></h4>
 
     
 
@@ -725,7 +853,7 @@ This method allows registration of multiple callbacks.
     </dt>
     <dd>
         
-<span class="param-type">Boolean</span>
+<span class="param-type">boolean</span>
 
 
     </dd>
@@ -765,7 +893,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line555">line 555</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line524">line 524</a>
     </li></ul></dd>
     
 
@@ -787,7 +915,7 @@ This method allows registration of multiple callbacks.
 
     
 
-    <h4 class="name" id=".get_canvas_elem">get_canvas_elem<span class="signature">()</span><span class="type-signature"> &rarr; {HTMLCanvasElement}</span></h4>
+    <h4 class="name" id=".get_renderer_info">get_renderer_info<span class="signature">()</span><span class="type-signature"> &rarr; {RendererInfo|Null}</span></h4>
 
     
 
@@ -795,7 +923,7 @@ This method allows registration of multiple callbacks.
 <div class="item_description">
 
 <div class="description">
-    Return the main canvas element.
+    Return renderer info.
 </div>
 
 
@@ -822,7 +950,7 @@ This method allows registration of multiple callbacks.
 
         
 <div class="param-desc">
-    Canvas element
+    Renderer info.
 </div>
 
 
@@ -833,7 +961,10 @@ This method allows registration of multiple callbacks.
     </dt>
     <dd>
         
-<span class="param-type">HTMLCanvasElement</span>
+<span class="param-type">RendererInfo</span>
+|
+
+<span class="param-type">Null</span>
 
 
     </dd>
@@ -861,8 +992,6 @@ This method allows registration of multiple callbacks.
     
 
     
-        <dt class="important tag-deprecated">Deprecated:</dt><dd><ul class="dummy"><li>Use <a href="module-container.html#.get_canvas">container.get_canvas</a> instead</li></ul></dd>
-    
 
     
 
@@ -875,117 +1004,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line545">line 545</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-</div>
-</div>
-        
-            
-<div class="item_container">
-<div class="item_name">
-
-    
-
-    <h4 class="name" id=".global_timeline">global_timeline<span class="signature">()</span><span class="type-signature"> &rarr; {Number}</span></h4>
-
-    
-
-</div>
-<div class="item_description">
-
-<div class="description">
-    Return the engine's global timeline value
-</div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<h5>Returns:</h5>
-
-        
-<div class="param-desc">
-    Floating-point number of seconds elapsed since the engine start-up
-</div>
-
-
-
-<dl>
-    <dt>
-        Type
-    </dt>
-    <dd>
-        
-<span class="param-type">Number</span>
-
-
-    </dd>
-</dl>
-
-    
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-        <dt class="important tag-deprecated">Deprecated:</dt><dd><ul class="dummy"><li>Use <a href="module-time.html#.get_timeline">time.get_timeline</a> instead</li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line316">line 316</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line559">line 559</a>
     </li></ul></dd>
     
 
@@ -1188,7 +1207,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line100">line 100</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line97">line 97</a>
     </li></ul></dd>
     
 
@@ -1210,7 +1229,7 @@ This method allows registration of multiple callbacks.
 
     
 
-    <h4 class="name" id=".is_paused">is_paused<span class="signature">()</span><span class="type-signature"> &rarr; {Boolean}</span></h4>
+    <h4 class="name" id=".is_paused">is_paused<span class="signature">()</span><span class="type-signature"> &rarr; {boolean}</span></h4>
 
     
 
@@ -1256,7 +1275,7 @@ This method allows registration of multiple callbacks.
     </dt>
     <dd>
         
-<span class="param-type">Boolean</span>
+<span class="param-type">boolean</span>
 
 
     </dd>
@@ -1296,7 +1315,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line358">line 358</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line325">line 325</a>
     </li></ul></dd>
     
 
@@ -1382,7 +1401,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line328">line 328</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line295">line 295</a>
     </li></ul></dd>
     
 
@@ -1517,7 +1536,7 @@ This method allows registration of multiple callbacks.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line577">line 577</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line546">line 546</a>
     </li></ul></dd>
     
 
@@ -1604,234 +1623,7 @@ Unloads the scene and releases the engine's resources.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line508">line 508</a>
-    </li></ul></dd>
-    
-
-    
-
-    
-
-    
-</dl>
-
-
-
-</div>
-</div>
-        
-            
-<div class="item_container">
-<div class="item_name">
-
-    
-
-    <h4 class="name" id=".resize">resize<span class="signature">(width, height, update_canvas_css<span class="signature-attributes">opt</span>)</span><span class="type-signature"></span></h4>
-
-    
-
-</div>
-<div class="item_description">
-
-<div class="description">
-    Resize the rendering canvas.
-</div>
-
-
-
-
-
-
-
-
-
-    <h5>Parameters:</h5>
-    
-
-<table class="params">
-    <thead>
-    <tr>
-        
-        <th>Name</th>
-        
-
-        <th>Type</th>
-
-        
-        <th>Attributes</th>
-        
-
-        
-        <th>Default</th>
-        
-
-        <th class="last">Description</th>
-    </tr>
-    </thead>
-
-    <tbody>
-    
-
-        <tr>
-            
-                <td class="name"><code>width</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                </td>
-            
-
-            <td class="description last">New canvas width</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>height</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Number</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                </td>
-            
-
-            <td class="description last">New canvas height</td>
-        </tr>
-
-    
-
-        <tr>
-            
-                <td class="name"><code>update_canvas_css</code></td>
-            
-
-            <td class="type">
-            
-                
-<span class="param-type">Boolean</span>
-
-
-            
-            </td>
-
-            
-                <td class="attributes">
-                
-                    &lt;optional><br>
-                
-
-                
-
-                
-                </td>
-            
-
-            
-                <td class="default">
-                
-                    true
-                
-                </td>
-            
-
-            <td class="description last">Change canvas CSS width/height</td>
-        </tr>
-
-    
-    </tbody>
-</table>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<dl class="details">
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-        <dt class="important tag-deprecated">Deprecated:</dt><dd><ul class="dummy"><li>Use <a href="module-container.html#.resize">container.resize</a> instead</li></ul></dd>
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-    <dt class="tag-source">Source:</dt>
-    <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line256">line 256</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line474">line 474</a>
     </li></ul></dd>
     
 
@@ -1917,7 +1709,7 @@ Unloads the scene and releases the engine's resources.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line343">line 343</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line310">line 310</a>
     </li></ul></dd>
     
 
@@ -2052,7 +1844,7 @@ Unloads the scene and releases the engine's resources.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line272">line 272</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line253">line 253</a>
     </li></ul></dd>
     
 
@@ -2188,7 +1980,7 @@ rendering. Only one callback is allowed.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line289">line 289</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line270">line 270</a>
     </li></ul></dd>
     
 
@@ -2266,7 +2058,7 @@ rendering. Only one callback is allowed.
             <td class="type">
             
                 
-<span class="param-type">Number</span>
+<span class="param-type">number</span>
 
 
             
@@ -2289,7 +2081,7 @@ rendering. Only one callback is allowed.
             <td class="type">
             
                 
-<span class="param-type">Number</span>
+<span class="param-type">number</span>
 
 
             
@@ -2352,7 +2144,7 @@ rendering. Only one callback is allowed.
     
     <dt class="tag-source">Source:</dt>
     <dd class="tag-source"><ul class="dummy"><li>
-        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line67">line 67</a>
+        <a href="ext_main.js.html">ext/main.js</a>, <a href="ext_main.js.html#line27">line 27</a>
     </li></ul></dd>
     
 
@@ -2424,7 +2216,7 @@ rendering. Only one callback is allowed.
             <td class="type">
             
                 
-<span class="param-type">Number</span>
+<span class="param-type">number</span>
 
 
             
@@ -2447,7 +2239,7 @@ rendering. Only one callback is allowed.
             <td class="type">
             
                 
-<span class="param-type">Number</span>
+<span class="param-type">number</span>
 
 
             
@@ -2582,7 +2374,7 @@ rendering. Only one callback is allowed.
             <td class="type">
             
                 
-<span class="param-type">Number</span>
+<span class="param-type">number</span>
 
 
             
@@ -2605,7 +2397,7 @@ rendering. Only one callback is allowed.
             <td class="type">
             
                 
-<span class="param-type">Number</span>
+<span class="param-type">number</span>
 
 
             
@@ -2697,13 +2489,13 @@ rendering. Only one callback is allowed.
 </div>
 
 <nav>
-    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-anchors.html">anchors</a></li><li><a href="module-animation.html">animation</a></li><li><a href="module-app.html">app</a></li><li><a href="module-armature.html">armature</a></li><li><a href="module-assets.html">assets</a></li><li><a href="module-camera.html">camera</a></li><li><a href="module-camera_anim.html">camera_anim</a></li><li><a href="module-config.html">config</a></li><li><a href="module-constraints.html">constraints</a></li><li><a href="module-container.html">container</a></li><li><a href="module-controls.html">controls</a></li><li><a href="module-data.html">data</a></li><li><a href="module-debug.html">debug</a></li><li><a href="module-geometry.html">geometry</a></li><li><a href="module-gp_conf.html">gp_conf</a></li><li><a href="module-gyroscope.html">gyroscope</a></li><li><a href="module-hmd.html">hmd</a></li><li><a href="module-hmd_conf.html">hmd_conf</a></li><li><a href="module-hud.html">hud</a></li><li><a href="module-input.html">input</a></li><li><a href="module-lights.html">lights</a></li><li><a href="module-logic_nodes.html">logic_nodes</a></li><li><a href="module-main.html">main</a></li><li><a href="module-mat3.html">mat3</a></li><li><a href="module-mat4.html">mat4</a></li><li><a href="module-material.html">material</a></li><li><a href="module-math.html">math</a></li><li><a href="module-mixer.html">mixer</a></li><li><a href="module-mouse.html">mouse</a></li><li><a href="module-nla.html">nla</a></li><li><a href="module-npc_ai.html">npc_ai</a></li><li><a href="module-ns_compat.html">ns_compat</a></li><li><a href="module-objects.html">objects</a></li><li><a href="module-particles.html">particles</a></li><li><a href="module-physics.html">physics</a></li><li><a href="module-preloader.html">preloader</a></li><li><a href="module-quat.html">quat</a></li><li><a href="module-rgb.html">rgb</a></li><li><a href="module-rgba.html">rgba</a></li><li><a href="module-scenes.html">scenes</a></li><li><a href="module-screenshooter.html">screenshooter</a></li><li><a href="module-sfx.html">sfx</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-textures.html">textures</a></li><li><a href="module-time.html">time</a></li><li><a href="module-transform.html">transform</a></li><li><a href="module-tsr.html">tsr</a></li><li><a href="module-util.html">util</a></li><li><a href="module-vec3.html">vec3</a></li><li><a href="module-vec4.html">vec4</a></li><li><a href="module-version.html">version</a></li></ul><h3>Namespaces</h3><ul><li><a href="b4w.html">b4w</a></li></ul><h3><a href="global.html">Global</a></h3>
+    <h2><a href="index.html">Home</a></h2><h3>Modules</h3><ul><li><a href="module-anchors.html">anchors</a></li><li><a href="module-animation.html">animation</a></li><li><a href="module-app.html">app</a></li><li><a href="module-armature.html">armature</a></li><li><a href="module-assets.html">assets</a></li><li><a href="module-camera.html">camera</a></li><li><a href="module-camera_anim.html">camera_anim</a></li><li><a href="module-config.html">config</a></li><li><a href="module-constraints.html">constraints</a></li><li><a href="module-container.html">container</a></li><li><a href="module-controls.html">controls</a></li><li><a href="module-data.html">data</a></li><li><a href="module-debug.html">debug</a></li><li><a href="module-fps.html">fps</a></li><li><a href="module-geometry.html">geometry</a></li><li><a href="module-gp_conf.html">gp_conf</a></li><li><a href="module-gyroscope.html">gyroscope</a></li><li><a href="module-hmd.html">hmd</a></li><li><a href="module-hmd_conf.html">hmd_conf</a></li><li><a href="module-hud.html">hud</a></li><li><a href="module-input.html">input</a></li><li><a href="module-lights.html">lights</a></li><li><a href="module-logic_nodes.html">logic_nodes</a></li><li><a href="module-main.html">main</a></li><li><a href="module-mat3.html">mat3</a></li><li><a href="module-mat4.html">mat4</a></li><li><a href="module-material.html">material</a></li><li><a href="module-math.html">math</a></li><li><a href="module-mixer.html">mixer</a></li><li><a href="module-mouse.html">mouse</a></li><li><a href="module-nla.html">nla</a></li><li><a href="module-npc_ai.html">npc_ai</a></li><li><a href="module-ns_compat.html">ns_compat</a></li><li><a href="module-objects.html">objects</a></li><li><a href="module-particles.html">particles</a></li><li><a href="module-physics.html">physics</a></li><li><a href="module-preloader.html">preloader</a></li><li><a href="module-quat.html">quat</a></li><li><a href="module-rgb.html">rgb</a></li><li><a href="module-rgba.html">rgba</a></li><li><a href="module-scenes.html">scenes</a></li><li><a href="module-screen.html">screen</a></li><li><a href="module-screenshooter.html">screenshooter</a></li><li><a href="module-sfx.html">sfx</a></li><li><a href="module-storage.html">storage</a></li><li><a href="module-textures.html">textures</a></li><li><a href="module-time.html">time</a></li><li><a href="module-transform.html">transform</a></li><li><a href="module-tsr.html">tsr</a></li><li><a href="module-util.html">util</a></li><li><a href="module-vec3.html">vec3</a></li><li><a href="module-vec4.html">vec4</a></li><li><a href="module-version.html">version</a></li></ul><h3>Namespaces</h3><ul><li><a href="b4w.html">b4w</a></li></ul><h3><a href="global.html">Global</a></h3>
 </nav>
 
 <br class="clear">
 
 <footer>
-    Blend4Web API Reference (generated by JSDoc 3.4.0 on Tue Jul 26 2016 15:18:54 GMT+0300 (MSK))
+    Blend4Web API Reference (generated by JSDoc 3.4.0 on Fri Jun 30 2017 14:29:58 GMT+0300 (MSK))
     <a href="https://www.blend4web.com">www.blend4web.com</a>
   <!-- Yandex.Metrika counter -->
   <script type="text/javascript">

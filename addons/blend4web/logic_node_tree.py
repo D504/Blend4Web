@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -65,10 +65,15 @@ variable_type_items = [
         ("STRING", _("String"), _("String variable"))
     ]
 
-space_type_items =[
+space_type_items = [
         ("WORLD", _("World"), _("World space")),
         ("PARENT", _("Parent"), _("Parent space")),
         ("LOCAL", _("Local"), _("Local space"))
+    ]
+
+cam_lim_space_type_items = [
+        ("WORLD", _("World"), _("World space")),
+        ("CAMERA", _("Camera"), _("Camera space"))
     ]
 
 slot_type_enum = [
@@ -96,6 +101,7 @@ slot_type_enum = [
         ("SELECT_PLAY_ANIM", _("Select & Play Animation (Deprecated)"), _("Select an object then play Object Animation"), 20),
         ("MOVE_CAMERA", _("Move Camera"), _("Set camera Translation and pivot"), 21),
         ("SET_CAMERA_MOVE_STYLE", _("Set Camera Move Style"), _("Set camera move style"), 22),
+        ("SET_CAMERA_LIMITS", _("Set Camera Limits"), _("Set camera limits"), 36),
         ("SPEAKER_PLAY", _("Play Sound"), _("Play Sound"), 23),
         ("SWITCH_SELECT", _("Switch Select"), _("Switch select"), 24),
         ("STOP_ANIM", _("Stop Animation"), _("Stop Object Animation"), 25),
@@ -116,7 +122,19 @@ operation_type_enum = [
             ("SUB", _("Subtract"), _("Subtract")),
             ("MUL", _("Multiply"), _("Multiply")),
             ("ADD", _("Add"), _("Add")),
-            ("RAND", _("Random"), _("Random"))
+            ("RAND", _("Random"), _("Random")),
+            ("SIN", _("Sin"), _("Sin")),
+            ("COS", _("Cos"), _("Cos")),
+            ("TAN", _("Tan"), _("Tan")),
+            ("ARCSIN", _("ArcSin"), _("ArcSin")),
+            ("ARCCOS", _("ArcCos"), _("ArcCos")),
+            ("ARCTAN", _("ArcTan"), _("ArcTan")),
+            ("LOG", _("Log"), _("Log")),
+            ("MIN", _("Min"), _("Min")),
+            ("MAX", _("Max"), _("Max")),
+            ("ROUND", _("Round"), _("Round")),
+            ("MOD", _("Mod"), _("Mod")),
+            ("ABS", _("Abs"), _("Abs"))
         ]
 
 string_operation_type_enum = [
@@ -317,6 +335,9 @@ def check_node(node):
             if not ob:
                 all_bad = True
             else:
+                if not ob.b4w_dynamic_geometry:
+                    node.add_error_message(err_msgs, _("Object \"" + ob.name + "\" must have " 
+                            + "\"Dynamic Geometry & Materials\" flag enabled!"))
                 if not str(node.materials_names[name].str) in ob.material_slots:
                     node.add_error_message(err_msgs, _("Material field is not correct!"))
         if all_bad:
@@ -455,6 +476,23 @@ def check_node(node):
         node.add_error_message(err_msgs, _("It could be outdated or created"))
         node.add_error_message(err_msgs, _("in a newer version of Blend4Web"))
 
+    if node.type == "SET_CAMERA_MOVE_STYLE":
+        if "id0" in node.objects_paths:
+            ob = object_by_bpy_collect_path(bpy.data.objects, node.objects_paths["id0"].path_arr)
+            if not ob or ob.type != "CAMERA":
+                node.add_error_message(err_msgs, "Please select a valid camera object!")
+
+            if node.param_camera_move_style in ["TARGET", "HOVER"] and node.bools["pvo"].bool:
+                ob = object_by_bpy_collect_path(bpy.data.objects, node.objects_paths["id1"].path_arr)
+                if not ob:
+                    node.add_error_message(err_msgs, "Target field is not correct!")
+
+    if node.type == "SET_CAMERA_LIMITS":
+        if "id0" in node.objects_paths:
+            ob = object_by_bpy_collect_path(bpy.data.objects, node.objects_paths["id0"].path_arr)
+            if not ob or ob.type != "CAMERA":
+                node.add_error_message(err_msgs, "Please select a valid camera object!")
+
     if len(err_msgs) > 0:
         return False
     else:
@@ -462,7 +500,8 @@ def check_node(node):
 
 def find_node(node_name, tree_name, find_item, type, node_types =
 ["INHERIT_MAT", "SET_SHADER_NODE_PARAM", "HIDE", "SHOW", "SELECT_PLAY", "PLAY_ANIM", "SELECT_PLAY_ANIM",
- "MOVE_CAMERA", "MOVE_TO", "TRANSFORM_OBJECT", "SPEAKER_PLAY","SPEAKER_STOP", "SWITCH_SELECT", "STOP_ANIM"]):
+ "MOVE_CAMERA", "MOVE_TO", "TRANSFORM_OBJECT", "SPEAKER_PLAY","SPEAKER_STOP", "SWITCH_SELECT", "STOP_ANIM"
+ "SET_CAMERA_MOVE_STYLE", "SET_CAMERA_LIMITS"]):
     node_found = None
     ng = bpy.data.node_groups
     if tree_name in bpy.data.node_groups:
@@ -554,6 +593,9 @@ class B4W_LogicNodeDurationWrap(bpy.types.PropertyGroup):
 
 class B4W_LogicNodeAngleWrap(bpy.types.PropertyGroup):
     float = bpy.props.FloatProperty(name="float", subtype = "ANGLE", unit="ROTATION", step=10, precision=1)
+
+class B4W_LogicNodeVelocityWrap(bpy.types.PropertyGroup):
+    float = bpy.props.FloatProperty(name="float", min = 0)
 
 def update_bool(self, context):
     #update vars if var scope was changed
@@ -797,6 +839,9 @@ class B4W_LogicNodeTree(NodeTree):
             ret["common_usage_names"]["request_type"] = node.param_request_type
             ret["common_usage_names"]["param_anim_behavior"] = node.param_anim_behavior
             ret["common_usage_names"]["space_type"] = node.param_space_type
+            ret["common_usage_names"]["cam_lim_hor_rot_space_type"] = node.param_cam_lim_hor_rot_space_type
+            ret["common_usage_names"]["cam_lim_vert_rot_space_type"] = node.param_cam_lim_vert_rot_space_type
+            ret["common_usage_names"]["string_operation"] = node.param_string_operation
             ret["common_usage_names"]["json_operation"] = node.param_json_operation
             ret["common_usage_names"]["variable_type"] = node.param_variable_type
             ret["common_usage_names"]["condition"] = node.param_condition
@@ -819,6 +864,8 @@ class B4W_LogicNodeTree(NodeTree):
             for f in node.durations:
                 ret["floats"][f.name] = f.float
             for f in node.angles:
+                ret["floats"][f.name] = f.float
+            for f in node.velocities:
                 ret["floats"][f.name] = f.float
 
             ret["strings"] = {}
@@ -941,7 +988,7 @@ class B4W_LogicNodeOrderSocket(NodeSocket):
             if self.name in ["Order_Output_Socket"]:
                 layout.label(_("Miss"))
             if self.type == "DynOutputJump":
-                label_text = bpy.app.translations.pgettext_tip(_("%s Hit"))
+                label_text = bpy.app.translations.pgettext_tip("%s Hit")
                 layout.label(label_text%self.label_text)
                 o = layout.operator("node.b4w_logic_remove_dyn_jump_sock", icon='ZOOMOUT', text="")
                 o.node_tree = node.id_data.name
@@ -989,7 +1036,7 @@ class B4W_LogicNode(Node, B4W_LogicEditorNode):
 
         if self.type in ["SELECT_PLAY", "PLAY", "HIDE", "SHOW", "SELECT", "PLAY_ANIM", "DELAY",
                          "MOVE_CAMERA", "MOVE_TO", "TRANSFORM_OBJECT", "SPEAKER_PLAY", "SPEAKER_STOP", "SWITCH_SELECT", "STOP_ANIM"
-                         "STOP_TIMELINE", "GET_TIMELINE"]:
+                         "STOP_TIMELINE", "GET_TIMELINE", "SET_CAMERA_MOVE_STYLE", "SET_CAMERA_LIMITS"]:
             self.width = 190
         if self.type in ["PAGEPARAM"]:
             self.width = 220
@@ -1106,6 +1153,10 @@ class B4W_LogicNode(Node, B4W_LogicEditorNode):
             item.tree_name = self.id_data.name
             item.node_name = self.name
             item.name = name
+
+        if self.type in ["SHOW", "HIDE"]:
+            self.bools.add()
+            self.bools[-1].name = "ch"
 
         if self.type in ["PLAY_ANIM", "SELECT_PLAY_ANIM", "SELECT", "SPEAKER_PLAY", "PLAY"]:
             self.bools.add()
@@ -1340,6 +1391,172 @@ class B4W_LogicNode(Node, B4W_LogicEditorNode):
             self.variables_names.add()
             self.variables_names[-1].name = "cb"
 
+        if self.type in ["SET_CAMERA_MOVE_STYLE"]:
+            name = "id0"
+            self.objects_paths.add()
+            item = self.objects_paths[-1]
+            item.tree_name = self.id_data.name
+            item.node_name = self.name
+            item.name = name
+
+            # velocities
+            self.velocities.add()
+            self.velocities[-1].name = "vtr"
+            self.velocities[-1].float = 1.0
+            self.bools.add()
+            self.bools[-1].name = "vtr"
+            self.variables_names.add()
+            self.variables_names[-1].name = "vtr"
+            self.velocities.add()
+            self.velocities[-1].name = "vro"
+            self.velocities[-1].float = 1.0
+            self.bools.add()
+            self.bools[-1].name = "vro"
+            self.variables_names.add()
+            self.variables_names[-1].name = "vro"
+            self.velocities.add()
+            self.velocities[-1].name = "vzo"
+            self.velocities[-1].float = 0.1
+            self.bools.add()
+            self.bools[-1].name = "vzo"
+            self.variables_names.add()
+            self.variables_names[-1].name = "vzo"
+            # pivot
+            self.floats.add()
+            self.floats[-1].name = "pvx"
+            self.bools.add()
+            self.bools[-1].name = "pvx"
+            self.variables_names.add()
+            self.variables_names[-1].name = "pvx"
+            self.floats.add()
+            self.floats[-1].name = "pvy"
+            self.bools.add()
+            self.bools[-1].name = "pvy"
+            self.variables_names.add()
+            self.variables_names[-1].name = "pvy"
+            self.floats.add()
+            self.floats[-1].name = "pvz"
+            self.bools.add()
+            self.bools[-1].name = "pvz"
+            self.variables_names.add()
+            self.variables_names[-1].name = "pvz"
+            self.bools.add()
+            self.bools[-1].name = "pvo"
+            name = "id1"
+            self.objects_paths.add()
+            item = self.objects_paths[-1]
+            item.tree_name = self.id_data.name
+            item.node_name = self.name
+            item.name = name
+
+        if self.type in ["SET_CAMERA_LIMITS"]:
+            name = "id0"
+            self.objects_paths.add()
+            item = self.objects_paths[-1]
+            item.tree_name = self.id_data.name
+            item.node_name = self.name
+            item.name = name
+
+            # distance limits
+            self.bools.add()
+            self.bools[-1].name = "dsl"
+            self.floats.add()
+            self.floats[-1].name = "dslmin"
+            self.bools.add()
+            self.bools[-1].name = "dslmin"
+            self.variables_names.add()
+            self.variables_names[-1].name = "dslmin"
+            self.floats.add()
+            self.floats[-1].name = "dslmax"
+            self.bools.add()
+            self.bools[-1].name = "dslmax"
+            self.variables_names.add()
+            self.variables_names[-1].name = "dslmax"
+
+            # horizontal rotation limits
+            self.bools.add()
+            self.bools[-1].name = "hrl"
+            self.angles.add()
+            self.angles[-1].name = "hrlleft"
+            self.bools.add()
+            self.bools[-1].name = "hrlleft"
+            self.variables_names.add()
+            self.variables_names[-1].name = "hrlleft"
+            self.angles.add()
+            self.angles[-1].name = "hrlright"
+            self.bools.add()
+            self.bools[-1].name = "hrlright"
+            self.variables_names.add()
+            self.variables_names[-1].name = "hrlright"
+            self.bools.add()
+            self.bools[-1].name = "hrlright"
+            self.variables_names.add()
+            self.variables_names[-1].name = "hrlright"
+
+            # vertical rotation limits
+            self.bools.add()
+            self.bools[-1].name = "vrl"
+            self.angles.add()
+            self.angles[-1].name = "vrldown"
+            self.bools.add()
+            self.bools[-1].name = "vrldown"
+            self.variables_names.add()
+            self.variables_names[-1].name = "vrldown"
+            self.angles.add()
+            self.angles[-1].name = "vrlup"
+            self.bools.add()
+            self.bools[-1].name = "vrlup"
+            self.variables_names.add()
+            self.variables_names[-1].name = "vrlup"
+
+            # pivot translation limits
+            self.bools.add()
+            self.bools[-1].name = "pvl"
+            self.floats.add()
+            self.floats[-1].name = "pvlmin"
+            self.bools.add()
+            self.bools[-1].name = "pvlmin"
+            self.variables_names.add()
+            self.variables_names[-1].name = "pvlmin"
+            self.floats.add()
+            self.floats[-1].name = "pvlmax"
+            self.bools.add()
+            self.bools[-1].name = "pvlmax"
+            self.variables_names.add()
+            self.variables_names[-1].name = "pvlmax"
+
+            # horizontal translation limits
+            self.bools.add()
+            self.bools[-1].name = "htl"
+            self.floats.add()
+            self.floats[-1].name = "htlmin"
+            self.bools.add()
+            self.bools[-1].name = "htlmin"
+            self.variables_names.add()
+            self.variables_names[-1].name = "htlmin"
+            self.floats.add()
+            self.floats[-1].name = "htlmax"
+            self.bools.add()
+            self.bools[-1].name = "htlmax"
+            self.variables_names.add()
+            self.variables_names[-1].name = "htlmax"
+
+            # vertical translation limits
+            self.bools.add()
+            self.bools[-1].name = "vtl"
+            self.floats.add()
+            self.floats[-1].name = "vtlmin"
+            self.bools.add()
+            self.bools[-1].name = "vtlmin"
+            self.variables_names.add()
+            self.variables_names[-1].name = "vtlmin"
+            self.floats.add()
+            self.floats[-1].name = "vtlmax"
+            self.bools.add()
+            self.bools[-1].name = "vtlmax"
+            self.variables_names.add()
+            self.variables_names[-1].name = "vtlmax"
+
     type = bpy.props.EnumProperty(name="type",items=slot_type_enum, update=type_init)
 
     param_marker_start = bpy.props.StringProperty(
@@ -1481,6 +1698,12 @@ class B4W_LogicNode(Node, B4W_LogicEditorNode):
         type = B4W_LogicNodeAngleWrap
     )
 
+    velocities = bpy.props.CollectionProperty(
+        name = _("B4W: velocities array"),
+        description = _("Contain velocities"),
+        type = B4W_LogicNodeVelocityWrap
+    )
+
     bools = bpy.props.CollectionProperty(
         name = _("B4W: bools array"),
         description = _("Contain bools"),
@@ -1532,6 +1755,22 @@ class B4W_LogicNode(Node, B4W_LogicEditorNode):
         description = _("Space type"),
         default = "WORLD",
         items = space_type_items,
+        update = update_prop_callback
+    )
+
+    param_cam_lim_hor_rot_space_type = bpy.props.EnumProperty(
+        name = _("Camera horizontal limits space"),
+        description = _("Camera horizontal rotation limits space"),
+        default = "CAMERA",
+        items = cam_lim_space_type_items,
+        update = update_prop_callback
+    )
+
+    param_cam_lim_vert_rot_space_type = bpy.props.EnumProperty(
+        name = _("Camera vertical limits space"),
+        description = _("Camera vertical rotation limits space"),
+        default = "CAMERA",
+        items = cam_lim_space_type_items,
         update = update_prop_callback
     )
 
@@ -2070,6 +2309,8 @@ class B4W_LogicNode(Node, B4W_LogicEditorNode):
 
         elif slot.type == "SHOW" or slot.type == "HIDE":
             self.draw_selector(col, 0, _("Object:"), None, "ob")
+            row = col.row()
+            row.prop(self.bools["ch"], "bool", text = _("Process child objects"))
 
         elif slot.type == "PAGEPARAM":
             row = col.row()
@@ -2218,8 +2459,137 @@ class B4W_LogicNode(Node, B4W_LogicEditorNode):
             row.prop(self.bools["dur"], "bool", text = _("Variable"))
 
         elif slot.type == "SET_CAMERA_MOVE_STYLE":
-            col.label(_("Camera Style:"))
+            self.draw_selector(col, 0, _("Camera:"), None, "ob", icon="OUTLINER_OB_CAMERA")
+            col.label(_("New Camera Move Style:"))
             col.prop(self, "param_camera_move_style", text="")
+            row = col.row(align=True)
+
+            if self.param_camera_move_style in ["EYE", "HOVER", "TARGET"]:
+                col.label(_("Velocities:"))
+                row = col.row()
+                if not self.bools["vtr"].bool:
+                    row.prop(self.velocities["vtr"], "float", text = _("Translation"))
+                else:
+                    if "entryp" in self:
+                        row.prop_search(self.variables_names["vtr"], "variable",
+                                        self.id_data.nodes[self["entryp"]], "variables", text = "")
+                    else:
+                        row.label(no_var_source_msg)
+                row.prop(self.bools["vtr"], "bool", text = _("Variable"))
+                row = col.row()
+                if not self.bools["vro"].bool:
+                    row.prop(self.velocities["vro"], "float", text = _("Rotation"))
+                else:
+                    if "entryp" in self:
+                        row.prop_search(self.variables_names["vro"], "variable",
+                                        self.id_data.nodes[self["entryp"]], "variables", text = "")
+                    else:
+                        row.label(no_var_source_msg)
+                row.prop(self.bools["vro"], "bool", text = _("Variable"))
+                row = col.row()
+
+            if self.param_camera_move_style in ["HOVER", "TARGET"]:
+                if not self.bools["vzo"].bool:
+                    row.prop(self.velocities["vzo"], "float", text = _("Zoom"))
+                else:
+                    if "entryp" in self:
+                        row.prop_search(self.variables_names["vzo"], "variable",
+                                        self.id_data.nodes[self["entryp"]], "variables", text = "")
+                    else:
+                        row.label(no_var_source_msg)
+                row.prop(self.bools["vzo"], "bool", text = _("Variable"))
+                row = col.row()
+
+            # pivot
+                lbl = 'Pivot:' if self.param_camera_move_style == "HOVER" else "Target:"
+                col.label(_(lbl))
+                row = col.row()
+                row.prop(self.bools["pvo"], "bool", text = _("Use Object"))
+                row = col.row()
+                if self.bools["pvo"].bool:
+                    self.draw_selector(col, 1, "", None, "ob")
+                else:
+                    if not self.bools["pvx"].bool:
+                        row.prop(self.floats["pvx"], "float", text = _("x"))
+                    else:
+                        if "entryp" in self:
+                            row.prop_search(self.variables_names["pvx"], "variable",
+                                            self.id_data.nodes[self["entryp"]], "variables", text = "")
+                        else:
+                            row.label(no_var_source_msg)
+                    row.prop(self.bools["pvx"], "bool", text = _("Variable"))
+                    row = col.row()
+
+                    if not self.bools["pvy"].bool:
+                        row.prop(self.floats["pvy"], "float", text = _("y"))
+                    else:
+                        if "entryp" in self:
+                            row.prop_search(self.variables_names["pvy"], "variable",
+                                            self.id_data.nodes[self["entryp"]], "variables", text = "")
+                        else:
+                            row.label(no_var_source_msg)
+                    row.prop(self.bools["pvy"], "bool", text = _("Variable"))
+                    row = col.row()
+
+                    if not self.bools["pvz"].bool:
+                        row.prop(self.floats["pvz"], "float", text = _("z"))
+                    else:
+                        if "entryp" in self:
+                            row.prop_search(self.variables_names["pvz"], "variable",
+                                            self.id_data.nodes[self["entryp"]], "variables", text = "")
+                        else:
+                            row.label(no_var_source_msg)
+                    row.prop(self.bools["pvz"], "bool", text = _("Variable"))
+
+        elif slot.type == "SET_CAMERA_LIMITS":
+            self.draw_selector(col, 0, _("Camera:"), None, "ob", icon="OUTLINER_OB_CAMERA")
+
+            # col.label(_("Distance Limits:"))
+            row = col.row(align=True)
+            row.prop(self.bools["dsl"], "bool", text = _("Distance Limits:"))
+            if self.bools["dsl"].bool:
+                row = col.row(align=True)
+                row.prop(self.floats["dslmin"], "float", text = _("Min"))
+                row.prop(self.floats["dslmax"], "float", text = _("Max"))
+
+            row = col.row(align=True)
+            row.prop(self.bools["hrl"], "bool", text = _("Hor. Rotation Limits:"))
+            if self.bools["hrl"].bool:
+                row = col.row(align=True)
+                row.prop(self.angles["hrlleft"], "float", text = _("Left"))
+                row.prop(self.angles["hrlright"], "float", text = _("Right"))
+                row = col.row(align=True)
+                col.prop(self, "param_cam_lim_hor_rot_space_type", text="Space")
+
+            row = col.row(align=True)
+            row.prop(self.bools["vrl"], "bool", text = _("Vert. Rotation Limits:"))
+            if self.bools["vrl"].bool:
+                row = col.row(align=True)
+                row.prop(self.angles["vrldown"], "float", text = _("Down"))
+                row.prop(self.angles["vrlup"], "float", text = _("Up"))
+                row = col.row(align=True)
+                col.prop(self, "param_cam_lim_vert_rot_space_type", text="Space")
+
+            row = col.row(align=True)
+            row.prop(self.bools["pvl"], "bool", text = _("Pivot Translation Limits:"))
+            if self.bools["pvl"].bool:
+                row = col.row(align=True)
+                row.prop(self.floats["pvlmin"], "float", text = _("Min"))
+                row.prop(self.floats["pvlmax"], "float", text = _("Max"))
+
+            row = col.row(align=True)
+            row.prop(self.bools["htl"], "bool", text = _("Hor. Translation Limits:"))
+            if self.bools["htl"].bool:
+                row = col.row(align=True)
+                row.prop(self.floats["htlmin"], "float", text = _("Min"))
+                row.prop(self.floats["htlmax"], "float", text = _("Max"))
+
+            row = col.row(align=True)
+            row.prop(self.bools["vtl"], "bool", text = _("Vert. Translation Limits:"))
+            if self.bools["vtl"].bool:
+                row = col.row(align=True)
+                row.prop(self.floats["vtlmin"], "float", text = _("Min"))
+                row.prop(self.floats["vtlmax"], "float", text = _("Max"))
 
         elif slot.type in ["SPEAKER_PLAY", "SPEAKER_STOP"]:
             self.draw_selector(col, 0, _("Speaker:"), None, "ob", icon = "OUTLINER_OB_SPEAKER")
@@ -2454,8 +2824,8 @@ node_categories = [
     ]),
     B4W_LogicNodeCategory("Camera", _("Camera"), items=[
         NodeItem("B4W_logic_node", label=_("Move Camera"),settings={"type": repr("MOVE_CAMERA")}),
-        # disabled until there is a collision with app.js
-        # NodeItem("B4W_logic_node", label=_("Set Camera Move Style"),settings={"type": repr("SET_CAMERA_MOVE_STYLE")}),
+        NodeItem("B4W_logic_node", label=_("Set Camera Move Style"),settings={"type": repr("SET_CAMERA_MOVE_STYLE")}),
+        NodeItem("B4W_logic_node", label=_("Set Camera Limits"),settings={"type": repr("SET_CAMERA_LIMITS")}),
     ]),
     B4W_LogicNodeCategory("Object", _("Object"), items=[
         NodeItem("B4W_logic_node", label=_("Show Object"),settings={"type": repr("SHOW")}),

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -31,6 +30,7 @@ var m_bounds     = require("__boundings");
 var m_cam        = require("__camera");
 var m_cfg        = require("__config");
 var m_cons       = require("__constraints");
+var m_cont       = require("__container");
 var m_geom       = require("__geometry");
 var m_lights     = require("__lights");
 var m_nla        = require("__nla");
@@ -42,25 +42,24 @@ var m_print      = require("__print");
 var m_primitives = require("__primitives");
 var m_quat       = require("__quat");
 var m_scenes     = require("__scenes");
+var m_subs       = require("__subscene");
 var m_sfx        = require("__sfx");
-var m_trans      = require("__transform");
 var m_tex        = require("__textures");
+var m_time       = require("__time");
+var m_trans      = require("__transform");
 var m_tsr        = require("__tsr");
 var m_util       = require("__util");
 var m_vec3       = require("__vec3");
 var m_armat      = require("__armature");
 var m_anchors    = require("__anchors");
+var m_render     = require("__renderer");
 
 var cfg_def = m_cfg.defaults;
 var cfg_out = m_cfg.outlining;
 
 var DEBUG_DISABLE_STATIC_OBJS = false;
-var DEFAULT_LOD_DIST_MAX = -1;
-exports.DEFAULT_LOD_DIST_MAX = DEFAULT_LOD_DIST_MAX;
 
 var _all_objects = {"ALL": []};
-
-var _bb_corners_tmp = new Float32Array(24);
 
 var _color_id_counter = 0;
 var _cube_refl_counter = 0;
@@ -68,10 +67,13 @@ var _refl_plane_objs = [];
 var _outline_anim_objs = [];
 
 var _vec3_tmp = new Float32Array(3);
-var _quat4_tmp = new Float32Array(4);
+var _quat_tmp = new Float32Array(4);
 
 var COLOR_ID_THRESHOLD = 3.0;
 var DATA_ID_ALL = -1;
+
+var LOD_TRANSITION_TIME = 0.4; //sec
+var LOD_HYST_INTERVAL_LIMIT_COEFF = 0.3;
 
 exports.GET_OBJECT_BY_NAME = 0;
 exports.GET_OBJECT_BY_DUPLI_NAME = 1;
@@ -80,8 +82,6 @@ exports.GET_OBJECT_BY_DUPLI_NAME_LIST = 2;
 exports.DATA_ID_ALL = DATA_ID_ALL;
 
 exports.update = function(timeline, elapsed) {
-    var armatures = _all_objects["ARMATURE"];
-
     // update outline objects first (no need for processing among other objs)
     for (var i = 0; i < _outline_anim_objs.length; i++) {
         var obj = _outline_anim_objs[i];
@@ -90,17 +90,16 @@ exports.update = function(timeline, elapsed) {
             request_scenes_outline(obj);
     }
 
-    if (!armatures)
-        return;
-
-    // update bone constraints
-    for (var i = 0; i < armatures.length; i++) {
-        var armobj = armatures[i];
-        if (armobj.need_update_transform) {
-            m_trans.update_transform(armobj);
-            armobj.need_update_transform = false;
+    var armatures = _all_objects["ARMATURE"];
+    if (armatures)
+        // update bone constraints
+        for (var i = 0; i < armatures.length; i++) {
+            var armobj = armatures[i];
+            if (armobj.need_update_transform) {
+                m_trans.update_transform(armobj);
+                armobj.need_update_transform = false;
+            }
         }
-    }
 }
 
 exports.set_outline_intensity = set_outline_intensity;
@@ -148,11 +147,11 @@ function clear_outline_anim(obj) {
 exports.update_object = function(bpy_obj, obj) {
 
     obj.uuid = bpy_obj["uuid"];
-    obj.bpy_origin = true;
+    obj.is_meta = false;
 
-    prepare_default_actions(bpy_obj, obj);
-    bpy_obj._is_dynamic = obj.is_dynamic = calc_is_dynamic(bpy_obj, obj);
-    bpy_obj._is_updated = true;
+    obj.def_action_slots = bpy_obj._def_action_slots;
+    obj.is_dynamic = bpy_obj._is_dynamic;
+    obj.is_hair_dupli = bpy_obj._is_hair_dupli || false;
 
     prepare_physics_settings(bpy_obj, obj);
 
@@ -162,11 +161,12 @@ exports.update_object = function(bpy_obj, obj) {
         var render_type = obj.type;
 
     var render = obj.render = m_obj_util.create_render(render_type);
+
     prepare_parenting_props(bpy_obj, obj);
 
     var pos = bpy_obj["location"];
     var scale = bpy_obj["scale"][0];
-    var rot = _quat4_tmp;
+    var rot = _quat_tmp;
     m_util.quat_bpy_b4w(bpy_obj["rotation_quaternion"], rot);
 
     m_trans.set_translation(obj, pos);
@@ -183,11 +183,16 @@ exports.update_object = function(bpy_obj, obj) {
             category: bpy_obj["b4w_object_tags"]["category"]
         }
 
+    obj.custom_prop = bpy_obj["b4w_custom_prop"]
+
     if (bpy_obj["b4w_viewport_alignment"])
         obj.viewport_alignment = {
             alignment: bpy_obj["b4w_viewport_alignment"]["alignment"],
             distance: bpy_obj["b4w_viewport_alignment"]["distance"]
         }
+
+    render.hide = bpy_obj["b4w_hidden_on_load"];
+    render.hide_children = bpy_obj["b4w_hide_chldr_on_load"];
 
     switch (bpy_obj["type"]) {
     case "ARMATURE":
@@ -196,7 +201,6 @@ exports.update_object = function(bpy_obj, obj) {
         var pose_data = m_anim.calc_pose_data(bone_pointers);
 
         if (bpy_obj["b4w_animation_mixing"]) {
-            var length = pose_data.quats.length;
             render.quats_before = new Float32Array(pose_data.quats);
             render.quats_after  = new Float32Array(pose_data.quats);
             render.trans_before = new Float32Array(pose_data.trans);
@@ -224,8 +228,9 @@ exports.update_object = function(bpy_obj, obj) {
         break;
 
     case "MESH":
+        render.bb_original = m_batch.bb_bpy_to_b4w(bpy_obj["data"]["b4w_boundings"]["bb"]);
+        obj.is_boundings_overridden = bpy_obj["data"]["is_boundings_overridden"];
         render.do_not_render = bpy_obj["b4w_do_not_render"];
-        render.bb_original = m_batch.bb_bpy_to_b4w(bpy_obj["data"]["b4w_bounding_box"]);
         render.selectable = cfg_out.outlining_overview_mode || bpy_obj["b4w_selectable"];
         render.origin_selectable = bpy_obj["b4w_selectable"];
 
@@ -265,50 +270,63 @@ exports.update_object = function(bpy_obj, obj) {
         render.reflective = bpy_obj["b4w_reflective"];
         render.reflection_type = bpy_obj["b4w_reflection_type"];
 
+        // HACK: forcing cube reflections for cycles mats with bsdf_glossy
+        if (!render.reflective)
+            update_bsdf_glossy_reflections(bpy_obj, render);
+
         render.caustics = bpy_obj["b4w_caustics"];
 
         render.wind_bending = bpy_obj["b4w_wind_bending"];
-        render.wind_bending_angle = bpy_obj["b4w_wind_bending_angle"];
-        var amp = m_batch.wb_angle_to_amp(bpy_obj["b4w_wind_bending_angle"],
-                render.bb_original, bpy_obj["scale"][0]);
-        render.wind_bending_amp = amp;
-        render.wind_bending_freq   = bpy_obj["b4w_wind_bending_freq"];
-        render.detail_bending_freq = bpy_obj["b4w_detail_bending_freq"];
-        render.detail_bending_amp  = bpy_obj["b4w_detail_bending_amp"];
-        render.branch_bending_amp  = bpy_obj["b4w_branch_bending_amp"];
-        render.hide = false;
+        // improves batching
+        if (bpy_obj["b4w_wind_bending"]) {
+            render.wind_bending_angle = bpy_obj["b4w_wind_bending_angle"];
+            var amp = m_batch.wb_angle_to_amp(m_util.deg_to_rad(
+                    bpy_obj["b4w_wind_bending_angle"]),
+                    render.bb_original, bpy_obj["scale"][0]);
+            render.wind_bending_amp = amp;
+            render.wind_bending_freq   = bpy_obj["b4w_wind_bending_freq"];
+            render.detail_bending_freq = bpy_obj["b4w_detail_bending_freq"];
+            render.detail_bending_amp  = bpy_obj["b4w_detail_bending_amp"];
+            render.branch_bending_amp  = bpy_obj["b4w_branch_bending_amp"]; 
 
-        render.main_bend_col = bpy_obj["b4w_main_bend_stiffness_col"];
-        var bnd_st = bpy_obj["b4w_detail_bend_colors"];
-        render.detail_bend_col = {};
-        render.detail_bend_col.leaves_stiffness = bnd_st["leaves_stiffness_col"];
-        render.detail_bend_col.leaves_phase = bnd_st["leaves_phase_col"];
-        render.detail_bend_col.overall_stiffness = bnd_st["overall_stiffness_col"];
-
-        render.do_not_cull = bpy_obj["b4w_do_not_cull"];
-        render.disable_fogging = bpy_obj["b4w_disable_fogging"];
+            render.main_bend_col = bpy_obj["b4w_main_bend_stiffness_col"];
+            var bnd_st = bpy_obj["b4w_detail_bend_colors"];
+            render.detail_bend_col.leaves_stiffness = bnd_st["leaves_stiffness_col"];
+            render.detail_bend_col.leaves_phase = bnd_st["leaves_phase_col"];
+            render.detail_bend_col.overall_stiffness = bnd_st["overall_stiffness_col"];
+        }
+       
         render.dynamic_geometry = bpy_obj["b4w_dynamic_geometry"];
 
+        // for material inheritance
+        if (render.dynamic_geometry) {
+            obj._bpy_obj = bpy_obj;
+
+            for (var i = 0; i < bpy_obj["data"]["materials"].length; i++) {
+                var bpy_mat = bpy_obj["data"]["materials"][i];
+                obj.mat_inheritance_data.original_mat_names.push(bpy_mat["name"]);
+                obj.mat_inheritance_data.bpy_materials.push(bpy_mat);
+                obj.mat_inheritance_data.is_disabled.push(false);
+            }
+        }
+
         // assign params for object (bounding) physics simulation
-        // it seams BGE uses first material to get physics param
+        // it seems BGE uses first material to get physics param
         var first_mat = first_mesh_material(bpy_obj);
         render.friction = first_mat["physics"]["friction"];
         render.elasticity = first_mat["physics"]["elasticity"];
 
         render.lod_dist_min = 0;
-        render.lod_dist_max = DEFAULT_LOD_DIST_MAX;
-        render.lod_transition_ratio = bpy_obj["b4w_lod_transition"];
-        render.last_lod = true;
+        render.lod_dist_max = m_obj_util.LOD_DIST_MAX_INFINITY;
+
+        render.pass_index = bpy_obj["pass_index"];
         break;
 
     case "LINE":
-        render.do_not_cull = true;
-        render.bb_local = m_bounds.zero_bounding_box();
-        render.bs_local = m_bounds.zero_bounding_sphere();
-        render.be_local = m_bounds.zero_bounding_ellipsoid();
-        render.bb_world = m_bounds.zero_bounding_box();
-        render.bs_world = m_bounds.zero_bounding_sphere();
-        render.be_world = m_bounds.zero_bounding_ellipsoid();
+        render.bb_local = m_bounds.create_bb();
+        render.be_local = m_bounds.create_be();
+        render.bb_world = m_bounds.create_bb();
+        render.be_world = m_bounds.create_be();
         break;
 
     case "CAMERA":
@@ -326,7 +344,7 @@ exports.update_object = function(bpy_obj, obj) {
         var is_enabled = false;
         for (var i = 0; i < obj.scenes_data.length; i++)
             if (obj.scenes_data[i].scene._sfx) {
-                var is_enabled = true;
+                is_enabled = true;
                 break;
             }
 
@@ -337,10 +355,10 @@ exports.update_object = function(bpy_obj, obj) {
 
     case "EMPTY":
         // NOTE: center = 1/2 height
-        var bb = m_bounds.zero_bounding_box();
+        var bb = m_bounds.create_bb();
         render.bb_local = bb;
 
-        var bs = m_bounds.zero_bounding_sphere();
+        var bs = m_bounds.create_bs();
         render.bs_local = bs;
 
         if (bpy_obj["field"])
@@ -365,19 +383,37 @@ exports.update_object = function(bpy_obj, obj) {
     objects_storage_add(obj);
 }
 
+function update_bsdf_glossy_reflections(bpy_obj, render) {
+    var materials = bpy_obj["data"]["materials"];
+
+    for (var i = 0; i < materials.length; i++) {
+        var mat = materials[i];
+        if (mat["use_nodes"] && (check_bsdf_type(mat["node_tree"], "BSDF_GLOSSY") || check_bsdf_type(mat["node_tree"], "BSDF_DIFFUSE"))) {
+            render.reflective = true;
+            render.reflection_type = "CUBE";
+        }
+    }
+}
+
+function check_bsdf_type(node_tree, bsdf_type) {
+    if (node_tree._bsdf_types.indexOf(bsdf_type) != -1)
+        return true;
+    else
+        return false;
+}
+
 /**
  * Update world: updates b4w world object from bpy world.
  */
 exports.update_world = function(bpy_world, world) {
     world.uuid = bpy_world["uuid"];
-    world.bpy_origin = true;
+    world.is_meta = false;
 
-    prepare_default_actions(bpy_world, world);
-    bpy_world._is_dynamic = world.is_dynamic = calc_is_dynamic(bpy_world, world);
-    bpy_world._is_updated = true;
+    world.def_action_slots = bpy_world._def_action_slots;
+    world.is_dynamic = bpy_world._is_dynamic;
 
     var render_type = world.type;
-    var render = world.render = m_obj_util.create_render(render_type);
+    world.render = m_obj_util.create_render(render_type);
 
     world.use_default_animation = bpy_world["b4w_use_default_animation"];
     world.anim_behavior_def = m_anim.anim_behavior_bpy_b4w(bpy_world["b4w_anim_behavior"]);
@@ -388,110 +424,7 @@ exports.update_world = function(bpy_world, world) {
 exports.update_object_relations = function(bpy_obj, obj) {
     var render = obj.render;
 
-    if (obj.parent) {
-
-        // disable object physics on collision compound children 
-        // they are just additional shapes for top level parent
-        if (!obj.parent_is_dupli &&
-                obj.physics_settings.use_collision_compound &&
-                obj.parent.physics_settings.use_collision_compound)
-            obj.use_obj_physics = false;
-
-        var scenes_have_phy = false;
-        for (var i = 0; i < obj.scenes_data.length; i++)
-            if (obj.scenes_data[i].scene._physics) {
-                var scenes_have_phy = true;
-                break;
-            }
-
-        if (scenes_have_phy && has_dynamic_physics(obj)) {
-            if (obj.parent_is_dupli)
-                var offset = m_tsr.copy(render.world_tsr, m_tsr.create());
-            else
-                var offset = render.world_tsr;
-            m_tsr.multiply(obj.parent.render.world_tsr, offset, render.world_tsr);
-            m_trans.set_translation(obj, m_tsr.get_trans_view(render.world_tsr));
-            m_trans.set_scale(obj, m_tsr.get_scale(render.world_tsr));
-            m_trans.set_rotation(obj, m_tsr.get_quat_view(render.world_tsr));
-        } else if (obj.parent_is_dupli || !obj.parent_bone) {
-            // get offset from render before child-of constraint being applied
-            var offset = m_tsr.copy(render.world_tsr, m_tsr.create());
-
-            // second condition is for cases when direct parenting is disabled
-            // due to obj parent group mismatch
-            if (obj.viewport_alignment && obj.parent.type == "CAMERA") {
-                var positioning = {
-                    distance: obj.viewport_alignment.distance,
-                    rotation: m_tsr.get_quat_view(offset)
-                }
-
-                switch (obj.viewport_alignment.alignment) {
-                case "TOP_LEFT":
-                    positioning.top = 0;
-                    positioning.left = 0;
-                    break;
-                case "TOP":
-                    positioning.top = 0;
-                    positioning.left = 0.5;
-                    break;
-                case "TOP_RIGHT":
-                    positioning.top = 0;
-                    positioning.right = 0;
-                    break;
-                case "LEFT":
-                    positioning.top = 0.5;
-                    positioning.left = 0;
-                    break;
-                case "CENTER":
-                    positioning.top = 0.5;
-                    positioning.left = 0.5;
-                    break;
-                case "RIGHT":
-                    positioning.top = 0.5;
-                    positioning.right = 0;
-                    break;
-                case "BOTTOM_LEFT":
-                    positioning.bottom = 0;
-                    positioning.left = 0;
-                    break;
-                case "BOTTOM":
-                    positioning.bottom = 0;
-                    positioning.left = 0.5;
-                    break;
-                case "BOTTOM_RIGHT":
-                    positioning.bottom = 0;
-                    positioning.right = 0;
-                    break;
-                }
-                m_cons.append_stiff_viewport(obj, obj.parent, positioning);
-            } else
-                m_cons.append_child_of(obj, obj.parent, offset);
-        } else {
-            var offset = m_tsr.copy(render.world_tsr, m_tsr.create());
-            m_cons.append_child_of_bone(obj, obj.parent, obj.parent_bone,
-                    offset);
-        }
-    }
-    if (obj.type == "ARMATURE") {
-        var pose_bones = bpy_obj["pose"]["bones"];
-        for (var i = 0; i < pose_bones.length; i++) {
-            var pose_bone = pose_bones[i];
-            var constraints = pose_bone["constraints"];
-            if (constraints)
-                for (var j = 0; j < constraints.length; j++) {
-                    var cons = constraints[j];
-                    if (cons["type"] != "COPY_TRANSFORMS" || cons["subtarget"] || cons["mute"])
-                        continue;
-
-                    var target_obj = cons["target"]._object;
-                    m_cons.append_stiff_bone_to_obj(obj, target_obj, pose_bone["name"],
-                                                    m_util.VEC3_IDENT,
-                                                    m_util.QUAT4_IDENT, 1);
-                }
-        }
-    }
-
-    if (obj.type == "MESH")
+    if (obj.type == "MESH") {
 
         // apply pose if any
         var bpy_armobj = m_anim.get_bpy_armobj(bpy_obj);
@@ -525,15 +458,7 @@ exports.update_object_relations = function(bpy_obj, obj) {
         }
         if (render.reflective)
             attach_reflection_data(bpy_obj, obj);
-}
-
-function has_dynamic_physics(obj) {
-    var render = obj.render;
-    var phy_set = obj.physics_settings;
-
-    return (obj.is_vehicle || obj.is_floating || m_phy.is_character(obj)) ||
-           (obj.use_obj_physics && !phy_set.use_ghost && phy_set.mass > 0 &&
-           (phy_set.physics_type == "DYNAMIC" || phy_set.physics_type == "RIGID_BODY"));
+    }
 }
 
 exports.update_force = update_force;
@@ -597,13 +522,13 @@ function get_reflection_plane_obj(bpy_obj, obj) {
     var constraints = bpy_obj["constraints"];
     for (var i = 0; i < constraints.length; i++) {
         var cons = constraints[i];
-        if (cons["type"] == "LOCKED_TRACK" && cons.name == "REFLECTION PLANE")
-            if (cons["target"]._object)
+        if (cons["type"] == "LOCKED_TRACK" && cons.name == "REFLECTION PLANE") {
+            if (cons["target"] && cons["target"]._object)
                 return cons["target"]._object;
             else
-                m_print.warn("Reflection plane target \"" +
-                    cons["target"]["name"] + "\" for object: \"" + obj.name +
+                m_print.warn("Reflection plane target for object: \"" + obj.name +
                     "\" is not present on the scene. Using object's Z-axis.");
+        }
     }
     return null;
 }
@@ -635,9 +560,8 @@ function check_bpy_obj_scene_compatibility(bpy_obj, bpy_scene) {
     if (!bpy_scene._is_main && bpy_obj["type"] == "SPEAKER")
         return false;
 
-    // LAMPs and CAMERAs aren't allowed if they are from secondary(dynamically loaded) data
-    if (!bpy_scene._is_primary_thread && (bpy_obj["type"] == "LAMP" || 
-            bpy_obj["type"] == "CAMERA"))
+    // LAMPs aren't allowed if they are from secondary(dynamically loaded) data
+    if (!bpy_scene._is_primary_thread && bpy_obj["type"] == "LAMP")
         return false;
 
     return true;
@@ -661,8 +585,11 @@ exports.update_objects_dynamics = function(objects) {
     }
 }
 
-function calc_is_dynamic(bpy_obj, obj) {
+exports.bpy_obj_is_dynamic = function(bpy_obj) {
+
     // NOTE: need hierarhical objects structure here
+    if (bpy_obj["b4w_hidden_on_load"])
+        return true;
     if (bpy_obj["dg_parent"] && bpy_obj["dg_parent"]._is_dynamic)
         return true;
     if (bpy_obj["parent"] && bpy_obj["parent"]._is_dynamic)
@@ -670,10 +597,10 @@ function calc_is_dynamic(bpy_obj, obj) {
 
     switch (bpy_obj["type"]) {
     case "MESH":
-        return calc_mesh_is_dynamic(bpy_obj, obj);
+        return bpy_mesh_is_dynamic(bpy_obj);
         break;
     case "EMPTY":
-        return calc_empty_is_dynamic(bpy_obj, obj);
+        return bpy_empty_is_dynamic(bpy_obj);
         break;
     default:
         return true;
@@ -681,16 +608,8 @@ function calc_is_dynamic(bpy_obj, obj) {
     }
 }
 
-function calc_empty_is_dynamic(bpy_obj, obj) {
-    var is_animated = m_anim.bpy_obj_is_animatable(bpy_obj, obj);
-    var has_nla = m_nla.bpy_obj_has_nla(bpy_obj);
-    var has_do_not_batch = bpy_obj["b4w_do_not_batch"];
-    var anchor = Boolean(bpy_obj["b4w_anchor"]);
-    return is_animated || has_nla || has_do_not_batch || anchor;
-}
-
-function calc_mesh_is_dynamic(bpy_obj, obj) {
-    var is_animated = m_anim.bpy_obj_is_animatable(bpy_obj, obj);
+function bpy_mesh_is_dynamic(bpy_obj) {
+    var is_animated = m_anim.bpy_mesh_empty_is_animatable(bpy_obj);
     var has_do_not_batch = bpy_obj["b4w_do_not_batch"];
     var is_collision = bpy_obj["b4w_collision"];
     var is_vehicle_part = bpy_obj["b4w_vehicle"];
@@ -701,21 +620,79 @@ function calc_mesh_is_dynamic(bpy_obj, obj) {
     var has_shape_keys = bpy_obj["data"]["b4w_shape_keys"].length > 0;
     var has_dynamic_geometry = bpy_obj["b4w_dynamic_geometry"];
 
-    // lens flares are not strictly required to be dynamic
-    // make them so to prevent possible bugs in the future
-
+    var has_dynamic_target = check_dynamic_target(bpy_obj);
     return DEBUG_DISABLE_STATIC_OBJS || is_animated || has_do_not_batch
             || is_collision || is_vehicle_part || has_shape_keys
             || is_floater_part || dyn_grass_emitter || is_character
-            || has_nla || has_dynamic_geometry || has_dynamic_mat(bpy_obj);
+            || has_nla || has_dynamic_geometry || has_dynamic_mat(bpy_obj)
+            || has_dynamic_target;
+}
+
+function check_dynamic_target(bpy_obj) {
+    // NOTE: currently we support only one constraint for object
+    var is_dynamic = false;
+    var len = bpy_obj["constraints"].length;
+    if (len) {
+        var last_constraint = null;
+        for (var i = len - 1; i >= 0; i--) {
+            var cons = bpy_obj["constraints"][i];
+            if (!(cons["type"] == "LOCKED_TRACK" && cons["name"] == "REFLECTION PLANE")) {
+                last_constraint = cons;
+                break;
+            }
+        }
+        if (!last_constraint)
+            return false;
+        // NOTE: temporary solution for old JSONs
+        if (!last_constraint["target"])
+            return false;
+        var target = last_constraint["target"];
+        var type = target["type"];
+        if (target["parent"]) {
+            var parent_type = target["parent"]["type"];
+            if (parent_type == "MESH")
+                is_dynamic = is_dynamic || bpy_mesh_is_dynamic(target["parent"]);
+            else if (parent_type == "EMPTY")
+                is_dynamic = is_dynamic || bpy_empty_is_dynamic(target["parent"]);
+            else
+                is_dynamic = true;
+            return is_dynamic;
+        }
+        if (type == "MESH") {
+            is_dynamic = is_dynamic || bpy_mesh_is_dynamic(target);
+        } else if (type == "EMPTY")
+            is_dynamic = is_dynamic || bpy_empty_is_dynamic(target);
+        else
+            is_dynamic = true;
+    }
+
+    return is_dynamic;
+}
+
+function bpy_empty_is_dynamic(bpy_obj) {
+    var is_animated = m_anim.bpy_mesh_empty_is_animatable(bpy_obj);
+    var has_nla = m_nla.bpy_obj_has_nla(bpy_obj);
+    var has_do_not_batch = bpy_obj["b4w_do_not_batch"];
+    var anchor = Boolean(bpy_obj["b4w_anchor"]);
+    var has_dynamic_target = check_dynamic_target(bpy_obj);
+    return is_animated || has_nla || has_do_not_batch || anchor
+            || has_dynamic_target;
 }
 
 function has_dynamic_mat(bpy_obj) {
     var mesh = bpy_obj["data"];
 
+    // lens flares are not strictly required to be dynamic
+    // make them so to prevent possible bugs in the future
+
+    // water should be dynamic for convenience
+    // This allows dynamically adjusting water params
+
     for (var i = 0; i < mesh["materials"].length; i++) {
         var mat = mesh["materials"][i];
 
+        if (mat["b4w_water"])
+            return true;
         if (mat["b4w_lens_flares"])
             return true;
         if (has_dynamic_nodes(mat["node_tree"]))
@@ -735,12 +712,33 @@ function has_dynamic_nodes(node_tree) {
         if (node["type"] == "VECT_TRANSFORM") {
             var convert_from =  node["convert_from"];
             var convert_to   =  node["convert_to"];
-            var output = node.outputs[0];
-            if (output.is_linked
+            var output = node["outputs"][0];
+            if (output["is_linked"]
                     && !(convert_from == "WORLD" && convert_to == "CAMERA")
                     && !(convert_from == "CAMERA" && convert_to == "WORLD")
                     && !(convert_from == "OBJECT" && convert_to == "OBJECT"))
                 return true;
+        }
+        if (node["type"] == "NORMAL_MAP") {
+            var space = node["space"];
+            var output = node["outputs"][0];
+            if (output["is_linked"] && (space == "OBJECT" || space == "BLENDER_OBJECT"))
+                return true;
+        }
+        if (node["type"] == "TEX_COORD") {
+            var obj_output = node["outputs"][3];
+            if (obj_output["is_linked"])
+                return true;
+        }
+        if (node["type"] == "OBJECT_INFO") {
+            // TODO: change this implementation to the attributes-based model
+            var loc_output = node["outputs"][0];
+            var obj_ind_output = node["outputs"][1];
+            var rand_output = node["outputs"][3];
+            if (loc_output["is_linked"] || obj_ind_output["is_linked"] ||
+                    rand_output["is_linked"]) {
+                return true;
+            }
         }
     }
 
@@ -828,6 +826,10 @@ exports.get_meta_tags = function(obj) {
     return m_util.clone_object_r(obj.metatags);
 }
 
+exports.get_custom_prop = function(obj) {
+    return obj.custom_prop;
+}
+
 exports.cleanup = function() {
     _color_id_counter = 0;
     _cube_refl_counter = 0;
@@ -846,12 +848,7 @@ exports.copy = function(obj, name, deep_copy) {
     return new_obj;
 }
 
-function copy_object(obj, new_name, deep_copy) {
-
-    var origin_name = new_name;
-    var dg_parent = m_obj_util.get_dg_parent(obj);
-    var name = dg_parent ? m_obj_util.gen_dupli_name(dg_parent.name, new_name) : new_name;
-
+function get_name_suff_unique(name) {
     if (get_object_by_name(name, _all_objects["ALL"], false, DATA_ID_ALL)) {
         var i = 1;
         var num;
@@ -865,24 +862,52 @@ function copy_object(obj, new_name, deep_copy) {
 
         m_print.error("Object \"" + name + "\" already exists. "
                 + "Name was replaced by \"" + name + num + "\".");
-        origin_name += num;
-        name += num;
+        return num;
     }
+
+    return "";
+}
+
+function copy_object(obj, new_name, deep_copy) {
+
+    var origin_name = new_name;
+    var dg_parent = m_obj_util.get_dg_parent(obj);
+    var name = dg_parent ? m_obj_util.gen_dupli_name(dg_parent.name, new_name) : new_name;
+
+    var suff = get_name_suff_unique(name);
+    name += suff;
+    origin_name += suff;
 
     var new_obj = m_obj_util.create_object(name, obj.type, origin_name);
 
-    new_obj.bpy_origin = obj.bpy_origin;
+    new_obj.is_meta = obj.is_meta;
 
+    // by link
+    new_obj._bpy_obj = obj._bpy_obj;
+
+    new_obj.mat_inheritance_data.original_mat_names 
+            = m_obj_util.copy_bpy_object_props_by_link(obj.mat_inheritance_data.original_mat_names);
+    new_obj.mat_inheritance_data.bpy_materials 
+            = m_obj_util.copy_bpy_object_props_by_link(obj.mat_inheritance_data.bpy_materials);
+    new_obj.mat_inheritance_data.is_disabled 
+            = m_obj_util.copy_bpy_object_props_by_link(obj.mat_inheritance_data.is_disabled); 
+    
     // NOTE: not all props are needed or supported for the copied object
     new_obj.is_dynamic = obj.is_dynamic;
     new_obj.is_hair_dupli = obj.is_hair_dupli;
     new_obj.use_default_animation = obj.use_default_animation;
+    new_obj.def_action_slots = obj.def_action_slots;
 
-    new_obj.render = m_obj_util.copy_object_props_by_value(obj.render);
+    new_obj.render = m_obj_util.clone_render(obj.render);
+
+    // do not preserve LOD functionality for copied objects
+    new_obj.render.is_lod = false;
+
     new_obj.metatags = m_obj_util.copy_object_props_by_value(obj.metatags);
+    new_obj.custom_prop = m_obj_util.copy_object_props_by_value(obj.custom_prop);
 
     copy_scene_data(obj, new_obj);
-    new_obj.action_anim_cache =m_obj_util.copy_bpy_object_props_by_link(obj.action_anim_cache);
+    new_obj.action_anim_cache = m_obj_util.copy_bpy_object_props_by_link(obj.action_anim_cache);
     
     new_obj.parent = m_obj_util.copy_bpy_object_props_by_link(obj.parent);
     new_obj.parent_is_dupli = obj.parent_is_dupli;
@@ -929,14 +954,15 @@ function copy_batches(obj, new_obj, deep_copy) {
             for (var j = 0; j < batches.length; j++)
                 if (!batches[j].forked_batch) {
                     var new_batch = m_obj_util.copy_object_props_by_value(batches[j]);
-                    new_batches.push(new_batch);
+                    new_batch.bufs_data = m_geom.clone_bufs_data(batches[j].bufs_data);
+                    m_obj_util.append_batch(new_obj, new_sc_data.scene, new_batch);
                     bpy_bufs_data.push(batches[j].bufs_data);
                 }
 
             for (var j = 0; j < batches.length; j++)
                 if (batches[j].forked_batch) {
                     var new_forked_batch = m_obj_util.copy_object_props_by_value(batches[j]);
-                    new_batches.push(new_forked_batch);
+                    m_obj_util.append_batch(new_obj, new_sc_data.scene, new_forked_batch);
                     for (var k = 0; k < bpy_bufs_data.length; k++)
                         if (bpy_bufs_data[k] == batches[j].bufs_data)
                             new_forked_batch.bufs_data = new_batches[k].bufs_data;
@@ -946,16 +972,19 @@ function copy_batches(obj, new_obj, deep_copy) {
                 if (new_batches[j].bufs_data)
                     m_geom.update_gl_buffers(new_batches[j].bufs_data);
 
+                if (cfg_def.allow_vao_ext && new_batches[j].bufs_data)
+                    m_render.assign_vao(new_batches[j]);
+
                 // to create unique batch ID
-                new_batches[j].odd_id_prop = new_obj.uuid;
-                m_batch.update_batch_id(new_batches[j],
-                                        m_batch.calculate_render_id(new_obj.render));
+                new_batches[j].odd_id_prop = m_batch.generate_odd_id(
+                        new_batches[j], new_obj.render, new_obj.uuid);
+                m_batch.update_batch_id(new_batches[j]);
             }
 
             m_tex.share_batch_canvas_textures(new_batches);
-
         } else
-            new_sc_data.batches = m_obj_util.copy_batches_props_by_link_nr(batches);
+            for (var j = 0; j < batches.length; j++)
+                m_obj_util.append_batch(new_obj, new_sc_data.scene, batches[j]);
     }
 }
 
@@ -1077,7 +1106,9 @@ function prepare_physics_settings(bpy_obj, obj) {
     }
 }
 
-function prepare_default_actions(bpy_obj, obj) {
+exports.get_bpy_def_action_slots = function(bpy_obj, is_world) {
+    var def_action_slots = [];
+
     var obj_anim_data = bpy_obj["animation_data"];
     var data_anim_data = bpy_obj["data"] ? bpy_obj["data"]["animation_data"] : null;
 
@@ -1085,22 +1116,27 @@ function prepare_default_actions(bpy_obj, obj) {
         var action = obj_anim_data["action"];
 
         if (action._render.type == m_anim.OBJ_ANIM_TYPE_OBJECT ||
-                action._render.type == m_anim.OBJ_ANIM_TYPE_ARMATURE && obj.type == "ARMATURE" ||
-                action._render.type == m_anim.OBJ_ANIM_TYPE_LIGHT && obj.type == "LAMP" ||
-                action._render.type == m_anim.OBJ_ANIM_TYPE_ENVIRONMENT && obj.type == "WORLD")
-            obj.def_action_slots.push(m_anim.init_action_slot(null, action));
+                action._render.type == m_anim.OBJ_ANIM_TYPE_ARMATURE && bpy_obj["type"] == "ARMATURE" ||
+                action._render.type == m_anim.OBJ_ANIM_TYPE_LIGHT && bpy_obj["type"] == "LAMP" ||
+                action._render.type == m_anim.OBJ_ANIM_TYPE_ENVIRONMENT && is_world)
+            def_action_slots.push(m_anim.init_action_slot(null, action));
     }
 
-    if (data_anim_data && data_anim_data["action"] && (obj.type == "SPEAKER"
-                                                    || obj.type == "LAMP"))
-        obj.def_action_slots.push(m_anim.init_action_slot(null,
+    if (data_anim_data && data_anim_data["action"] && (bpy_obj["type"] == "SPEAKER"
+            || bpy_obj["type"] == "LAMP"))
+        def_action_slots.push(m_anim.init_action_slot(null,
                                     data_anim_data["action"]));
 
     // NOTE: nla material tracks are considered during the nla's object updating
     // and aren't present in the def_action_slots property
-    if (obj.type == "MESH")
-        obj.def_action_slots.push.apply(obj.def_action_slots,
-                                    m_anim.get_bpy_material_actions(bpy_obj));
+    if (bpy_obj["type"] == "MESH")
+        def_action_slots.push.apply(def_action_slots,
+                m_anim.get_bpy_material_actions(bpy_obj));
+    if (is_world)
+        def_action_slots.push.apply(def_action_slots,
+                m_anim.get_bpy_world_material_actions(bpy_obj));
+
+    return def_action_slots;
 }
 
 function prepare_vertex_anim(bpy_obj, obj) {
@@ -1137,238 +1173,74 @@ function prepare_parenting_props(bpy_obj, obj) {
     }
 }
 
-/**
- * This algorithm has been taken from bindinds.c
- */
 exports.update_boundings = function(obj) {
+    
     var render = obj.render;
+    var obj_bb = null;
+
     //TODO: process all scenes_data
     var batches = obj.scenes_data[0].batches;
-    var max_x, max_y, max_z, min_x, min_y, min_z;
-    var bmax_x, bmax_y, bmax_z, bmin_x, bmin_y, bmin_z;
-    var bounding_verts = [];
-
-    for (var i = 0; i < batches.length; i++) {
-        var batch = batches[i];
-        if (batch.type == "MAIN") {
-            var vbo_array = batches[0].bufs_data.vbo_array;
-            var pos_offset = batches[0].bufs_data.pointers["a_position"].offset;
-            max_x = min_x = vbo_array[pos_offset];
-            max_y = min_y = vbo_array[pos_offset + 1];
-            max_z = min_z = vbo_array[pos_offset + 2];
-        }
-    }
-
     for (var i = 0; i < batches.length; i++) {
 
         var batch = batches[i];
+        var batch_world_bounds = obj.scenes_data[0].batch_world_bounds[i];
 
-        if (!batch.bufs_data || !(batch.be_world && batch.bb_world))
+        if (!batch.bufs_data || !(batch_world_bounds.be && batch_world_bounds.bb))
             continue;
 
-        var vbo_array = batch.bufs_data.vbo_array;
-        var pos_offset = batch.bufs_data.pointers["a_position"].offset;
-        var pos_length = batch.bufs_data.pointers["a_position"].length + pos_offset;
+        var type = m_geom.get_vbo_type_by_attr_name("a_position");
+        var vbo_source = m_geom.get_vbo_source_by_type(batch.bufs_data.vbo_source_data, type);
+        if (!vbo_source)
+            continue;
 
-        bmax_x = bmin_x = vbo_array[pos_offset];
-        bmax_y = bmin_y = vbo_array[pos_offset + 1];
-        bmax_z = bmin_z = vbo_array[pos_offset + 2];
-
-        for (var j = pos_offset; j < pos_length; j = j + 3) {
-            var x = vbo_array[j];
-            var y = vbo_array[j + 1];
-            var z = vbo_array[j + 2];
-
-            bmax_x = Math.max(x, bmax_x);
-            bmax_y = Math.max(y, bmax_y);
-            bmax_z = Math.max(z, bmax_z);
-
-            bmin_x = Math.min(x, bmin_x);
-            bmin_y = Math.min(y, bmin_y);
-            bmin_z = Math.min(z, bmin_z);
-        }
-
-        batch.bb_local.max_x = bmax_x.toFixed(3);
-        batch.bb_local.max_y = bmax_y.toFixed(3);
-        batch.bb_local.max_z = bmax_z.toFixed(3);
-        batch.bb_local.min_x = bmin_x.toFixed(3);
-        batch.bb_local.min_y = bmin_y.toFixed(3);
-        batch.bb_local.min_z = bmin_z.toFixed(3);
-
-        m_bounds.bounding_box_transform(batch.bb_local, render.world_tsr,
-                batch.bb_world);
-        m_bounds.extract_bb_corners(batch.bb_world, _bb_corners_tmp);
-        bounding_verts.length = 0;
-        for (var k = 0; k < _bb_corners_tmp.length; k++)
-            bounding_verts.push(_bb_corners_tmp[k])
-        batch.be_world = m_bounds.create_bounding_ellipsoid_by_bb(
-                bounding_verts, true);
-        batch.be_local = m_bounds.calc_be_local_by_tsr(batch.be_world,
-                render.world_tsr);
+        var from = batch.bufs_data.pointers["a_position"].offset;
+        var to = batch.bufs_data.pointers["a_position"].length + from;
+        m_batch.update_local_bounds_from_pos(batch, vbo_source.subarray(from, to));
+        m_obj_util.update_world_bounds_from_batch_tsr(batch, render.world_tsr, 
+                batch_world_bounds);
 
         if (batch.type == "MAIN") {
-            max_x = Math.max(bmax_x, max_x);
-            max_y = Math.max(bmax_y, max_y);
-            max_z = Math.max(bmax_z, max_z);
-
-            min_x = Math.min(bmin_x, min_x);
-            min_y = Math.min(bmin_y, min_y);
-            min_z = Math.min(bmin_z, min_z);
+            if (!obj_bb)
+                obj_bb = m_bounds.clone_bb(batch.bounds_local.bb);
+            else
+                m_bounds.expand_bounding_box(obj_bb, batch.bounds_local.bb);
         }
     }
 
-    var bb_local = {
-        max_x : parseFloat(max_x.toFixed(3)),
-        max_y : parseFloat(max_y.toFixed(3)),
-        max_z : parseFloat(max_z.toFixed(3)),
-        min_x : parseFloat(min_x.toFixed(3)),
-        min_y : parseFloat(min_y.toFixed(3)),
-        min_z : parseFloat(min_z.toFixed(3))
-    }
+    obj_bb = obj_bb || m_bounds.create_bb();
 
-    var x_width = max_x - min_x;
-    var y_width = max_y - min_y;
-    var z_width = max_z - min_z;
-
-    var s_cen_x = 0.5 * (max_x + min_x);
-    var s_cen_y = 0.5 * (max_y + min_y);
-    var s_cen_z = 0.5 * (max_z + min_z);
-
-    var c_cen_x = s_cen_x;
-    var c_cen_y = s_cen_y;
-    var c_cen_z = s_cen_z;
-
-    var s_rad = Math.max(x_width, Math.max(y_width, z_width)) / 2;
-    var c_rad = Math.max(x_width, z_width) / 2;
-
-    var tmp_s_cen = [s_cen_x / (x_width ? x_width : 1),
-                    s_cen_y / (y_width ? y_width : 1),
-                    s_cen_z / (z_width ? z_width : 1)];
-    var tmp_rad = 0.5;
-
-    if (render.billboard) {
-        var x = Math.max(Math.abs(bb_local.max_x), Math.abs(bb_local.min_x));
-        var y = Math.max(Math.abs(bb_local.max_y), Math.abs(bb_local.min_y));
-        var z = Math.max(Math.abs(bb_local.max_z), Math.abs(bb_local.min_z));
-        var sphere_radius = Math.sqrt(x * x + y * y + z * z);
-        var cylinder_radius = Math.sqrt(x * x + y * y);
-
-        bb_local.max_x = bb_local.max_y = bb_local.max_z = sphere_radius;
-        bb_local.min_x = bb_local.min_y = bb_local.min_z = -sphere_radius;
-
-        c_rad = cylinder_radius;
-
-        s_rad = sphere_radius;
-        var bs_center = new Float32Array([0, 0, 0]);
-        var be_axes = new Float32Array([s_rad, s_rad, s_rad]);
-        var be_center = new Float32Array([0, 0, 0]);
-    } else {
+    if (render.billboard)
+        m_obj_util.update_render_bounds_billboard(obj, obj_bb);
+    else {
+        var pos_buffers = [];
         for (var i = 0; i < batches.length; i++) {
             var batch = batches[i];
 
             if (batch.type != "MAIN")
                 continue;
 
-            var vbo_array = batch.bufs_data.vbo_array;
+            var type = m_geom.get_vbo_type_by_attr_name("a_position");
+            var vbo_source = m_geom.get_vbo_source_by_type(batch.bufs_data.vbo_source_data, type);
+            if (!vbo_source)
+                continue;
+
             var pointers = batches[i].bufs_data.pointers;
-
-            var pos_offset = pointers["a_position"].offset;
-            var pos_length = pointers["a_position"].length + pos_offset;
-
-            for (var j = pos_offset; j < pos_length; j = j + 3) {
-                var x = vbo_array[j];
-                var y = vbo_array[j + 1];
-                var z = vbo_array[j + 2];
-
-                var s_cen_dist = Math.sqrt((s_cen_x - x) * (s_cen_x - x) 
-                        + (s_cen_y - y) * (s_cen_y - y) +
-                        (s_cen_z - z) * (s_cen_z - z));
-
-                if (s_cen_dist > s_rad) {
-                    var g_x = s_cen_x - s_rad * (x - s_cen_x) / s_cen_dist;
-                    var g_y = s_cen_y - s_rad * (y - s_cen_y) / s_cen_dist;
-                    var g_z = s_cen_z - s_rad * (z - s_cen_z) / s_cen_dist;
-
-                    s_cen_x = (g_x + x) / 2;
-                    s_cen_y = (g_y + y) / 2;
-                    s_cen_z = (g_z + z) / 2;
-
-                    s_rad = Math.sqrt((s_cen_x - x) * (s_cen_x - x) 
-                            + (s_cen_y - y) * (s_cen_y - y) +
-                            (s_cen_z - z) * (s_cen_z - z));
-                }
-
-                var c_cen_dist = Math.sqrt((c_cen_x - x) * (c_cen_x - x) 
-                        + (c_cen_z - z) * (c_cen_z - z));
-
-                if (c_cen_dist > c_rad) {
-                    var g_x = c_cen_x - c_rad * (x - c_cen_x) / c_cen_dist;
-                    var g_z = c_cen_z - c_rad * (z - c_cen_z) / c_cen_dist;
-
-                    c_cen_x = (g_x + x) / 2;
-                    c_cen_z = (g_z + z) / 2;
-                    c_rad = Math.sqrt((c_cen_x - x) * (c_cen_x - x) 
-                            + (c_cen_z - z) * (c_cen_z - z));
-                }
-
-                x /= x_width ? x_width : 1;
-                y /= y_width ? y_width : 1;
-                z /= z_width ? z_width : 1;
-
-                var s_cen_tmp = Math.sqrt((tmp_s_cen[0] - x) * (tmp_s_cen[0] - x) +
-                        (tmp_s_cen[1] - y) * (tmp_s_cen[1] - y) 
-                        + (tmp_s_cen[2] - z) * (tmp_s_cen[2] - z));
-
-                if (s_cen_tmp > tmp_rad) {
-                    var g_x = tmp_s_cen[0] - tmp_rad * (x - tmp_s_cen[0]) / s_cen_tmp;
-                    var g_y = tmp_s_cen[1] - tmp_rad * (y - tmp_s_cen[1]) / s_cen_tmp;
-                    var g_z = tmp_s_cen[2] - tmp_rad * (z - tmp_s_cen[2]) / s_cen_tmp;
-
-                    tmp_s_cen[0] = (g_x + x) / 2;
-                    tmp_s_cen[1] = (g_y + y) / 2;
-                    tmp_s_cen[2] = (g_z + z) / 2;
-
-                    tmp_rad = Math.sqrt((tmp_s_cen[0] - x) * (tmp_s_cen[0] - x) 
-                            + (tmp_s_cen[1] - y) * (tmp_s_cen[1] - y)
-                            + (tmp_s_cen[2] - z) * (tmp_s_cen[2] - z));
-                }
-            }
+            var from = pointers["a_position"].offset;
+            var to = pointers["a_position"].length + from;
+            pos_buffers.push(vbo_source.subarray(from, to));
         }
-        var e_cen_x = x_width ? x_width * tmp_s_cen[0] : max_x;
-        var e_cen_y = y_width ? y_width * tmp_s_cen[1] : max_y;
-        var e_cen_z = z_width ? z_width * tmp_s_cen[2] : max_z;
 
-        var e_axis_x = tmp_rad * x_width;
-        var e_axis_y = tmp_rad * y_width;
-        var e_axis_z = tmp_rad * z_width;
-
-        var bs_center = new Float32Array([s_cen_x, s_cen_y, s_cen_z]);
-        var be_axes = new Float32Array([e_axis_x, e_axis_y, e_axis_z]);
-        var be_center = new Float32Array([e_cen_x, e_cen_y, e_cen_z]);
-        c_rad = parseFloat(c_rad.toFixed(3));
+        m_obj_util.update_render_bounds_from_pos_arrays(obj, obj_bb, pos_buffers);
     }
-
-    render.bb_local = bb_local;
-    m_batch.set_local_cylinder_capsule(render, c_rad, c_rad, bb_local);
-
-    // bounding sphere
-    var bs_local = m_bounds.create_bounding_sphere(s_rad, bs_center);
-    render.bs_local = bs_local;
-
-    // bounding ellipsoid
-    var be_local = m_bounds.create_bounding_ellipsoid(
-            [be_axes[0], 0, 0], [0, be_axes[1], 0], [0, 0, be_axes[2]], be_center);
-    render.be_local = be_local;
-
-    m_trans.update_transform(obj);
 
     if (cfg_def.debug_view)
         for (var i = 0; i < batches.length; i++) {
             if (batches[i].type === "DEBUG_VIEW" && batches[i].debug_sphere) {
-                var submesh = m_primitives.generate_uv_sphere(16, 8, 1, be_local.center,
+                var be = render.be_local;
+                var submesh = m_primitives.generate_uv_sphere(16, 8, 1, be.center,
                         false, false);
-                var scale = [be_local.axis_x[0], be_local.axis_y[1], be_local.axis_z[2]];
-                m_geom.scale_submesh_xyz(submesh, scale, be_local.center)
+                var scale = [be.axis_x[0], be.axis_y[1], be.axis_z[2]];
+                m_geom.scale_submesh_xyz(submesh, scale, be.center)
                 m_geom.submesh_drop_indices(submesh, 1, true);
                 submesh.va_common["a_polyindex"] = m_geom.extract_polyindices(submesh);
                 m_batch.update_batch_geometry(batches[i], submesh);
@@ -1405,7 +1277,7 @@ exports.get_scene_objs_derived = function(scene, type, data_id) {
     var objs = [];
     for (var i = 0; i < objs_by_type.length; i++) {
         var obj = objs_by_type[i];
-        if (obj.render.data_id != data_id && data_id != DATA_ID_ALL || !obj.bpy_origin)
+        if (obj.render.data_id != data_id && data_id != DATA_ID_ALL || obj.is_meta)
             continue;
 
         var scenes_data = obj.scenes_data;
@@ -1418,8 +1290,9 @@ exports.get_scene_objs_derived = function(scene, type, data_id) {
     return objs;
 }
 
-exports.get_all_objects = function(data_id) {
-    var all_objs = _all_objects["ALL"];
+exports.get_all_objects = get_all_objects;
+function get_all_objects(type, data_id) {
+    var all_objs = _all_objects[type] || [];
     if (data_id == DATA_ID_ALL)
         return all_objs;
 
@@ -1432,80 +1305,45 @@ exports.get_all_objects = function(data_id) {
     return objs;
 }
 
-function sort_func(l1, l2) {
-    if (l2.use_diffuse && l2.use_specular &&
-        !(l1.use_diffuse && l1.use_specular))
-        return true;
-    if (!l1.use_diffuse)
-        if(l2.use_diffuse || (!l1.use_specular && l2.use_specular))
-            return true;
-    return false;
-}
+exports.get_first_character = function(scene) {
 
-// NOTE: sorting for iPAD (need to limit lamps number and preserve most valuable lamps)
-exports.sort_lamps = function(scene) {
-    var lamps = get_scene_objs(scene, "LAMP", DATA_ID_ALL);
-    if (lamps.length != scene._render.num_lamps_added)
-        return;
+    var mesh_objs = _all_objects["MESH"];
+    if (mesh_objs)
+        for (var i = 0; i < mesh_objs.length; i++) {
+            var obj = mesh_objs[i];
 
-    var lamp_indexes = [];
-    for (var i = 0; i < lamps.length; i++) {
-        var lamp = lamps[i];
-        var scene_data = m_obj_util.get_scene_data(lamp, scene);
-        lamp_indexes[scene_data.light_index] = i;
-    }
+            if (!m_phy.has_character_physics(obj))
+                continue;
 
-    for (var i = 0; i < lamp_indexes.length - 1; i++) {
-        for (var j = i + 1; j < lamp_indexes.length; j++) {
-            if (sort_func(lamps[lamp_indexes[i]].light,
-                          lamps[lamp_indexes[j]].light)) {
-                var tmp = lamp_indexes[i];
-                lamp_indexes[i] = lamp_indexes[j];
-                lamp_indexes[j] = tmp;
+            var scenes_data = obj.scenes_data;
+
+            for (var j = 0; j < scenes_data.length; j++) {
+                var sc_data = scenes_data[j];
+                if (sc_data.scene == scene)
+                    return obj;
             }
         }
-    }
 
-    for (var i = 0; i < lamp_indexes.length; i++) {
-        var lamp = lamps[lamp_indexes[i]];
-        var lamp_sc_data = m_obj_util.get_scene_data(lamp, scene);
-        lamp_sc_data.light_index = i;
-        m_scenes.update_lamp_scene(lamps[lamp_indexes[i]], scene);
-    }
+    return null;
 }
 
-exports.update_all_mesh_shaders = function(scene) {
-    var lamps = get_scene_objs(scene, "LAMP", DATA_ID_ALL);
-    var objs = get_scene_objs(scene, "MESH", DATA_ID_ALL);
-    for (var i = 0; i < objs.length; i++) {
-        var sc_data = m_obj_util.get_scene_data(objs[i], scene);
-        var batches = sc_data.batches;
-        for (var j = 0; j < batches.length; j++) {
-            var batch = batches[j];
-            if (batch.type != "MAIN")
-                continue;
-            m_batch.update_batch_lights(batch, lamps, scene);
-            m_batch.update_shader(batch);
-        }
-    }
-}
-
-exports.obj_switch_cleanup_flags = function(obj, cleanup_tex, cleanup_bufs, 
-        cleanup_shader, cleanup_nodemat) {
+exports.obj_switch_cleanup_flags = obj_switch_cleanup_flags;
+function obj_switch_cleanup_flags(obj, cleanup_bufs, cleanup_shader, cleanup_nodemat) {
     for (var i = 0; i < obj.scenes_data.length; i++) {
         var batches = obj.scenes_data[i].batches;
         for (var j = 0; j < batches.length; j++) {
             var batch = batches[j];
 
-            // tex
-            for (var k = 0; k < batch.textures.length; k++)
-                batch.textures[k].cleanup_gl_data_on_unload = cleanup_tex;
-
             // ibo/vbo buffs
-            batch.bufs_data.cleanup_gl_data_on_unload = cleanup_bufs;
+            if (batch.bufs_data)
+                batch.bufs_data.cleanup_gl_data_on_unload = cleanup_bufs;
+
+            // vao batch
+            batch.cleanup_gl_data_on_unload = cleanup_bufs;
 
             // shader
-            batch.shader.cleanup_gl_data_on_unload = cleanup_shader;
+            if (batch.shader)
+                batch.shader.cleanup_gl_data_on_unload = cleanup_shader;
 
             // nodemat graph
             if (batch.ngraph_proxy_id !== "") {
@@ -1520,44 +1358,45 @@ exports.obj_switch_cleanup_flags = function(obj, cleanup_tex, cleanup_bufs,
 exports.get_selectable_objects = function() {
     var sel_objects = [];
     var objects = _all_objects["MESH"];
-    for (var i = 0; i < objects.length; i++) {
-        var obj = objects[i];
-        if (obj.render.selectable && obj.bpy_origin)
-            sel_objects.push(obj);
-    }
+    if (objects)
+        for (var i = 0; i < objects.length; i++) {
+            var obj = objects[i];
+            if (obj.render.selectable && !obj.is_meta)
+                sel_objects.push(obj);
+        }
     return sel_objects;
 }
 
 exports.get_outlining_objects = function() {
     var outlining_objects = [];
     var objects = _all_objects["MESH"];
-    for (var i = 0; i < objects.length; i++) {
-        var obj = objects[i];
-        if (obj.render.outlining && obj.bpy_origin)
-            outlining_objects.push(obj);
-    }
+    if (objects)
+        for (var i = 0; i < objects.length; i++) {
+            var obj = objects[i];
+            if (obj.render.outlining && !obj.is_meta)
+                outlining_objects.push(obj);
+        }
     return outlining_objects;
 }
 
 exports.get_object = function() {
     var obj_found = null;
-    var obj_name = "";
     var objs = _all_objects["ALL"];
 
+    // NOTE: filter meta is needed only for get_object_by_name, the others with 
+    // the parenting relations already don't work for meta objects
     switch (arguments[0]) {
     case exports.GET_OBJECT_BY_NAME:
-        obj_name = arguments[1];
-        obj_found = get_object_by_name(arguments[1], objs, true, arguments[2]);
+        obj_found = get_object_by_name(arguments[1], objs, true, arguments[2], 
+                arguments[3]);
         break;
     case exports.GET_OBJECT_BY_DUPLI_NAME:
-        obj_name = arguments[2];
         obj_found = get_object_by_dupli_name(arguments[1], arguments[2], objs,
-                                             arguments[3]);
+                arguments[3]);
         break;
     case exports.GET_OBJECT_BY_DUPLI_NAME_LIST:
-        obj_name = arguments[1][arguments[1].length - 1];
-        obj_found = get_object_by_dupli_name_list(arguments[1], objs,
-                                                  arguments[2]);
+        obj_found = get_object_by_dupli_name_list(arguments[1], objs, 
+                arguments[2]);
         break;
     default:
         break;
@@ -1566,14 +1405,14 @@ exports.get_object = function() {
     return obj_found;
 }
 
-function get_object_by_name(name, objects, use_origin_name, data_id) {
+function get_object_by_name(name, objects, use_origin_name, data_id, filter_meta) {
     var obj_found = null;
 
     for (var i = 0; i < objects.length; i++) {
         var obj = objects[i];
         var obj_name = (use_origin_name) ? obj.origin_name : obj.name;
         if (obj_name == name && (obj.render.data_id == data_id 
-                || data_id == DATA_ID_ALL)) {
+                || data_id == DATA_ID_ALL) && (!filter_meta || !obj.is_meta)) {
             obj_found = obj;
 
             // NOTE: prefer non-duplicated object
@@ -1627,6 +1466,10 @@ exports.get_world_by_name = function (name, data_id) {
     return get_object_by_name(full_name, wrds, true, data_id);
 }
 
+exports.get_world_name = function(world_obj) {
+    return world_obj.origin_name.replace("%meta_world%", "");
+}
+
 function update_obj_outline_intensity(obj, timeline) {
     var outline_intensity = 0;
     var oa = obj.outline_animation;
@@ -1673,6 +1516,14 @@ exports.pick_object = function(canvas_x, canvas_y) {
         return null;
     }
 
+    var subs_stereo = m_scenes.get_subs(main_scene, m_subs.STEREO);
+    if (subs_stereo)
+        if (subs_stereo.enable_hmd_stereo) {
+            var canvas = m_cont.get_canvas();
+            canvas_x = canvas.clientHeight / 2;
+            canvas_y = canvas.clientWidth / 2;
+        }
+
     var anchor = m_anchors.pick_anchor(canvas_x, canvas_y);
 
     if (anchor)
@@ -1713,12 +1564,17 @@ exports.pick_object = function(canvas_x, canvas_y) {
 
 exports.set_wind_params = function(scene, wind_params) {
 
+    // TODO: Consider rewriting this method. All 3 axes needed.
+    // Wind should be controlled by wind objects transformation.
+
     // get wind object
     var objs = get_scene_objs(scene, "EMPTY", DATA_ID_ALL);
     for (var i = 0; i < objs.length; i++) {
         var obj = objs[i];
-        if (obj.field && obj.field.type === "WIND")
+        if (obj.field && obj.field.type === "WIND") {
             var wind_obj = obj;
+            break;
+        }
     }
 
     if (!wind_obj) {
@@ -1728,10 +1584,10 @@ exports.set_wind_params = function(scene, wind_params) {
 
     if (typeof wind_params.wind_dir == "number") {
         var angle =  m_util.deg_to_rad(wind_params.wind_dir);
-        m_vec3.set(Math.sin(angle), 0, Math.cos(angle), _vec3_tmp);
-        m_util.dir_to_quat(_vec3_tmp, m_util.AXIS_Y, _quat4_tmp);
+        m_vec3.set(Math.sin(angle), -Math.cos(angle), 0, _vec3_tmp);
+        m_util.dir_to_quat(_vec3_tmp, m_util.AXIS_Z, _quat_tmp);
 
-        m_trans.set_rotation(wind_obj, _quat4_tmp);
+        m_trans.set_rotation(wind_obj, _quat_tmp);
     }
 
     if (typeof wind_params.wind_strength == "number") {
@@ -1780,6 +1636,495 @@ function objects_storage_remove(obj) {
 
 exports.objects_storage_check = function(obj) {
     return _all_objects[obj.type] && _all_objects[obj.type].indexOf(obj) > -1;
+}
+
+exports.update_lod_scene = function(lod_obj, scene) {
+    var render = lod_obj.render;
+    if (render.is_lod)
+        init_obj_lod_settings(lod_obj, scene);
+}
+
+/**
+ * uses _vec3_tmp
+ * @returns {boolean} Is LOD visible or not.
+ */
+exports.update_lod_visibility = update_lod_visibility;
+function update_lod_visibility(batch, obj_render, eye) {
+    // NOTE: accessing elements from a TypedArray in this function can lead to a 
+    // serious performance drop in Chrome - may be a bug or an unclear 
+    // deoptimization in V8
+
+    if (!obj_render.is_lod)
+        return true;
+
+    var lod_set = batch.lod_settings;
+
+    if (lod_set.dest_coverage != lod_set.coverage) {
+        if (lod_set.use_smoothing) {
+            var sign = m_util.sign(lod_set.dest_coverage - lod_set.coverage);
+            lod_set.coverage += sign * m_time.get_delta() / LOD_TRANSITION_TIME;
+            lod_set.coverage = m_util.clamp(lod_set.coverage, 0, 1);
+        } else 
+            lod_set.coverage = lod_set.dest_coverage;
+    }
+
+    if (obj_render.type == "STATIC")
+        var center = obj_render.lod_center;
+    else {
+        // DYNAMIC objects should use bs_world, because it is constantly 
+        // updated unlike the lod_center property
+        var center = m_vec3.add(obj_render.bs_world.center, 
+                obj_render.main_lod_offset, _vec3_tmp);
+    }
+
+    var dist = m_vec3.dist(center, eye);
+    if (lod_set.hyst_prev_state == 0) {
+        var d_min = Math.max(obj_render.lod_dist_min - lod_set.hyst_interval_min / 2, 0);
+        var d_max = obj_render.lod_dist_max + lod_set.hyst_interval_max / 2;
+    } else if (lod_set.hyst_prev_state == -1) {
+        var d_min = obj_render.lod_dist_min + lod_set.hyst_interval_min / 2;
+        var d_max = obj_render.lod_dist_max + lod_set.hyst_interval_max / 2;
+    } else {
+        var d_min = Math.max(obj_render.lod_dist_min - lod_set.hyst_interval_min / 2, 0);
+        var d_max = Math.max(obj_render.lod_dist_max - lod_set.hyst_interval_max / 2, 0);
+    }
+
+    if (dist < d_min)
+        lod_set.hyst_prev_state = -1;
+    else if (dist < d_max)
+        lod_set.hyst_prev_state = 0;
+    else
+        lod_set.hyst_prev_state = 1;
+
+    lod_set.dest_coverage = (dist < d_min || dist > d_max) ? 0: 1;
+    lod_set.cmp_logic = lod_set.dest_coverage == 0 ? -1: 1;
+
+    if (Math.abs(dist - lod_set.prev_dist) > cfg_def.lod_leap_smooth_threshold 
+            && (lod_set.coverage == 0 || lod_set.coverage == 1))
+        lod_set.coverage = lod_set.dest_coverage;
+
+    lod_set.prev_dist = dist;
+
+    return lod_set.dest_coverage != 0 || lod_set.coverage != 0;
+}
+
+/**
+ * uses _vec3_tmp
+ */
+function init_obj_lod_settings(obj, scene) {
+    var obj_render = obj.render;
+    var sc_render = scene._render;
+
+    if (obj_render.is_lod) {
+        var cam_eye = m_trans.get_translation(scene._camera, _vec3_tmp);
+        for (var i = 0; i < obj.scenes_data.length; i++)
+            if (obj.scenes_data[i].scene == scene)
+                for (var j = 0; j < obj.scenes_data[i].batches.length; j++) {
+                    var batch = obj.scenes_data[i].batches[j]
+                    var lod_set = batch.lod_settings;
+
+                    if (cfg_def.lod_smooth_transitions) {
+                        var sm_type = sc_render.lod_smooth_type;
+                        if (sm_type == "ALL" || sm_type == "NON-OPAQUE" 
+                                && (batch.blend || batch.alpha_clip))
+                            lod_set.use_smoothing = true;
+                    }
+                    
+                    update_lod_visibility(batch, obj_render, cam_eye);
+                    lod_set.coverage = lod_set.dest_coverage;
+
+                    // hysteresis interval limit depends on the lengths of the lod levels
+                    lod_set.hyst_interval_min = Math.min(sc_render.lod_hyst_interval, 
+                            2 * LOD_HYST_INTERVAL_LIMIT_COEFF * obj_render.lod_lower_border_range);
+                    lod_set.hyst_interval_max = Math.min(sc_render.lod_hyst_interval, 
+                            2 * LOD_HYST_INTERVAL_LIMIT_COEFF * obj_render.lod_upper_border_range);
+                }
+    }
+}
+
+exports.set_hair_particles_wind_bend_params = function(obj) {
+    var render = obj.render;
+    var amp         = render.wind_bending_amp;
+    var main_freq   = render.wind_bending_freq;
+    var detail_freq = render.detail_bending_freq;
+    var detail_amp  = render.detail_bending_amp;
+    var branch_amp  = render.branch_bending_amp;
+
+    var scenes_data = obj.scenes_data;
+    for (var i = 0; i < scenes_data.length; i++) {
+        var batches = scenes_data[i].batches;
+        for (var j = 0; j < batches.length; j++) {
+            var batch = batches[j];
+            var bufs_data = batch.bufs_data;
+            var pointers = bufs_data.pointers;
+            var ma_pointer = pointers["au_wind_bending_amp"];
+            var mf_pointer = pointers["au_wind_bending_freq"];
+            var da_pointer = pointers["au_detail_bending_amp"];
+            var df_pointer = pointers["au_detail_bending_freq"];
+            var ba_pointer = pointers["au_branch_bending_amp"];
+
+            if (mf_pointer) {
+                var data = Array.apply(null, Array(mf_pointer.length)).map(function(){return main_freq});
+                m_geom.update_gl_buffer_sub_data(bufs_data, m_geom.VBO_FLOAT, new Float32Array(data), mf_pointer.offset);
+            }
+            if (ma_pointer) {
+                var data = Array.apply(null, Array(ma_pointer.length)).map(function(){return amp});
+                m_geom.update_gl_buffer_sub_data(bufs_data, m_geom.VBO_FLOAT, new Float32Array(data), ma_pointer.offset);
+            }
+            if (da_pointer) {
+                var data = Array.apply(null, Array(da_pointer.length)).map(function(){return detail_amp});
+                m_geom.update_gl_buffer_sub_data(bufs_data, m_geom.VBO_FLOAT, new Float32Array(data), da_pointer.offset);
+            }
+            if (df_pointer) {
+                var data = Array.apply(null, Array(df_pointer.length)).map(function(){return detail_freq});
+                m_geom.update_gl_buffer_sub_data(bufs_data, m_geom.VBO_FLOAT, new Float32Array(data), df_pointer.offset);
+            }
+            if (ba_pointer) {
+                var data = Array.apply(null, Array(ba_pointer.length)).map(function(){return branch_amp});
+                m_geom.update_gl_buffer_sub_data(bufs_data, m_geom.VBO_FLOAT, new Float32Array(data), ba_pointer.offset);
+            }
+        }
+    }
+}
+
+exports.inherit_material = function(obj_from, mat_from_name, obj_to, mat_to_name) {
+
+    // NOTE: temporary backward compatibility for old unreexported INHERIT_MAT nodes
+    if (!obj_from.render.dynamic_geometry || !obj_to.render.dynamic_geometry)
+        return;
+
+    // gather some information before inheritance
+    var main_batch_from = m_batch.find_batch_material(obj_from, mat_from_name, "MAIN");
+    var psys_dict = null;
+    var psys_cb = function(batch) {
+        if (!psys_dict)
+            psys_dict = {}
+        if (batch.particles_data)
+            psys_dict[batch.particles_data.name] = batch.particles_data;
+    }
+    m_batch.iterate_batches_by_mat(obj_to, mat_to_name, psys_cb, "PARTICLES");
+
+    // prepare "to" object
+    var old_link_to_obj = process_inherit_obj_before(obj_to, mat_to_name);
+
+    // prepare materials 
+    var old_bpy_mat_name = process_inherit_bpy_mat_before(obj_from, 
+            mat_from_name, obj_to, mat_to_name);
+
+    var curr_active_scene = m_scenes.get_active();
+    for (var i = 0; i < obj_to.scenes_data.length; i++) {
+        var scene = obj_to.scenes_data[i].scene;
+        m_scenes.set_active(scene);
+
+        var lamps = get_scene_objs(scene, "LAMP", 0);
+        var existed_batches = obj_to.scenes_data[i].batches;
+        obj_to.scenes_data[i].batches = [];
+        obj_to.scenes_data[i].batch_world_bounds = [];
+
+        m_batch.generate_main_batches(scene, [obj_to._bpy_obj], lamps, []);
+        m_batch.create_forked_batches(obj_to, m_scenes.get_graph(scene), scene);
+
+        m_scenes.assign_scene_data_subs(scene, [obj_to]);
+        m_scenes.append_object(scene, obj_to, false, true);
+
+        for (var j = 0; j < existed_batches.length; j++)
+            m_obj_util.append_batch(obj_to, scene, existed_batches[j]);
+    }
+
+    // revert materials
+    process_inherit_bpy_mat_after(obj_from, mat_from_name, obj_to, old_bpy_mat_name);
+
+    // revert "to" object
+    process_inherit_obj_after(obj_to, old_link_to_obj);
+
+    recover_batch_state(obj_to, mat_to_name, obj_from, psys_dict, main_batch_from);
+
+    m_scenes.set_active(curr_active_scene);
+}
+
+function process_inherit_obj_before(obj_to, mat_to_name) {
+    // delete old batches
+    obj_switch_cleanup_flags(obj_to, true, false, true);
+    var objs = get_all_objects("ALL", DATA_ID_ALL);
+    for (var i = 0; i < objs.length; i++) {
+        var obj = objs[i];
+        if (obj != obj_to)
+            obj_switch_cleanup_flags(obj, false, false, false);
+    }
+
+    m_scenes.remove_object_bundles(obj_to, mat_to_name);
+    for (var i = 0; i < obj_to.scenes_data.length; i++)
+        for (var j = obj_to.scenes_data[i].batches.length - 1; j >= 0; j--) {
+            var batch = obj_to.scenes_data[i].batches[j];
+            if (batch.material_names.length == 0 
+                    || batch.material_names.indexOf(mat_to_name) != -1)
+                m_obj_util.scene_data_remove_batch(obj_to.scenes_data[i], j);
+        }
+    if (m_phy.obj_has_physics(obj_to))
+        m_phy.remove_object(obj_to);
+
+    for (var i = 0; i < objs.length; i++)
+        if (objs[i] != obj_to)
+            obj_switch_cleanup_flags(objs[i], true, true, true);
+
+    m_anim.delete_cached_anim_data_by_mat(obj_to, mat_to_name);
+
+    //NOTE: copied objects don't have their bpy objects referenced to them;
+    // important for batching
+    var old_link_to_obj = obj_to._bpy_obj._object;
+    obj_to._bpy_obj._object = obj_to;
+    return old_link_to_obj;
+}
+
+function process_inherit_obj_after(obj_to, old_link_to_obj) {
+    obj_to._bpy_obj._object = old_link_to_obj;
+    obj_switch_cleanup_flags(obj_to, true, true, true);
+}
+
+function process_inherit_bpy_mat_before(obj_from, mat_from_name, obj_to, mat_to_name) {
+    var bpy_mat_from_index = obj_from.mat_inheritance_data.original_mat_names.indexOf(mat_from_name);
+    var bpy_mat_to_index = obj_to.mat_inheritance_data.original_mat_names.indexOf(mat_to_name);
+    var bpy_mat_from = obj_from.mat_inheritance_data.bpy_materials[bpy_mat_from_index];
+
+    // store a new material for the object
+    obj_to.mat_inheritance_data.bpy_materials[bpy_mat_to_index] = bpy_mat_from;
+
+    // NOTE: assign proper name to keep it in batch.material_names
+    var old_bpy_mat_name = bpy_mat_from["name"];
+    bpy_mat_from["name"] = mat_to_name;
+
+    // NOTE: override materials on bpy object from the object (needed for copied 
+    // objects, that reference the same bpy objects), prevent excessive batching 
+    // through deleting the corresponding materials
+    for (var i = 0; i < obj_to._bpy_obj["data"]["materials"].length; i++) {
+        obj_to._bpy_obj["data"]["materials"][i] = obj_to.mat_inheritance_data.bpy_materials[i];
+        obj_to.mat_inheritance_data.is_disabled[i] = !(i == bpy_mat_to_index);
+    }
+
+    return old_bpy_mat_name;
+}
+
+function process_inherit_bpy_mat_after(obj_from, mat_from_name, obj_to, old_bpy_mat_name) {
+    // enable all bpy materials
+    for (var i = 0; i < obj_to._bpy_obj["data"]["materials"].length; i++)
+        obj_to.mat_inheritance_data.is_disabled[i] = false;
+
+    // revert old name of the inherited bpy material
+    var bpy_mat_from_index = obj_from.mat_inheritance_data.original_mat_names.indexOf(mat_from_name);
+    var bpy_mat_from = obj_from.mat_inheritance_data.bpy_materials[bpy_mat_from_index];
+    bpy_mat_from["name"] = old_bpy_mat_name;
+}
+
+function recover_batch_state(obj_to, mat_to_name, obj_from, psys_dict, main_batch_from) {
+
+    // update shape keys
+    for (var i = 1; i < obj_to.render.shape_keys_values.length; i++) {
+        var name = obj_to.render.shape_keys_values[i]["name"];
+        var val = obj_to.render.shape_keys_values[i]["value"];
+        m_geom.apply_shape_key(obj_to, name, val);
+    }
+
+    // update animations
+    if (m_anim.is_animated(obj_to))
+        for (var i = 0; i < obj_to.anim_slots.length; i++) {
+            var slot = obj_to.anim_slots[i];
+            if (slot)
+                switch (slot.type) {
+                // update particle emission animations
+                case m_anim.OBJ_ANIM_TYPE_PARTICLES:
+                    var frame = m_anim.get_current_frame_float(obj_to, i);
+                    m_anim.set_frame(obj_to, frame, i);
+                    break;
+
+                // remove old batches from material animations
+                case m_anim.OBJ_ANIM_TYPE_MATERIAL:
+                    if (slot.node_batches)
+                        for (var j = slot.node_batches.length - 1; j >= 0; j--) {
+                            var batch = slot.node_batches[j];
+                            if (batch.material_names.indexOf(mat_to_name) != -1)
+                                slot.node_batches.splice(j, 1);
+                        }
+                    break;
+                }
+        }
+
+    // update particles data
+    if (psys_dict) {
+        var psys_cb = function(batch) {
+            if (batch.particles_data) {
+                var name = batch.particles_data.name;
+                if (psys_dict[name]) {
+                    var need_factor_update = batch.particles_data.count_factor 
+                            != psys_dict[name].count_factor;
+
+                    batch.particles_data = m_particles.clone_particles_data(psys_dict[name]);
+
+                    if (need_factor_update)
+                        m_particles.set_factor(obj_to, name, 
+                                batch.particles_data.count_factor);
+                }
+            }
+        }
+        m_batch.iterate_batches_by_mat(obj_to, mat_to_name, psys_cb, "PARTICLES");
+    }
+
+    // update batch properties, that can be changed via API on the source batch
+    if (main_batch_from) {
+        var main_batch_to = m_batch.find_batch_material(obj_to, mat_to_name, "MAIN");
+        if (main_batch_to) {
+            // common stack params
+            main_batch_to.diffuse_color.set(main_batch_from.diffuse_color);
+            main_batch_to.diffuse_intensity = main_batch_from.diffuse_intensity;
+            main_batch_to.diffuse_color_factor = main_batch_from.diffuse_color_factor;
+            main_batch_to.diffuse_params.set(main_batch_from.diffuse_params);
+
+            main_batch_to.specular_color.set(main_batch_from.specular_color);
+            main_batch_to.specular_color_factor = main_batch_from.specular_color_factor;
+            main_batch_to.specular_params.set(main_batch_from.specular_params);
+            main_batch_to.specular_alpha = main_batch_from.specular_alpha;
+
+            main_batch_to.emit = main_batch_from.emit;
+            main_batch_to.ambient = main_batch_from.ambient;
+
+            main_batch_to.alpha_factor = main_batch_from.alpha_factor;
+            main_batch_to.mirror_factor = main_batch_from.mirror_factor;
+            main_batch_to.normal_factor = main_batch_from.normal_factor;
+            main_batch_to.reflect_factor = main_batch_from.reflect_factor;
+            main_batch_to.refr_bump = main_batch_from.refr_bump;
+            main_batch_to.fresnel_params.set(main_batch_from.fresnel_params);
+
+            main_batch_to.parallax_scale = main_batch_from.parallax_scale;
+            main_batch_to.texture_scale.set(main_batch_from.texture_scale);
+
+            main_batch_to.shallow_water_col.set(main_batch_from.shallow_water_col);
+            main_batch_to.shallow_water_col_fac = main_batch_from.shallow_water_col_fac;
+            main_batch_to.shore_water_col.set(main_batch_from.shore_water_col);
+            main_batch_to.shore_water_col_fac = main_batch_from.shore_water_col_fac;
+            main_batch_to.foam_factor = main_batch_from.foam_factor;
+            main_batch_to.water_norm_uv_velocity = main_batch_from.water_norm_uv_velocity;
+
+            // Value/RGB nodes
+            main_batch_to.node_values = main_batch_from.node_values.slice();
+            main_batch_to.node_rgbs = main_batch_from.node_rgbs.slice();
+        }
+    }
+
+    // transfer possibly changed textures
+    var tex_cb = function(batch) {
+        for (var i = 0; i < batch.bpy_tex_names.length; i++) {
+            var tex_name = batch.bpy_tex_names[i];
+            var tex_to = batch.textures[i];
+
+            if (tex_to.source != "IMAGE" && tex_to.source != "ENVIRONMENT")
+                continue;
+
+            var tex_from = m_tex.get_texture_by_name(obj_from, tex_name);
+            // tex_from can be null if the source object has "do_not_render" flag
+            if (!tex_from || tex_to.img_full_filepath == tex_from.img_full_filepath)
+                continue;
+
+            m_tex.set_texture_by_name(obj_to, tex_name, tex_from);
+        }
+    }
+    m_batch.iterate_batches_by_mat(obj_to, mat_to_name, tex_cb);
+}
+
+// CHECK
+exports.create_line = function(name) {
+    name = name || "";
+
+    name += get_name_suff_unique(name);
+
+    var line = m_obj_util.create_object(name, "LINE");
+
+    line.render = m_obj_util.create_render("EMPTY");
+
+    line.is_dynamic = true;
+
+    m_batch.generate_line_batches(m_scenes.get_main(), [line]);
+
+    m_scenes.append_object(m_scenes.get_main(), line);
+
+    objects_storage_add(line);
+
+    return line;
+}
+
+exports.generate_mesh_render_boundings = function(bpy_obj, obj) {
+    var render = obj.render;
+    var bb_local = m_bounds.clone_bb(render.bb_original);
+
+    if (render.billboard)
+        m_obj_util.update_render_bounds_billboard(obj, bb_local);
+    else
+        m_obj_util.update_render_bounds_from_bpy(obj, bb_local, 
+                bpy_obj["data"]["b4w_boundings"]);
+}
+
+exports.set_nodemat_value = function(obj, mat_name, ind, value) {
+    var is_world = m_obj_util.is_world(obj);
+
+    for (var i = 0; i < obj.scenes_data.length; i++) {
+        var batches = obj.scenes_data[i].batches;
+        for (var j = 0; j < batches.length; j++) {
+            var batch = batches[j];
+            if (!is_world && batch.material_names.indexOf(mat_name) == -1)
+                continue;
+
+            batch.node_values[ind] = value;
+        }
+    }
+
+    if (is_world)
+        m_scenes.update_sky_texture(obj);
+}
+
+exports.set_nodemat_rgb = function(obj, mat_name, ind, r, g, b) {
+    var is_world = m_obj_util.is_world(obj);
+
+    for (var i = 0; i < obj.scenes_data.length; i++) {
+        var batches = obj.scenes_data[i].batches;
+        for (var j = 0; j < batches.length; j++) {
+            var batch = batches[j];
+            if (!is_world && batch.material_names.indexOf(mat_name) == -1)
+                continue;
+
+            batch.node_rgbs[3 * ind]     = r;
+            batch.node_rgbs[3 * ind + 1] = g;
+            batch.node_rgbs[3 * ind + 2] = b;
+        }
+    }
+
+    if (is_world)
+        m_scenes.update_sky_texture(obj);
+}
+
+exports.get_nodemat_value = function (batch, ind) {
+    return batch.node_values[ind];
+}
+
+exports.get_nodemat_rgb = function (batch, ind, dest) {
+    dest[0] = batch.node_rgbs[3 * ind];
+    dest[1] = batch.node_rgbs[3 * ind + 1];
+    dest[2] = batch.node_rgbs[3 * ind + 2];
+    return dest;
+}
+
+exports.get_node_ind_by_name_list = get_node_ind_by_name_list;
+function get_node_ind_by_name_list(inds, name_list, prefix_offset) {
+    var id = node_id_from_name_list(name_list, prefix_offset);
+    for (var i = 0; i < inds.length; i+=2) {
+        if (inds[i] == id)
+            return inds[i+1];
+    }
+    return null;
+}
+
+function node_id_from_name_list(name_list, prefix_offset) {
+    var id = name_list[prefix_offset];
+    for (var i = prefix_offset+1; i < name_list.length; i++)
+        id += "%join%" + name_list[i];
+    return id;
 }
 
 }

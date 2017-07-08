@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Meshes &mdash; Blend4Web 16.07 User Manual</title>
+  <title>Meshes &mdash; Blend4Web 17.06 User Manual</title>
   
 
   
@@ -32,7 +32,7 @@
   
         <link rel="author" title="About these documents"
               href="about.html"/>
-    <link rel="top" title="Blend4Web 16.07 User Manual" href="index.html"/>
+    <link rel="top" title="Blend4Web 17.06 User Manual" href="index.html"/>
         <link rel="next" title="Normal Editor" href="normal_editor.html"/>
         <link rel="prev" title="Objects" href="objects.html"/> 
 
@@ -61,7 +61,7 @@
           
           
             <div class="version">
-              v16.07
+              v17.06
             </div>
           
         
@@ -87,10 +87,10 @@
 <li class="toctree-l1"><a class="reference internal" href="engine_features.html">Engine Features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="setup.html">Installing and Updating</a></li>
 <li class="toctree-l1"><a class="reference internal" href="workflow.html">Workflow</a></li>
-<li class="toctree-l1"><a class="reference internal" href="project_manager.html">Project Manager</a></li>
+<li class="toctree-l1"><a class="reference internal" href="project_manager.html">Project Management</a></li>
 <li class="toctree-l1"><a class="reference internal" href="viewer.html">Scene Viewer</a></li>
 <li class="toctree-l1"><a class="reference internal" href="web_player.html">Web Player</a></li>
-<li class="toctree-l1"><a class="reference internal" href="addon.html">Addon</a></li>
+<li class="toctree-l1"><a class="reference internal" href="addon.html">Add-on</a></li>
 <li class="toctree-l1"><a class="reference internal" href="scene_settings.html">Scene Settings</a></li>
 <li class="toctree-l1"><a class="reference internal" href="objects.html">Objects</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="">Meshes</a><ul>
@@ -181,7 +181,7 @@
 </li>
 </ul>
 </div>
-<p>Meshes are a subclass of <a class="reference internal" href="objects.html#objects"><span>objects</span></a>. Meshes are different from objects of the other types in a sence that they have geometric structure that is visible in the scene. All objects user can see in a scene are either meshes or convertet to meshes on export (like the <code class="docutils literal"><span class="pre">CURVE</span></code>, <code class="docutils literal"><span class="pre">TEXT</span></code>, <code class="docutils literal"><span class="pre">METABALL</span></code> and <code class="docutils literal"><span class="pre">SURFACE</span></code> type objects).</p>
+<p>Meshes are a subclass of <a class="reference internal" href="objects.html#objects"><span>objects</span></a>. Meshes are different from objects of the other types in a sense that they have geometric structure that is visible in the scene. All objects user can see in a scene are either meshes or converted to meshes on export (like the <code class="docutils literal"><span class="pre">CURVE</span></code>, <code class="docutils literal"><span class="pre">TEXT</span></code>, <code class="docutils literal"><span class="pre">METABALL</span></code> and <code class="docutils literal"><span class="pre">SURFACE</span></code> type objects).</p>
 <p><a class="reference internal" href="addon.html#addon"><span>Blend4Web addon</span></a> has several tools for mesh editing, including the <a class="reference internal" href="normal_editor.html#normals-editor"><span>normal editor</span></a>.</p>
 <p>This chapter provides an overview of the <code class="docutils literal"><span class="pre">MESH</span></code> type object parameters and settings, as well as the API functions to work with them.</p>
 <div class="section" id="static-and-dynamic-meshes">
@@ -189,7 +189,7 @@
 <p>All <code class="docutils literal"><span class="pre">MESH</span></code> objects can be divided into static and dynamic.</p>
 <p><strong>Static meshes</strong> are meshes that can be merged together if they have the same material.</p>
 <p><strong>Dynamic meshes</strong> are meshes that cannot be combined with each other.</p>
-<p>Merging of static meshes - so called batching - is performed automatically when the scene is loaded in order to optimize the number of draw calls. The conversion is performed even if there is just one object in the scene. The center of the resulting mesh is located in the origin.</p>
+<p id="batching">Merging of static meshes - so called batching - is performed automatically when the scene is loaded in order to optimize the number of draw calls. The conversion is performed even if there is just one object in the scene. The center of the resulting mesh is located in the origin.</p>
 <p>Meshes that have animation, physics or a parent, which is a dynamic object, are considered dynamic.</p>
 </div>
 <div class="section" id="settings">
@@ -268,8 +268,8 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2014-2016, Triumph.
-      Last updated on 2016-07-26.
+        &copy; Copyright 2014-2017, Triumph.
+      Last updated on 2017-06-30.
 
     </p>
   </div>
@@ -325,7 +325,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'v16.07',
+            VERSION:'v17.06',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

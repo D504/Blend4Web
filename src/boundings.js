@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -30,8 +29,6 @@ var m_util = require("__util");
 var m_vec3 = require("__vec3");
 var m_math = require("__math");
 var m_mat3 = require("__mat3");
-var m_quat = require("__quat");
-
 
 var _bb_corners_cache = new Float32Array(3 * 8);
 var _vec3_tmp = new Float32Array(3);
@@ -42,19 +39,73 @@ var _vec3_tmp4 = new Float32Array(3);
 var _mat3_tmp = new Float32Array(9);
 var _mat3_tmp2 = new Float32Array(9);
 var _mat3_tmp3 = new Float32Array(9);
-var _mat3_tmp4 = new Float32Array(9);
 
 var ELL_EPS = 0.000000001;
 var MATRIX_PRES = 0.0005;
 var MIN_SEMIAXIS_LEN = 0.00000001;
 
-exports.copy_bb = function(bb_from, bb_to) {
+exports.init_boundings = function() {
+    return {
+        bb: create_bb(),
+        be: create_be(),
+        bs: create_bs(),
+    }
+}
+
+exports.copy_boundings = function(boundings_from, boundings_to) {
+    copy_bb(boundings_from.bb, boundings_to.bb);
+    copy_be(boundings_from.be, boundings_to.be);
+    copy_bs(boundings_from.bs, boundings_to.bs);
+    return boundings_to;
+}
+
+/**
+ * Create a new bounding box with zero volume.
+ * improper use may lead to ugly bugs.
+ */
+exports.create_bb = create_bb;
+function create_bb() {
+    var bb = {
+        max_x: 0,
+        min_x: 0,
+        max_y: 0,
+        min_y: 0,
+        max_z: 0,
+        min_z: 0
+    };
+
+    return bb;
+}
+
+exports.copy_bb = copy_bb;
+function copy_bb(bb_from, bb_to) {
     bb_to.min_x = bb_from.min_x;
     bb_to.max_x = bb_from.max_x;
     bb_to.min_y = bb_from.min_y;
     bb_to.max_y = bb_from.max_y;
     bb_to.min_z = bb_from.min_z;
     bb_to.max_z = bb_from.max_z;
+    return bb_to;
+}
+
+exports.create_rot_bb = create_rot_bb;
+function create_rot_bb() {
+    var rot_bb = {
+        center : new Float32Array(3),
+        axis_x : new Float32Array(3),
+        axis_y : new Float32Array(3),
+        axis_z : new Float32Array(3)
+    };
+
+    return rot_bb;
+}
+
+exports.copy_rot_bb = function(rot_bb_from, rot_bb_to) {
+    m_vec3.copy(rot_bb_from.center, rot_bb_to.center);
+    m_vec3.copy(rot_bb_from.axis_x, rot_bb_to.axis_x);
+    m_vec3.copy(rot_bb_from.axis_y, rot_bb_to.axis_y);
+    m_vec3.copy(rot_bb_from.axis_z, rot_bb_to.axis_z);
+    return rot_bb_to;
 }
 
 /**
@@ -71,22 +122,20 @@ exports.big_bounding_box = function() {
     };
 }
 
-/**
- * Create the new bounding box with zero volume.
- * Improper use may lead to ugly bugs.
- */
 exports.zero_bounding_box = function(dest) {
-    if (!dest)
-        dest = {};
-
     dest.max_x = 0;
     dest.min_x = 0;
     dest.max_y = 0;
     dest.min_y = 0;
     dest.max_z = 0;
     dest.min_z = 0;
-
     return dest;
+}
+
+exports.clone_bb = function(bb) {
+    var bb_new = create_bb();
+    copy_bb(bb, bb_new);
+    return bb_new;
 }
 
 /**
@@ -111,7 +160,8 @@ exports.calc_min_bb_side = function(bb) {
  * bb - bounding box to expand
  * bb_exp - expanding bounding box
  */
-exports.expand_bounding_box = function(bb, bb_exp) {
+exports.expand_bounding_box = expand_bounding_box;
+function expand_bounding_box(bb, bb_exp) {
 
     var max_x = bb.max_x;
     var max_y = bb.max_y;
@@ -131,25 +181,19 @@ exports.expand_bounding_box = function(bb, bb_exp) {
 }
 
 exports.bb_from_coords = bb_from_coords;
-/**
- * Create bounding box embracing given set of coords
- * @methodOf boundings
- * @param coords Flat array of coords
- * @param bb Destination bounding box
- */
-function bb_from_coords(coords, bb) {
+function bb_from_coords(coords, begin, end, bb) {
 
-    var max_x = coords[0];
-    var max_y = coords[1];
-    var max_z = coords[2];
-    var min_x = coords[0];
-    var min_y = coords[1];
-    var min_z = coords[2];
+    var max_x = coords[begin];
+    var max_y = coords[begin + 1];
+    var max_z = coords[begin + 2];
+    var min_x = coords[begin];
+    var min_y = coords[begin + 1];
+    var min_z = coords[begin + 2];
 
-    for (var i = 3; i < coords.length; i+=3) {
+    for (var i = begin + 3; i < end; i += 3) {
         var x = coords[i];
-        var y = coords[i+1];
-        var z = coords[i+2];
+        var y = coords[i + 1];
+        var z = coords[i + 2];
 
         max_x = Math.max(max_x, x);
         max_y = Math.max(max_y, y);
@@ -176,13 +220,13 @@ function bb_from_coords(coords, bb) {
 exports.bounding_box_transform = function(bb, tsr, bb_new) {
 
     if (!bb_new)
-        var bb_new = exports.zero_bounding_box();
+        bb_new = create_bb();
 
     var bb_corners = extract_bb_corners(bb, _bb_corners_cache);
 
     m_tsr.transform_vectors(bb_corners, tsr, bb_corners);
 
-    return bb_from_coords(bb_corners, bb_new);
+    return bb_from_coords(bb_corners, 0, bb_corners.length, bb_new);
 }
 /**
  * Extract 8 corner coords from bounding box
@@ -191,7 +235,7 @@ exports.extract_bb_corners = extract_bb_corners;
 function extract_bb_corners(bb, dest) {
 
     if (!dest)
-        var dest = new Float32Array(3 * 8);
+        dest = new Float32Array(3 * 8);
 
     var max_x = bb.max_x;
     var max_y = bb.max_y;
@@ -221,7 +265,7 @@ function extract_bb_corners(bb, dest) {
  */
 exports.shrink_bounding_box = function(bb, bb_shrink, bb_new) {
     if (!bb_new)
-        var bb_new = exports.zero_bounding_box();
+        bb_new = create_bb();
 
     var s_min_x = bb_shrink.min_x;
     var s_max_x = bb_shrink.max_x;
@@ -264,7 +308,7 @@ exports.shrink_bounding_box = function(bb, bb_shrink, bb_new) {
  */
 exports.stretch_bounding_box = function(bb, factor, bb_new) {
     if (!bb_new)
-        var bb_new = exports.zero_bounding_box();
+        bb_new = create_bb();
 
     var size_x = bb.max_x - bb.min_x;
     var size_y = bb.max_y - bb.min_y;
@@ -286,11 +330,11 @@ exports.stretch_bounding_box = function(bb, factor, bb_new) {
 exports.bounding_sphere_transform = function(bs, tsr, bs_new) {
 
     if (!bs_new)
-        var bs_new = exports.zero_bounding_sphere();
+        bs_new = create_bs();
 
     m_tsr.transform_vec3(bs.center, tsr, bs_new.center);
-
-    bs_new.radius = bs.radius * m_tsr.get_scale(tsr);
+    var scale = m_tsr.get_scale(tsr);
+    bs_new.radius = bs.radius * (scale < 0.0 ? -scale : scale);
 
     return bs_new;
 }
@@ -298,7 +342,7 @@ exports.bounding_sphere_transform = function(bs, tsr, bs_new) {
 exports.bounding_ellipsoid_transform = function(be, tsr, be_new) {
 
     if (!be_new)
-        var be_new = zero_bounding_ellipsoid();
+        be_new = create_be();
 
     m_tsr.transform_vec3(be.center, tsr, be_new.center)
 
@@ -313,34 +357,104 @@ exports.bounding_ellipsoid_transform = function(be, tsr, be_new) {
     return be_new;
 }
 
-exports.create_bounding_sphere = function(radius, center) {
-    return {
-        radius: radius,
-        center: new Float32Array(center)
-    };
+exports.bounding_rot_box_transform = function(bb, tsr, bb_new) {
+    if (!bb_new)
+        bb_new = create_rot_bb();
+
+    m_tsr.transform_vec3(bb.center, tsr, bb_new.center);
+
+    m_vec3.copy(bb.axis_x, bb_new.axis_x);
+    m_vec3.copy(bb.axis_y, bb_new.axis_y);
+    m_vec3.copy(bb.axis_z, bb_new.axis_z);
+
+    m_tsr.transform_dir_vec3(bb_new.axis_x, tsr, bb_new.axis_x);
+    m_tsr.transform_dir_vec3(bb_new.axis_y, tsr, bb_new.axis_y);
+    m_tsr.transform_dir_vec3(bb_new.axis_z, tsr, bb_new.axis_z);
+
+    return bb_new;
+}
+
+exports.bs_from_values = bs_from_values;
+function bs_from_values(radius, center) {
+    var bs = create_bs();
+    m_vec3.copy(center, bs.center);
+    bs.radius = radius;
+    return bs;
+}
+
+exports.rot_bb_from_values = function(bbrcen, axis_x, axis_y, axis_z, bbrscale) {
+    var bb = create_rot_bb();
+
+    m_vec3.copy(bbrcen, bb.center);
+    m_vec3.copy(axis_x, bb.axis_x);
+    m_vec3.copy(axis_y, bb.axis_y);
+    m_vec3.copy(axis_z, bb.axis_z);
+    m_vec3.scale(bb.axis_x, bbrscale[0], bb.axis_x);
+    m_vec3.scale(bb.axis_y, bbrscale[1], bb.axis_y);
+    m_vec3.scale(bb.axis_z, bbrscale[2], bb.axis_z);
+
+    return bb;
 }
 
 /**
- * Improper use may lead to ugly bugs
+ * Create bounding sphere with zero volume.
+ * improper use may lead to ugly bugs
  */
-exports.zero_bounding_sphere = function() {
+exports.create_bs = create_bs;
+function create_bs() {
     return {
-        center: new Float32Array([0, 0, 0]),
+        center: new Float32Array(3),
         radius: 0
     };
 }
 
-exports.zero_bounding_ellipsoid = zero_bounding_ellipsoid;
-function zero_bounding_ellipsoid() {
+exports.copy_bs = copy_bs;
+function copy_bs(bs_from, bs_to) {
+    bs_to.center[0] = bs_from.center[0];
+    bs_to.center[1] = bs_from.center[1];
+    bs_to.center[2] = bs_from.center[2];
+    bs_to.radius = bs_from.radius;
+    return bs_to;
+}
+
+/**
+ * Create bounding ellipsoid with zero volume.
+ */
+exports.create_be = create_be;
+function create_be() {
     return {
         axis_x: new Float32Array(3),
         axis_y: new Float32Array(3),
         axis_z: new Float32Array(3),
-        center: new Float32Array([0, 0, 0])
+        center: new Float32Array(3)
     };
 }
-exports.create_bounding_ellipsoid = create_bounding_ellipsoid;
-function create_bounding_ellipsoid(axis_x, axis_y, axis_z, center, quat) {
+
+exports.copy_be = copy_be;
+function copy_be(be, be_new) {
+    m_vec3.copy(be.axis_x, be_new.axis_x);
+    m_vec3.copy(be.axis_y, be_new.axis_y);
+    m_vec3.copy(be.axis_z, be_new.axis_z);
+    m_vec3.copy(be.center, be_new.center);
+    return be_new;
+}
+
+exports.clone_be = clone_be;
+function clone_be(be) {
+    var be_new = create_be();
+    copy_be(be, be_new);
+    return be_new;
+}
+
+exports.clone_bs = clone_bs;
+function clone_bs(bs) {
+    var bs_new = create_bs();
+    copy_bs(bs, bs_new);
+    return bs_new;
+}
+
+exports.be_from_values = be_from_values;
+function be_from_values(axis_x, axis_y, axis_z, center) {
     return {
         axis_x: new Float32Array(axis_x),
         axis_y: new Float32Array(axis_y),
@@ -352,11 +466,12 @@ function create_bounding_ellipsoid(axis_x, axis_y, axis_z, center, quat) {
 /**
  * NOTE: definitely not the best style of programming
  */
-exports.big_bounding_sphere = function() {
-    return {
-        center: new Float32Array([0, 0, 0]),
-        radius: 1e12
-    };
+exports.big_bounding_sphere = function(dest) {
+    if (!dest)
+        dest = create_bs();
+    m_vec3.set(0, 0, 0, dest.center);
+    dest.radius = 1e12;
+    return dest;
 }
 
 exports.expand_bounding_sphere = function(bs, bs_exp) {
@@ -393,12 +508,56 @@ exports.expand_bounding_sphere = function(bs, bs_exp) {
             m_vec3.create());
     bs.radius = m_vec3.length(m_vec3.subtract(max, min, m_vec3.create())) / 2;
 }
+
+exports.extract_rot_bb_corners = function(bbr, corners) {
+
+    m_vec3.add(bbr.center, bbr.axis_y, _vec3_tmp);
+    m_vec3.add(_vec3_tmp, bbr.axis_x, _vec3_tmp);
+    m_vec3.add(_vec3_tmp, bbr.axis_z, _vec3_tmp);
+    corners.push(_vec3_tmp[0], _vec3_tmp[1], _vec3_tmp[2]);
+
+    m_vec3.add(bbr.center, bbr.axis_y, _vec3_tmp);
+    m_vec3.add(_vec3_tmp, bbr.axis_x, _vec3_tmp);
+    m_vec3.subtract(_vec3_tmp, bbr.axis_z, _vec3_tmp);
+    corners.push(_vec3_tmp[0], _vec3_tmp[1], _vec3_tmp[2]);
+
+    m_vec3.add(bbr.center, bbr.axis_y, _vec3_tmp);
+    m_vec3.subtract(_vec3_tmp, bbr.axis_x, _vec3_tmp);
+    m_vec3.add(_vec3_tmp, bbr.axis_z, _vec3_tmp);
+    corners.push(_vec3_tmp[0], _vec3_tmp[1], _vec3_tmp[2]);
+
+    m_vec3.add(bbr.center, bbr.axis_y, _vec3_tmp);
+    m_vec3.subtract(_vec3_tmp, bbr.axis_x, _vec3_tmp);
+    m_vec3.subtract(_vec3_tmp, bbr.axis_z, _vec3_tmp);
+    corners.push(_vec3_tmp[0], _vec3_tmp[1], _vec3_tmp[2]);
+
+    m_vec3.subtract(bbr.center, bbr.axis_y, _vec3_tmp);
+    m_vec3.add(_vec3_tmp, bbr.axis_x, _vec3_tmp);
+    m_vec3.add(_vec3_tmp, bbr.axis_z, _vec3_tmp);
+    corners.push(_vec3_tmp[0], _vec3_tmp[1], _vec3_tmp[2]);
+
+    m_vec3.subtract(bbr.center, bbr.axis_y, _vec3_tmp);
+    m_vec3.add(_vec3_tmp, bbr.axis_x, _vec3_tmp);
+    m_vec3.subtract(_vec3_tmp, bbr.axis_z, _vec3_tmp);
+    corners.push(_vec3_tmp[0], _vec3_tmp[1], _vec3_tmp[2]);
+
+    m_vec3.subtract(bbr.center, bbr.axis_y, _vec3_tmp);
+    m_vec3.subtract(_vec3_tmp, bbr.axis_x, _vec3_tmp);
+    m_vec3.add(_vec3_tmp, bbr.axis_z, _vec3_tmp);
+    corners.push(_vec3_tmp[0], _vec3_tmp[1], _vec3_tmp[2]);
+
+    m_vec3.subtract(bbr.center, bbr.axis_y, _vec3_tmp);
+    m_vec3.subtract(_vec3_tmp, bbr.axis_x, _vec3_tmp);
+    m_vec3.subtract(_vec3_tmp, bbr.axis_z, _vec3_tmp);
+    corners.push(_vec3_tmp[0], _vec3_tmp[1], _vec3_tmp[2]);
+}
+
 /**
  * see Lengyel E. - Mathematics for 3D Game Programming and Computer Graphics,
  * Third Edition. Chapter 8.1.4 Bounding Ellipsoid Construction
  **/
-exports.create_bounding_ellipsoid_by_bb = create_bounding_ellipsoid_by_bb;
-function create_bounding_ellipsoid_by_bb(points, use_rotation) {
+exports.create_be_by_bb = create_be_by_bb;
+function create_be_by_bb(points, use_rotation) {
 
     var center = m_math.calk_average_position(points, _vec3_tmp4);
     if (use_rotation)
@@ -474,9 +633,9 @@ function create_bounding_ellipsoid_by_bb(points, use_rotation) {
     m_vec3.transformMat3(_vec3_tmp, scale_mat, _vec3_tmp);
     m_vec3.transformMat3(_vec3_tmp, _mat3_tmp3, _vec3_tmp);
 
-    var max_x = _vec3_tmp[0], min_x = _vec3_tmp[0];
-    var max_y = _vec3_tmp[1], min_y = _vec3_tmp[1];
-    var max_z = _vec3_tmp[2], min_z = _vec3_tmp[2];
+    max_x = _vec3_tmp[0], min_x = _vec3_tmp[0];
+    max_y = _vec3_tmp[1], min_y = _vec3_tmp[1];
+    max_z = _vec3_tmp[2], min_z = _vec3_tmp[2];
 
     for (var i = 3; i < points.length; i = i + 3) {
         _vec3_tmp[0] = points[i];
@@ -506,7 +665,7 @@ function create_bounding_ellipsoid_by_bb(points, use_rotation) {
     _vec3_tmp3[2] = (max_z + min_z) / 2;
     var s_center = _vec3_tmp3;
 
-    var scale_mat = m_mat3.identity(_mat3_tmp2);
+    scale_mat = m_mat3.identity(_mat3_tmp2);
     scale_mat[0] = a;
     scale_mat[4] = b;
     scale_mat[8] = c;
@@ -523,17 +682,45 @@ function create_bounding_ellipsoid_by_bb(points, use_rotation) {
     m_vec3.scale(axis_y, b * r, axis_y);
     m_vec3.scale(axis_z, c * r, axis_z);
 
-    return create_bounding_ellipsoid(axis_x, axis_y, axis_z, s_center);
+    return be_from_values(axis_x, axis_y, axis_z, s_center);
 }
 
-exports.calc_be_local_by_tsr = function(be_world, world_tsr) {
-    var be_local = m_util.clone_object_r(be_world);
+exports.create_bbr_by_be = function(be) {
+    var bbr = create_rot_bb();
 
-    var trans = m_tsr.get_trans_value(world_tsr, _vec3_tmp4);
-    m_vec3.subtract(be_local.center, trans, be_local.center);
+    m_vec3.copy(be.axis_x, bbr.axis_x);
+    m_vec3.copy(be.axis_y, bbr.axis_y);
+    m_vec3.copy(be.axis_z, bbr.axis_z);
+    m_vec3.copy(be.center, bbr.center);
 
-    return be_local;
+    return bbr;
 }
+
+exports.create_bs_by_be = function(be) {
+    var bs = create_bs();
+
+    var radius = 0;
+    var a = m_vec3.length(be.axis_x);
+    var b = m_vec3.length(be.axis_y);
+    var c = m_vec3.length(be.axis_z);
+    radius = a > b? a: b;
+    radius = c > radius? c: radius;
+
+    bs.center = be.center;
+    bs.radius = radius;
+
+    return bs;
+}
+
+exports.is_be_optimized = function(be, bs) {
+    var a = m_vec3.length(be.axis_x);
+    var b = m_vec3.length(be.axis_y);
+    var c = m_vec3.length(be.axis_z);
+    var be_volume = a * b * c;
+    var bs_volume = bs.radius * bs.radius * bs.radius;
+    return 0.75 * bs_volume > be_volume;
+}
+
 
 /**
  * Find minimum/maximum extent in direction dir
@@ -556,66 +743,89 @@ function find_min_max_extent(exts, dir) {
     return [min, max];
 }
 
+exports.init_bcap = exports.init_bcyl = exports.init_bcon = init_bcap_bcyl_bcon;
+function init_bcap_bcyl_bcon() {
+    return {
+        radius: 0,
+        height: 0,
+        center: new Float32Array(3)
+    }
+}
 
 /**
- * Create local bounding cylinder
+ * Create a bounding capsule based on the given parameters.
  */
-exports.create_bounding_capsule = function(radius, bounding_box) {
+exports.bcap_from_values = function(radius, bounding_box) {
 
-    var max_y = bounding_box.max_y;
-    var min_y = bounding_box.min_y;
+    var max_z = bounding_box.max_z;
+    var min_z = bounding_box.min_z;
 
-    var height = Math.max(0, (max_y - min_y) - 2*radius);
+    var height = Math.max(0, (max_z - min_z) - 2*radius);
 
-    var bcap_local = {
-        radius: radius,
-        height: height,
-        center: new Float32Array([0, (max_y + min_y)/2, 0])
-    };
+    var bcap_local = init_bcap_bcyl_bcon();
+    bcap_local.radius = radius;
+    bcap_local.height = height;
+
+    bcap_local.center[0] = 0;
+    bcap_local.center[1] = 0;
+    bcap_local.center[2] = (max_z + min_z) / 2;
 
     return bcap_local;
 }
 
 /**
- * Create local bounding capsule
+ * Create a bounding cylinder based on the given parameters.
  */
-exports.create_bounding_cylinder = function(radius, bounding_box) {
+exports.bcyl_from_values = function(radius, bounding_box) {
 
-    var max_y = bounding_box.max_y;
-    var min_y = bounding_box.min_y;
+    var max_z = bounding_box.max_z;
+    var min_z = bounding_box.min_z;
 
-    var height = Math.max(0, max_y - min_y);
+    var height = Math.max(0, max_z - min_z);
 
-    var bcyl_local = {
-        radius: radius,
-        height: height,
-        center: new Float32Array([0, (max_y + min_y)/2, 0])
-    };
+    var bcyl_local = init_bcap_bcyl_bcon();
+    bcyl_local.radius = radius;
+    bcyl_local.height = height;
+
+    bcyl_local.center[0] = 0;
+    bcyl_local.center[1] = 0;
+    bcyl_local.center[2] = (max_z + min_z) / 2;
 
     return bcyl_local;
 }
 
 /**
- * Create local bounding cone
+ * Create a bounding cone based on the given parameters.
  */
-exports.create_bounding_cone = function(radius, bounding_box) {
+exports.bcon_from_values = function(radius, bounding_box) {
 
-    var max_y = bounding_box.max_y;
-    var min_y = bounding_box.min_y;
+    var max_z = bounding_box.max_z;
+    var min_z = bounding_box.min_z;
 
-    var height = Math.max(0, max_y - min_y);
+    var height = Math.max(0, max_z - min_z);
 
-    var bcon_local = {
-        radius: radius,
-        height: height,
-        center: new Float32Array([0, (max_y + min_y)/2, 0])
-    };
+    var bcon_local = init_bcap_bcyl_bcon();
+    bcon_local.radius = radius;
+    bcon_local.height = height;
+
+    bcon_local.center[0] = 0;
+    bcon_local.center[1] = 0;
+    bcon_local.center[2] = (max_z + min_z) / 2;
 
     return bcon_local;
 }
 
+exports.copy_bcap = exports.copy_bcyl = exports.copy_bcon = copy_bcap_bcyl_bcon;
+function copy_bcap_bcyl_bcon(bcap_bcyl_bcon_from, bcap_bcyl_bcon_to) {
+    bcap_bcyl_bcon_to.radius = bcap_bcyl_bcon_from.radius;
+    bcap_bcyl_bcon_to.height = bcap_bcyl_bcon_from.height;
+    bcap_bcyl_bcon_to.center.set(bcap_bcyl_bcon_from.center);
+
+    return bcap_bcyl_bcon_to;
+}
+
 /**
- * NOTE: unused
+ * @deprecated unused
  */
 exports.check_bb_intersection = function(bb1, bb2) {
     if (bb1.min_x > bb2.max_x || bb1.max_x < bb2.min_x)
@@ -630,117 +840,74 @@ exports.check_bb_intersection = function(bb1, bb2) {
 
 /**
  * Recalculate bpy mesh boundings
+ * NOTE: need rewrite like m_obj_util.update_render_bounds_from_pos_arrays?
  */
-exports.recalculate_mesh_boundings = function(mesh) {
+exports.recalculate_mesh_boundings = function(bpy_mesh) {
 
-    var max_x = 0, max_y = 0, max_z = 0, min_x = 0, min_y = 0, min_z = 0;
-    var sub_max_x = 0, sub_max_y = 0, sub_max_z = 0;
-    var sub_min_x = 0, sub_min_y = 0, sub_min_z = 0;
     var srad = 0;
     var crad = 0;
 
-    // init values
-    for (var i = 0; i < mesh["submeshes"].length; i++) {
-        var submesh = mesh["submeshes"][i];
-        if (submesh["position"].length) {
-            max_x = min_x = submesh["position"][0];
-            max_y = min_y = submesh["position"][1];
-            max_z = min_z = submesh["position"][2];
-            break;
-        }
-    }
-
-    for (var i = 0; i < mesh["submeshes"].length; i++) {
-        var submesh = mesh["submeshes"][i];
+    var mesh_bb = create_bb();
+    for (var i = 0; i < bpy_mesh["submeshes"].length; i++) {
+        var submesh = bpy_mesh["submeshes"][i];
 
         var positions = submesh["position"];
 
-        sub_max_x = sub_min_x = submesh["position"][0];
-        sub_max_y = sub_min_y = submesh["position"][1];
-        sub_max_z = sub_min_z = submesh["position"][2];
-
         for (var j = 0; j < positions.length / 3; j++) {
-            var x = positions[3*j];
-            var y = positions[3*j + 1];
-            var z = positions[3*j + 2];
-
-            max_x = Math.max(x, max_x);
-            max_y = Math.max(y, max_y);
-            max_z = Math.max(z, max_z);
-
-            min_x = Math.min(x, min_x);
-            min_y = Math.min(y, min_y);
-            min_z = Math.min(z, min_z);
-
-            sub_max_x = Math.max(x, sub_max_x);
-            sub_max_y = Math.max(y, sub_max_y);
-            sub_max_z = Math.max(z, sub_max_z);
-
-            sub_min_x = Math.min(x, sub_min_x);
-            sub_min_y = Math.min(y, sub_min_y);
-            sub_min_z = Math.min(z, sub_min_z);
+            var x = positions[3 * j];
+            var y = positions[3 * j + 1];
+            var z = positions[3 * j + 2];
 
             srad = Math.max(Math.sqrt(x * x + y * y + z * z), srad);
-            crad = Math.max(Math.sqrt(x * x + z * z), crad);
+            crad = Math.max(Math.sqrt(x * x + y * y), crad);
         }
-        var sub_bb = submesh["boundings"]["bounding_box"];
-        sub_bb["max_x"] = sub_max_x;
-        sub_bb["min_x"] = sub_min_x;
-        sub_bb["max_y"] = sub_max_y;
-        sub_bb["min_y"] = sub_min_y;
-        sub_bb["max_z"] = sub_max_z;
-        sub_bb["min_z"] = sub_min_z;
+        
+        var bpy_sub_bb = submesh["boundings"]["bb"];
+        var sub_bb = bb_from_coords(positions, 0, positions.length, create_bb());
+        bpy_sub_bb["max_x"] = sub_bb.max_x;
+        bpy_sub_bb["min_x"] = sub_bb.min_x;
+        bpy_sub_bb["max_y"] = sub_bb.max_y;
+        bpy_sub_bb["min_y"] = sub_bb.min_y;
+        bpy_sub_bb["max_z"] = sub_bb.max_z;
+        bpy_sub_bb["min_z"] = sub_bb.min_z;
 
-        var bb_points = _bb_corners_cache;
-
-        bb_points[0] = sub_min_x; bb_points[1] = sub_min_y; bb_points[2] = sub_min_z;
-        bb_points[3] = sub_max_x; bb_points[4] = sub_min_y; bb_points[5] = sub_min_z;
-        bb_points[6] = sub_max_x; bb_points[7] = sub_max_y; bb_points[8] = sub_min_z;
-        bb_points[9] = sub_min_x; bb_points[10]= sub_max_y; bb_points[11]= sub_min_z;
-        bb_points[12]= sub_min_x; bb_points[13]= sub_min_y; bb_points[14]= sub_max_z;
-        bb_points[15]= sub_max_x; bb_points[16]= sub_min_y; bb_points[17]= sub_max_z;
-        bb_points[18]= sub_max_x; bb_points[19]= sub_max_y; bb_points[20]= sub_max_z;
-        bb_points[21]= sub_min_x; bb_points[22]= sub_max_y; bb_points[23]= sub_max_z;
-
-        var be_local = create_bounding_ellipsoid_by_bb(bb_points, false);
-        submesh["boundings"]["bounding_ellipsoid_center"] = be_local.center;
-        submesh["boundings"]["bounding_ellipsoid_axes"] = [be_local.axis_x[0],
+        var bb_points = extract_bb_corners(sub_bb, _bb_corners_cache);
+        var be_local = create_be_by_bb(bb_points, false);
+        submesh["boundings"]["be_cen"] = be_local.center;
+        submesh["boundings"]["be_ax"] = [be_local.axis_x[0],
                 be_local.axis_y[1], be_local.axis_z[2]];
+
+        if (i == 0)
+            copy_bb(sub_bb, mesh_bb);
+        else
+            expand_bounding_box(mesh_bb, sub_bb);
     }
 
-    mesh["b4w_bounding_box"]["max_x"] = max_x;
-    mesh["b4w_bounding_box"]["min_x"] = min_x;
-    mesh["b4w_bounding_box"]["max_y"] = max_y;
-    mesh["b4w_bounding_box"]["min_y"] = min_y;
-    mesh["b4w_bounding_box"]["max_z"] = max_z;
-    mesh["b4w_bounding_box"]["min_z"] = min_z;
+    var bpy_mesh_bb = bpy_mesh["b4w_boundings"]["bb"];
+    bpy_mesh_bb["max_x"] = mesh_bb.max_x;
+    bpy_mesh_bb["min_x"] = mesh_bb.min_x;
+    bpy_mesh_bb["max_y"] = mesh_bb.max_y;
+    bpy_mesh_bb["min_y"] = mesh_bb.min_y;
+    bpy_mesh_bb["max_z"] = mesh_bb.max_z;
+    bpy_mesh_bb["min_z"] = mesh_bb.min_z;
 
     // NOTE: original bounding box is recalculated because of modifiers is applied
-    mesh["b4w_bounding_box_source"]["max_x"] = max_x;
-    mesh["b4w_bounding_box_source"]["min_x"] = min_x;
-    mesh["b4w_bounding_box_source"]["max_y"] = max_y;
-    mesh["b4w_bounding_box_source"]["min_y"] = min_y;
-    mesh["b4w_bounding_box_source"]["max_z"] = max_z;
-    mesh["b4w_bounding_box_source"]["min_z"] = min_z;
+    var bpy_mesh_bb_s = bpy_mesh["b4w_boundings"]["bb_src"];
+    bpy_mesh_bb_s["max_x"] = mesh_bb.max_x;
+    bpy_mesh_bb_s["min_x"] = mesh_bb.min_x;
+    bpy_mesh_bb_s["max_y"] = mesh_bb.max_y;
+    bpy_mesh_bb_s["min_y"] = mesh_bb.min_y;
+    bpy_mesh_bb_s["max_z"] = mesh_bb.max_z;
+    bpy_mesh_bb_s["min_z"] = mesh_bb.min_z;
 
-    mesh["b4w_bounding_sphere_radius"]  = srad;
-    mesh["b4w_bounding_cylinder_radius"] = crad;
+    bpy_mesh["b4w_boundings"]["bs_rad"]  = srad;
+    bpy_mesh["b4w_boundings"]["bc_rad"] = crad;
 
-    var bb_points = _bb_corners_cache;
-    bb_points[0] = min_x; bb_points[1] = min_y; bb_points[2] = min_z;
-    bb_points[3] = max_x; bb_points[4] = min_y; bb_points[5] = min_z;
-    bb_points[6] = max_x; bb_points[7] = max_y; bb_points[8] = min_z;
-    bb_points[9] = min_x; bb_points[10]= max_y; bb_points[11]= min_z;
-    bb_points[12]= min_x; bb_points[13]= min_y; bb_points[14]= max_z;
-    bb_points[15]= max_x; bb_points[16]= min_y; bb_points[17]= max_z;
-    bb_points[18]= max_x; bb_points[19]= max_y; bb_points[20]= max_z;
-    bb_points[21]= min_x; bb_points[22]= max_y; bb_points[23]= max_z;
-
-    var be_local = create_bounding_ellipsoid_by_bb(bb_points, false);
-    mesh["b4w_bounding_ellipsoid_center"] = be_local.center;
-    mesh["b4w_bounding_ellipsoid_axes"] = [be_local.axis_x[0],
+    var bb_points = extract_bb_corners(mesh_bb, _bb_corners_cache);
+    var be_local = create_be_by_bb(bb_points, false);
+    bpy_mesh["b4w_boundings"]["be_cen"] = be_local.center;
+    bpy_mesh["b4w_boundings"]["be_ax"] = [be_local.axis_x[0],
             be_local.axis_y[1], be_local.axis_z[2]];
-
 }
 
 /**
@@ -785,7 +952,7 @@ exports.get_frustum_mec = function(corners) {
     q3[0] = m_vec3.dot(_vec3_tmp3, l);
     q3[1] = m_vec3.dot(_vec3_tmp3, m);
 
-    var bs = exports.zero_bounding_sphere();
+    var bs = create_bs();
     bs = get_mec_2d([q0, q1, q2, q3], bs);
 
     var center_origin = m_vec3.scale(l, bs.center[0], _vec3_tmp3);

@@ -12,7 +12,6 @@ var m_main  = require("main");
 var m_time  = require("time");
 var m_data  = require("data");
 var m_cfg   = require("config");
-var m_mouse = require("mouse");
 var m_cont  = require("container");
 
 var ASSETS_PATH = m_cfg.get_std_assets_path() + "petigors_tale/";
@@ -22,6 +21,8 @@ var _touch_jump_cb = null;
 var _touch_attack_cb = null;
 var _touch_move_cb = null;
 var _touch_end_cb = null;
+
+var _vec2_tmp = new Float32Array(2);
 
 exports.init = function(replay_cb, elapsed_sensor, intro_load_cb,
                         preloader_cb, plock_cb, level_name,
@@ -128,7 +129,7 @@ exports.init = function(replay_cb, elapsed_sensor, intro_load_cb,
             load_level("level_02");
             break;
         case "level_02":
-            load_level("under_construction");
+            load_level("quest");
             break;
         }
     }
@@ -170,8 +171,6 @@ exports.init = function(replay_cb, elapsed_sensor, intro_load_cb,
     }
 
     if (level_name == "under_construction") {
-        var back_to_menu  = document.getElementById("back_to_menu");
-        var under_construction = document.getElementById("under_construct");
         show_elem(back_to_menu);
         show_elem(under_construction);
     } else {
@@ -191,7 +190,6 @@ exports.update_hp_bar = function() {
 
     var green_elem = document.getElementById("life_bar_green");
     var red_elem = document.getElementById("life_bar_red");
-    var mid_elem = document.getElementById("life_bar_mid");
 
     var hp_px_ratio = 100 / m_conf.MAX_CHAR_HP;
     var green_width = Math.max(hp * hp_px_ratio, 0);
@@ -229,15 +227,17 @@ exports.setup_touch_controls = function(right_arrow, up_arrow, left_arrow,
     function touch_start_cb(event) {
         event.preventDefault();
 
-        var h = window.innerHeight;
         var w = window.innerWidth;
 
         var touches = event.changedTouches;
 
         for (var i = 0; i < touches.length; i++) {
             var touch = touches[i];
-            var x = touch.clientX;
-            var y = touch.clientY;
+            var client_x = touch.clientX;
+            var client_y = touch.clientY;
+            var canvas_xy = m_cont.client_to_canvas_coords(client_x, client_y, _vec2_tmp);
+            var x = canvas_xy[0];
+            var y = canvas_xy[1];
 
             if (x > w / 2) { // right side of the screen
                 rot_prev_touch[0] = x;
@@ -292,15 +292,17 @@ exports.setup_touch_controls = function(right_arrow, up_arrow, left_arrow,
         m_ctl.set_custom_sensor(left_arrow, 0);
         m_ctl.set_custom_sensor(right_arrow, 0);
 
-        var h = window.innerHeight;
         var w = window.innerWidth;
 
         var touches = event.changedTouches;
 
-        for (var i=0; i < touches.length; i++) {
+        for (var i = 0; i < touches.length; i++) {
             var touch = touches[i];
-            var x = touch.clientX;
-            var y = touch.clientY;
+            var client_x = touch.clientX;
+            var client_y = touch.clientY;
+            var canvas_xy = m_cont.client_to_canvas_coords(client_x, client_y, _vec2_tmp);
+            var x = canvas_xy[0];
+            var y = canvas_xy[1];
 
             if (x > w / 2 && touch.identifier == rot_touch_idx) { // right side of the screen
                 var d_x = rot_prev_touch[0] - x;

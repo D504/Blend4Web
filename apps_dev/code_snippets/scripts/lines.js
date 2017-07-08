@@ -2,26 +2,31 @@
 
 b4w.register("lines", function(exports, require) {
 
-var m_app   = require("app");
-var m_cfg   = require("config");
-var m_data  = require("data");
-var m_geom  = require("geometry");
-var m_mat   = require("material");
-var m_scs   = require("scenes");
-var m_obj   = require("objects");
-var m_trans = require("transform");
+var m_app     = require("app");
+var m_cfg     = require("config");
+var m_data    = require("data");
+var m_geom    = require("geometry");
+var m_mat     = require("material");
+var m_scs     = require("scenes");
+var m_obj     = require("objects");
+var m_trans   = require("transform");
+var m_version = require("version");
+
+var DEBUG = (m_version.type() === "DEBUG");
 
 var APP_ASSETS_PATH = m_cfg.get_std_assets_path() + "code_snippets/lines";
 
 exports.init = function() {
     m_app.init({
-        canvas_container_id: "canvas_cont",
+        canvas_container_id: "main_canvas_container",
         callback: init_cb,
         physics_enabled: false,
         show_fps: true,
         alpha: false,
         gl_debug: true,
         autoresize: true,
+        assets_dds_available: !DEBUG,
+        assets_min50_available: !DEBUG,
         console_verbose: true
     });
 }
@@ -56,12 +61,12 @@ function draw_lines() {
     for (var i = 0; i < num_points; i++) {
         var t = i / num_points;
         positions1[3*i  ] = amp * Math.cos(w*t + Math.PI);
-        positions1[3*i+1] = max_height * t;
-        positions1[3*i+2] = amp * Math.sin(w*t + Math.PI);
+        positions1[3*i+1] = amp * Math.sin(Math.PI - w*t);
+        positions1[3*i+2] = max_height * t;
 
         positions2[3*i  ] = amp * Math.cos(w*t);
-        positions2[3*i+1] = max_height * t;
-        positions2[3*i+2] = amp * Math.sin(w*t);
+        positions2[3*i+1] = amp * Math.sin(-w*t);
+        positions2[3*i+2] = max_height * t;
     }
     m_geom.draw_line(line1, positions1);
     m_mat.set_line_params(line1, {

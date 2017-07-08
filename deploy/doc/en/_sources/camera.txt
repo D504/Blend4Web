@@ -66,6 +66,8 @@ Camera limits can be viewed right in the Blender viewport, if the ``Display Limi
 
 |
 
+.. _camera_target_type:
+
 **Target Type Camera**
 ----------------------
 
@@ -128,6 +130,8 @@ Camera limits can be viewed right in the Blender viewport, if the ``Display Limi
 
 |
 
+.. _camera_eye_type:
+
 **Eye Type Camera**
 -------------------
 
@@ -166,6 +170,8 @@ Camera limits can be viewed right in the Blender viewport, if the ``Display Limi
         :width: 100%
 
 |
+
+.. _camera_hover_type:
 
 **Hover Type Camera**
 ---------------------
@@ -238,6 +244,8 @@ Setting incorrect distance or elevation angle limits will disable this parameter
         :width: 100%
 
 |
+
+.. _camera_static_type:
 
 **Static Camera**
 
@@ -352,7 +360,7 @@ Camera Controls API
 
 Detailed API module documentation: :b4wmod:`link camera`.
 
-A camera's position and its spatial orientation are defined by the control mode. In the ``EYE``, ``TARGET`` and ``HOVER`` modes, control mode has several limitations: for example, the camera's vertical axis is always aligned along the world's Y-axis and the camera is constantly focused on the pivot point. The ``STATIC`` mode camera has no such limitations, which makes it more suitable for cases when you need more complete control, such as procedural animation.
+A camera's position and its spatial orientation are defined by the control mode. In the ``EYE``, ``TARGET`` and ``HOVER`` modes, control mode has several limitations: for example, the camera's vertical axis is always aligned along the world's Z-axis and the camera is constantly focused on the pivot point. The ``STATIC`` mode camera has no such limitations, which makes it more suitable for cases when you need more complete control, such as procedural animation.
 
 Main functions for camera control are located in the :b4wmod:`camera` module. Some of them (intended for a specific control mode) have names which start with an appropriate prefix: ``static_``, ``eye_``, ``target_`` and ``hover_``. Other functions can be used in any mode.
 
@@ -399,7 +407,7 @@ To change the control mode and to completely define a camera's behavior, the fol
     m_cam.target_setup(camera, { pos: POS, pivot: LOOK_AT, 
             dist_lim: TARGET_DIST_LIMITS, use_panning: true });
 
-    // setup HOVER camera on a fixed distance (without zooming) reltively to its pivot
+    // setup HOVER camera on a fixed distance (without zooming) relatively to its pivot
     m_cam.hover_setup(camera, { pos: POS, pivot: LOOK_AT });
 
     // setup HOVER camera with zooming (distance + angle limits)
@@ -558,28 +566,6 @@ Limit presence can be checked by using the :b4wref:`camera.has_distance_limits()
 
     In ``HOVER`` mode, the camera always has distance and elevation angle limits. In case these limits were not set, they are automatically calculated to lock the camera in the current position relative to the pivot point.
 
-.. _hover_translation_limits:
-
-.. note::
-
-    When setting translation limits for the ``HOVER`` camera, the values for the limits will correspond to the engine's coordinate axis as follows:
-
-    * ``Horizontal Translation Limits`` - X axis
-
-    * ``Vertical Translation Limits`` - Z axis
-
-    .. only:: html
-
-        .. image:: src_images/camera/b4w_hover_trans_limits.svg
-            :align: center
-            :width: 100%
-
-    .. only:: latex
-
-        .. image:: src_images/camera/b4w_hover_trans_limits.png
-            :align: center
-            :width: 100%
-
 .. note::
 
     Enabled camera limits can influence its position and spatial orientation set by the API functions.
@@ -589,7 +575,7 @@ Limit presence can be checked by using the :b4wref:`camera.has_distance_limits()
 Angular Coordinates Count
 -------------------------
 
-  When working with the camera's APIs (rotation, setting limits), all angles are defined in the :ref:`engine's coordinate system <b4w_blender_coordinates>` as follows:
+  When working with the camera's APIs (rotation, setting limits), all angles are defined as follows:
 
   For the ``TARGET/HOVER`` camera:
 

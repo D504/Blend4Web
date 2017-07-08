@@ -1,51 +1,64 @@
-#var WATER_LEVEL 0.0
-#var WAVES_HEIGHT 0.0
+#version GLSL_VERSION
+
+/*==============================================================================
+                                    VARS
+==============================================================================*/
+#var PRECISION highp
+
+#var NODES 0
+#var USE_TBN_SHADING 0
+
+#var ALPHA 0
+#var ALPHA_CLIP 0
+#var TEXTURE_COLOR 0
+#var SHADOW_USAGE NO_SHADOWS
+#var USE_OUTLINE 0
+
+#var USE_VIEW_TSR 0
+#var USE_VIEW_TSR_INVERSE 0
+#var USE_MODEL_TSR 0
+#var USE_MODEL_TSR_INVERSE 0
+#var CALC_TBN_SPACE 0
+#var CAMERA_TYPE CAM_TYPE_PERSP
+#var USE_POSITION_CLIP 0
+
+#var USE_REFRACTION 0
+#var USE_REFRACTION_CORRECTION 0
+#var USE_ENVIRONMENT_LIGHT 0
+#var TEXTURE_BLEND_TYPE TEXTURE_BLEND_TYPE_MIX
+#var NUM_LIGHTS 0
 #var NUM_LAMP_LIGHTS 0
+#var SKY_TEXTURE 0
+#var SKY_COLOR 0
 #var NUM_VALUES 0
 #var NUM_RGBS 0
+#var REFLECTION_TYPE REFL_NONE
+#var POISSON_DISK_NUM NO_SOFT_SHADOWS
+#var USE_DERIVATIVES_EXT 0
 
-// node dirs
-#var MAPPING_TRS_MATRIX mat4(0.0)
-#var MAPPING_SCALE vec3(0.0)
-#var MAPPING_TRANSLATION vec3(0.0)
-#var MAPPING_MIN_CLIP vec3(0.0)
-#var MAPPING_MAX_CLIP vec3(0.0)
-#var MAPPING_IS_NORMAL 0.0
-#var RGB_IND 0
-#var VALUE_IND 0
-#var LAMP_INDEX 0
-// lamp dirs
-#var NUM_LIGHTS 0
-#var LAMP_IND 0
-#var LAMP_SPOT_SIZE 0
-#var LAMP_SPOT_BLEND 0
-#var LAMP_LIGHT_DIST 0
-#var LAMP_LIGHT_FACT_IND 0
-#var LAMP_FAC_CHANNELS rgb
-#var LAMP_SHADOW_MAP_IND 0
-#var NUM_LFACTORS 0
+#var USE_LOD_SMOOTHING 0
 
-/*============================================================================
-                                  INCLUDES
-============================================================================*/
-#include <precision_statement.glslf>
-#include <std_enums.glsl>
-
-#if NODES && ALPHA
-#include <pack.glslf>
-
-#include <procedural.glslf>
-# if CAUSTICS
-#include <caustics.glslf>
+# if GLSL1 && USE_DERIVATIVES_EXT
+#extension GL_OES_standard_derivatives: enable
 # endif
 
-#include <color_util.glslf>
-#include <math.glslv>
-#endif // NODES && ALPHA
+/*==============================================================================
+                                  INCLUDES
+==============================================================================*/
+#include <precision_statement.glslf>
+#include <std.glsl>
 
-/*============================================================================
+#if NODES && ALPHA
+#include <math.glslv>
+#endif
+
+#if USE_LOD_SMOOTHING
+#include <coverage.glslf>
+#endif
+
+/*==============================================================================
                                GLOBAL UNIFORMS
-============================================================================*/
+==============================================================================*/
 
 #if NODES && ALPHA
 uniform float u_time;
@@ -53,30 +66,32 @@ uniform float u_time;
 uniform float u_environment_energy;
 
 # if NUM_LIGHTS > 0
-uniform vec3 u_light_positions[NUM_LIGHTS];
+// light_factors packed in the w componnets
+uniform vec4 u_light_positions[NUM_LIGHTS];
 uniform vec3 u_light_directions[NUM_LIGHTS];
-uniform vec3 u_light_color_intensities[NUM_LIGHTS];
-uniform vec4 u_light_factors[NUM_LFACTORS];
+uniform vec4 u_light_color_intensities[NUM_LIGHTS];
 # endif
 
 uniform vec3 u_camera_eye_frag;
 
-# if REFLECTION_TYPE == REFL_PLANE || USE_NODE_GEOMETRY_VW
+#if (USE_NODE_FRESNEL || USE_NODE_LAYER_WEIGHT) && CAMERA_TYPE == CAM_TYPE_ORTHO
+uniform vec3 u_camera_direction;
+#endif
+
+# if REFLECTION_TYPE == REFL_PLANE || USE_VIEW_TSR
 uniform mat3 u_view_tsr_frag;
 # endif
 
-# if USE_ZUP_VIEW_MATRIX
-uniform mat3 u_view_zup_tsr;
-# endif
-# if USE_ZUP_VIEW_MATRIX_INVERSE
-uniform mat3 u_view_zup_tsr_inverse;
-# endif
-# if USE_ZUP_MODEL_MATRIX
-uniform mat3 u_model_zup_tsr;
-# endif
-# if USE_ZUP_MODEL_MATRIX_INVERSE
-uniform mat3 u_model_zup_tsr_inverse;
-# endif
+#if USE_VIEW_TSR_INVERSE
+uniform mat3 u_view_tsr_inverse;
+#endif
+#if USE_MODEL_TSR
+// it's always dynamic object
+uniform mat3 u_model_tsr;
+#endif
+#if USE_MODEL_TSR_INVERSE
+uniform mat3 u_model_tsr_inverse;
+#endif
 
 # if USE_ENVIRONMENT_LIGHT && SKY_TEXTURE
 uniform samplerCube u_sky_texture;
@@ -100,9 +115,9 @@ uniform vec3 u_color_id;
 uniform sampler2D u_nodes_texture;
 #endif
 
-/*============================================================================
+/*==============================================================================
                                    UNIFORMS
-============================================================================*/
+==============================================================================*/
 #if NODES && ALPHA
 # if REFLECTION_TYPE == REFL_PLANE
 uniform sampler2D u_plane_reflection;
@@ -133,7 +148,6 @@ uniform vec4 u_refl_plane;
 uniform vec3 u_lamp_light_positions[NUM_LAMP_LIGHTS];
 uniform vec3 u_lamp_light_directions[NUM_LAMP_LIGHTS];
 uniform vec3 u_lamp_light_color_intensities[NUM_LAMP_LIGHTS];
-uniform vec4 u_lamp_light_factors[NUM_LAMP_LIGHTS];
 # endif
 
 # if USE_NODE_VALUE
@@ -143,121 +157,98 @@ uniform float u_node_values[NUM_VALUES];
 # if USE_NODE_RGB
 uniform vec3 u_node_rgbs[NUM_RGBS];
 # endif
+# if SHADOW_USAGE == SHADOW_MASK_GENERATION
+#  if POISSON_DISK_NUM != NO_SOFT_SHADOWS
+uniform vec4 u_pcf_blur_radii;
+#  endif
+uniform vec4 u_csm_center_dists;
+uniform PRECISION GLSL_SMPLR2D_SHDW u_shadow_map0;
+uniform PRECISION GLSL_SMPLR2D_SHDW u_shadow_map1;
+uniform PRECISION GLSL_SMPLR2D_SHDW u_shadow_map2;
+uniform PRECISION GLSL_SMPLR2D_SHDW u_shadow_map3;
+uniform sampler2D u_shadow_mask;
+# endif
 #endif // NODES && ALPHA
 
 # if USE_OUTLINE
 uniform float u_outline_intensity;
 # endif
 
-/*============================================================================
-                                   VARYINGS
-============================================================================*/
+#if USE_NODE_OBJECT_INFO
+uniform vec3 u_obj_info;
+#endif
+
+#if USE_LOD_SMOOTHING
+uniform float u_lod_coverage;
+uniform float u_lod_cmp_logic;
+#endif
+
+
+
+/*==============================================================================
+                                SHADER INTERFACE
+==============================================================================*/
 #if NODES && ALPHA
-//varying vec3 v_eye_dir;
-varying vec3 v_pos_world;
-varying vec4 v_pos_view;
+GLSL_IN vec3 v_pos_world;
+GLSL_IN vec4 v_pos_view;
+GLSL_IN vec3 v_normal;
 
-# if USE_NODE_MATERIAL_BEGIN || USE_NODE_GEOMETRY_NO || CAUSTICS || CALC_TBN_SPACE
-varying vec3 v_normal;
-# endif
 # if CALC_TBN_SPACE
-varying vec4 v_tangent;
+GLSL_IN vec4 v_tangent;
 # endif
 
-# if REFLECTION_TYPE == REFL_PLANE || USE_NODE_B4W_REFRACTION
-varying vec3 v_tex_pos_clip;
+#if REFLECTION_TYPE == REFL_PLANE || USE_POSITION_CLIP
+GLSL_IN vec3 v_tex_pos_clip;
 # endif
 
 # if USE_NODE_B4W_REFRACTION && USE_REFRACTION
-varying float v_view_depth;
+GLSL_IN float v_view_depth;
 # endif
 
 // NOTE: impossible case, needed for shader validator
 # if SHADOW_USAGE == SHADOW_MASK_GENERATION
-varying vec4 v_shadow_coord0;
-varying vec4 v_shadow_coord1;
-varying vec4 v_shadow_coord2;
-varying vec4 v_shadow_coord3;
-uniform vec4 u_pcf_blur_radii;
-uniform vec4 u_csm_center_dists;
-uniform sampler2D u_shadow_map0;
-uniform sampler2D u_shadow_map1;
-uniform sampler2D u_shadow_map2;
-uniform sampler2D u_shadow_map3;
-uniform sampler2D u_shadow_mask;
+GLSL_IN vec4 v_shadow_coord0;
+GLSL_IN vec4 v_shadow_coord1;
+GLSL_IN vec4 v_shadow_coord2;
+GLSL_IN vec4 v_shadow_coord3;
 # endif
 #else // NODES && ALPHA
 
 # if TEXTURE_COLOR
-varying vec2 v_texcoord;
+GLSL_IN vec2 v_texcoord;
 # endif
-
 #endif // NODES && ALPHA
 
+#if USE_TBN_SHADING
+GLSL_IN vec3 v_shade_tang;
+#endif
+//------------------------------------------------------------------------------
 
-/*============================================================================
+GLSL_OUT vec4 GLSL_OUT_FRAG_COLOR;
+
+/*==============================================================================
                                   FUNCTIONS
-============================================================================*/
+==============================================================================*/
 #if NODES && ALPHA
-#include <shadow.glslf>
-#include <mirror.glslf>
-#include <environment.glslf>
-
-
-#if USE_NODE_B4W_REFRACTION
-# if USE_REFRACTION
-# include <refraction.glslf>
-# endif
+#include <nodes.glslf>
 #endif
 
-#include <nodes.glslf>
-#endif // NODES && ALPHA
-
-/*============================================================================
+/*==============================================================================
                                     MAIN
-============================================================================*/
+==============================================================================*/
 
 void main(void) {
 
 #if ALPHA
 # if NODES
-    vec3 eye_dir = u_camera_eye_frag - v_pos_world;
-    vec3 nin_eye_dir = normalize(eye_dir);
+    vec3 eye_dir = normalize(u_camera_eye_frag - v_pos_world);
     vec3 nout_color;
     vec3 nout_specular_color;
     vec3 nout_normal;
     vec4 nout_shadow_factor;
     float nout_alpha;
 
-    mat4 nin_view_matrix = mat4(0.0);
-    mat4 nin_zup_view_matrix = mat4(0.0);
-    mat4 nin_zup_view_matrix_inverse = mat4(0.0);
-    mat4 nin_zup_model_matrix = mat4(0.0);
-    mat4 nin_zup_model_matrix_inverse = mat4(0.0);
-
-#  if REFLECTION_TYPE == REFL_PLANE || USE_NODE_GEOMETRY_VW
-        nin_view_matrix = tsr_to_mat4(u_view_tsr_frag);
-#  endif
-
-#  if USE_ZUP_VIEW_MATRIX
-        nin_zup_view_matrix = tsr_to_mat4(u_view_zup_tsr);
-#  endif
-#  if USE_ZUP_VIEW_MATRIX_INVERSE
-        nin_zup_view_matrix_inverse = tsr_to_mat4(u_view_zup_tsr_inverse);
-#  endif
-#  if USE_ZUP_MODEL_MATRIX
-        nin_zup_model_matrix = tsr_to_mat4(u_model_zup_tsr);
-#  endif
-#  if USE_ZUP_MODEL_MATRIX_INVERSE
-        nin_zup_model_matrix_inverse = tsr_to_mat4(u_model_zup_tsr_inverse);
-#  endif
-
-    nodes_main(nin_eye_dir,
-            nin_view_matrix,
-            nin_zup_view_matrix,
-            nin_zup_view_matrix_inverse,
-            nin_zup_model_matrix,
-            nin_zup_model_matrix_inverse,
+    nodes_main(eye_dir,
             nout_color,
             nout_specular_color,
             nout_normal,
@@ -267,7 +258,7 @@ void main(void) {
     float alpha = nout_alpha;
 # else // NODES
 #  if TEXTURE_COLOR
-    float alpha = (texture2D(u_sampler, v_texcoord)).a;
+    float alpha = (GLSL_TEXTURE(u_sampler, v_texcoord)).a;
 #   if TEXTURE_BLEND_TYPE == TEXTURE_BLEND_TYPE_MIX
     float texture_alpha = u_alpha_factor * alpha;
     texture_alpha += (1.0 - step(0.0, texture_alpha));
@@ -284,9 +275,14 @@ void main(void) {
 # endif
 #endif
 
+#if USE_LOD_SMOOTHING
+    if (!coverage_is_frag_visible(u_lod_coverage, u_lod_cmp_logic))
+        discard;
+#endif
+
 #if USE_OUTLINE
-	gl_FragColor = vec4(1.0, 1.0, 1.0, u_outline_intensity);
+    GLSL_OUT_FRAG_COLOR = vec4(1.0, 1.0, 1.0, u_outline_intensity);
 #else
-	gl_FragColor = vec4(u_color_id, 1.0);
+    GLSL_OUT_FRAG_COLOR = vec4(u_color_id, 1.0);
 #endif
 }

@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ for m in b4w_modules:
     exec(blend4web.load_module_script.format(m))
 
 from blend4web.translator import _, p_
-SUPPORTED_FIELD_TYPES = {'WIND'}
+SUPPORTED_FIELD_TYPES = {'NONE', 'WIND'}
 
 # common properties for all B4W object panels
 class PhysicsButtonsPanel:
@@ -76,7 +76,7 @@ class B4W_PHYSICS_PT_game_physics(PhysicsButtonsPanel, Panel):
 
         physics_type = game.physics_type
 
-        if physics_type in {'CHARACTER', 'SOFT_BODY', 'NAVMESH', 'SENSOR',
+        if physics_type in {'CHARACTER', 'SOFT_BODY', 'SENSOR',
                             'OCCLUDER'}:
             layout.label(text=_("Unsupported physics type"), icon='ERROR')
 

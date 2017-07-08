@@ -10,485 +10,334 @@ For Application Developers
 
 .. _app_building:
 
-Project Management
-==================
-
-You can manage your projects in two ways: by using *project.py*, which is a simple-to-use and well documented CLI utility, or by using a dedicated web application with GUI working on the local development server. The server does not require any additional setup and starts automatically with Blender. The index page of the Project Manager can be opened by clicking on the ``Project Manager`` button in Blender.
-
-Working with the Project Manager is described in a :ref:`dedicated chapter <project_management>`.
-
-.. _advanced_project_management:
-
-Advanced Project Management
-===========================
-
-Advanced project management is used by experienced developers which require more flexibility and need to automate process of project development.
-
-For advanced project management use the *project.py* script and manually edit *.b4w_project* configuration files.
-
-Dependencies
-------------
-
-The project management system works in all operating systems. However, some operations can require installing additional dependencies. In order to check whether all dependencies are met, use the following command:
-
-.. code-block:: bash
-
-    ./project.py check_deps
-
-For MS Windows users:
-
-.. code-block:: console
-
-    python project.py check_deps
-
-
-Projects List
--------------
-
-.. code-block:: bash
-
-    python3 project.py -p myproject list
-
-Prints list of projects in the SDK.
-
-
-Project Structure
------------------
-
-A typical app developed using the project manager looks as follows:
-
-::
-
-    blend4web/
-        apps_dev/
-            myproject/
-                project.py
-                .b4w_project
-                myproject.js
-                myproject.css
-                myproject_dev.html
-        blender/
-            myproject/
-                myproject.blend
-        deploy/
-            apps/
-                myproject/
-                    myproject.js
-                    myproject.css
-                    myproject.html
-            assets/
-                myproject/
-                    myproject.json
-                    myproject.bin
-
-
-This app consists of 4 different directories.
-
-#. apps_dev/myproject. Contains source files of project's apps.
-#. blender/myproject. Contains source files of project's scenes.
-#. deploy/assets/myproject. Contains exported files of project's scenes.
-#. deploy/apps/myproject. Contains exported files of project's scenes.
-
-Additionally, the deploy command can create yet another directory, but it's usually placed outside of the SDK and its name and path depend on directory structure on the target server.
-
-
-``.b4w_project`` Configuration File
------------------------------------
-
-If you did not use any arguments upon executing the *project.py* script, then they will be taken from the configuration file.
-
-::
-
- [info]
- author = 
- name = 
- title = 
- icon = 
- 
- [paths]
- assets_dirs = 
- blend_dirs = 
- blender_exec = 
- build_dir = 
- deploy_dir = 
- 
- [compile]
- apps = 
- css_ignore = 
- engine_type = external
- js_ignore = 
- optimization = simple
- use_physics = 
- use_smaa_textures = 
- version = 
- 
- [deploy]
- assets_path_dest =
- assets_path_prefix = 
- remove_exist_ext_dir = 
-
-
-Advanced Project Management
----------------------------
-
-.. code-block:: bash
-
-    ./project.py init myproject
-
-This command will create a project with the specified name in the current directory. By default the project directory will only contain a config file.
-
-Available parameters:
-
-* ``-A | --copy-app-templates`` (optional) create standard app templates in the project directory  (*<my_project_name>_dev.html*, *<my_project_name>.js*, *<my_project_name>.css*).
-* ``-B | --bundle`` (optional) all project files will be placed in a single directory.
-* ``-C | --author`` (optional) write an author's or a company's name in the config file.
-* ``-o | --optimization`` (optional) write the script optimization level in the config file.
-* ``-P | --copy-project-script`` (optional) create a copy of the *project.py* script in the project directory.
-* ``-S | --copy-scene-templates`` (optional) create standard scene templates in the directories ``deploy/assets/<my_project_name>`` and ``blender/<my_project_name>`` (*<my_project_name>.json/.bin* and *<my_project_name>.blend* correspondingly).
-* ``-T | --title"`` (optional) write a title in the config file. Upon building, it will be used inside the ``<title>`` HTML element.
-* ``-t | --engine-type`` (optional) write an engine type in the config file.
-
-Example:
-
-.. code-block:: bash
-
-    ./project.py init -AS -C Blend4Web -o simple -T MyProject -t external myproject
-
-This command will create a directory named *myproject*, inside which the following files will be placed: *myproject.js*, *myproject.css*, *myproject_dev.html* and *.b4w_project*.
-
-The .b4w_project file will look like::
-
- [info]
- author = Blend4Web
- name = myproject
- title = MyProject
- 
- [paths]
- assets_dirs = deploy/assets/myproject;
- blend_dirs = blender/myproject;
- blender_exec = blender
- build_dir = deploy/apps/myproject
- deploy_dir = 
- 
- [compile]
- apps = 
- css_ignore = 
- engine_type = external
- js_ignore = 
- optimization = simple
- use_physics = 
- use_smaa_textures = 
- version = 
- 
- [deploy]
- assets_path_prefix = 
- remove_exist_ext_dir = 
-
-
-Developing multiple apps inside a project
------------------------------------------
-
-A project can contain multiple apps. This can be provided by listing the corresponding HTML files in the config file separated with semicolon::
-
- ...
- [compile]
- apps = myapp1;myapp2;
- ...
-
-
-Building Projects
------------------
-
-.. code-block:: bash
-
-    python3 project.py -p myproject compile
-
-Builds a project in the ``deploy/apps/myproject`` directory.
-
-.. note::
-
-   For script operation it's required to install java and  `set the PATH system variable <https://www.java.com/en/download/help/path.xml>`_.
-
-
-Available parameters:
-
-* ``"-a | --app"`` (optional) specify an HTML file, relative to which the project app will be built.
-* ``"-c | --css-ignore"`` (optional) add CSS styles to exceptions in order to not compile them.
-* ``"-j | --js-ignore"`` (optional) add scripts to exceptions in order to not compile them.
-* ``"-o | --optimization"`` (optional) specify the optimization level for JavaScript files: ``whitespace``, ``simple`` (by default) or ``advanced``.
-* ``"-t | --engine-type"`` (optional) define a compilation type for an app. Four variants are available: *external* (by default), *copy*, *compile*, *update*.
-* ``"-v | --version"`` add version to paths of scripts and styles.
-
-Compiler Requirements
-
-* In the root of the directory the single html file must be stored if ``-a`` option is disabled
-* Scripts and styles can be stored in the app's root and in the subfolders
-
-
-Automatic Re-export
--------------------
-
-.. code-block:: bash
-
-    python3 project.py -p myproject reexport
-
-This command will re-export blend files in JSON and HTML formats.
-
-Available parameters:
-
-* ``"-b | --blender-exec"`` path to the blender executable.
-* ``"-s | --assets"`` specify directory with scene assets.
-
-
-Resource Conversion
--------------------
-
-.. code-block:: bash
-
-    python3 project.py -p myproject convert_resources
-
-Converts external resources (textures, audio and video files) into alternative formats to ensure cross-browser and cross-platform performance.
-
-Available parameters:
-
-* ``"-s | --assets"`` specify directory with scene assets.
-
-Converting of resources is described in detail in the :ref:`corresponding section <converter>`.
-
-
-Deploying Projects
-------------------
-
-.. code-block:: bash
-
-    python3 project.py -p myproject deploy DIRECTORY
-
-Save a project to an external directory together with all dependencies.
-
-Available parameters:
-
-* ``"-e | --assets-dest"`` destination assets directory ("assets" by default).
-* ``"-E | --assets-prefix"`` assets URL prefix ("assets" by default).
-* ``"-o | --override"`` remove directory if it exists.
-* ``"-s | --assets"`` override project's assets directory(s).
-* ``"-t | --engine-type"`` override project's engine type config.
-
-
-Remove Project
---------------
-
-.. code-block:: bash
-
-    python3 project.py -p myproject remove
-
-Removes a project. Removed directories are retrieved from project configuration file.
-
-
-Upgrading Apps for New SDK Versions
------------------------------------
-
-While upgrading for new SDK versions often two problems arise:
-
-#. Modules of the new and old versions of the engine do not match.
-#. Old and new engine API do not match.
-
-In order to update the list of modules imported in developer version of application go to project source directory ``apps_dev/my_project`` and execute module list generator script:
-
-.. code-block:: bash
-
-    python3 ../../scripts/mod_list.py
-
-For MS Windows users:
-
-.. code-block:: console
-
-    python ..\..\scripts\mod_list.py
-
-.. note::
-
-    To run the scripts the Python 3.x needs to be installed in your system.
-
-The console will print the list of modules - copy them and paste into the main HTML file:
-
-.. code-block:: html
-
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-        <script type="text/javascript" src="../../src/b4w.js"></script>
-        <script type="text/javascript" src="../../src/anchors.js"></script>
-        <script type="text/javascript" src="../../src/animation.js"></script>
-        <script type="text/javascript" src="../../src/assets.js"></script>
-        <script type="text/javascript" src="../../src/batch.js"></script>
-        <script type="text/javascript" src="../../src/boundings.js"></script>
-        <script type="text/javascript" src="../../src/camera.js"></script>
-        . . .
-    </head>
-
-
-To eliminate API incompatibilities you may require refactoring of your app. All changes are described in :ref:`release notes <release_notes>`.
-
-
-Path to Loaded Application Assets
----------------------------------
-
-To load .json-files you should use ``get_std_assets_path()`` method from the *config.js* module:
-
-.. code-block:: javascript
-
-    m_data.load(m_config.get_std_assets_path() + "example/example.json", load_cb);
-
-After building the finished app, the paths to assets will change. Thus, using ``get_std_assets_path()`` will allow you to avoid problems with incorrect paths.
-
-
-Application Programming
+Application Development
 =======================
 
-"Hello World!" application
+To simplify development process, we recommend to use :ref:`Project Manager <project_management>`. It can be used to quickly :ref:`create <create_new_project>` a simple application with a generic code that is enough to load a simple scene and enable basic camera controls.
+
+.. _app_init_loading:
+
+Application Code Structure
 --------------------------
 
-The simplest Blend4Web app may look like this:
+The process of initializing and loading an application is separated into several stages, which is reflected in the code of the application. If you are using Project Manager, a newly created ``Copy`` or ``Compile`` type project will include a main JS file, which will be placed in the SDK. The path to the file will look like this: ``./projects/PROJECT_NAME/PROJECT_NAME.js``.
 
-.. code-block:: html
-
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <script src="b4w.min.js"></script>
-    <script>
-    function hello() {
-        var m_version = b4w.require("version");
-        document.body.innerHTML = "Hello, Blend4Web " + m_version.version() + "!";
-    }
-    </script>
-    </head>
-
-    <body onload="hello()"></body>
-
-    </html>
-
-
-This app prints a message and the engine's version in the browser window. Let's look at this example in detail. The engine library is embedded with the ``<script src="...">`` element. Then, the app waits for the page to load and prints the current version in the browser window. In this example, ``version`` is the only used module which has a function with the same name - ``version()``. A more detailed info about the usage of engine's modules and functions can be found in the `API documentation <https://www.blend4web.com/api_doc/index.html>`_.
-
-The compiled engine file ``b4w.min.js`` can be copied from the SDK's ``deploy/apps/common`` directory and placed in the same directory as the HTML file.
-
-Loading Scenes in Apps
-----------------------
-
-To load a 3D scene you need:
-
-#. Place a ``<canvas>`` element on a page for rendering.
-
-#. Call the ``m_main.init()`` function with the created element id to initialize the WebGL context after the page is loaded.
-
-#. Call the ``m_data.load()`` function to load a 3D scene.
-
-.. code-block:: html
-
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <script src="b4w.min.js"></script>
-    <script>
-    function hello() {
-        var m_main = b4w.require("main");
-        var m_data = b4w.require("data");
-
-        var canvas_elem = document.getElementById("canvas_id");
-        m_main.init(canvas_elem);
-        m_data.load("some_scene.json");
-    }
-    </script>
-    </head>
-
-    <body onload="hello()"><canvas id="canvas_id"></canvas></body>
-
-    </html>
-
-.. note::
-
-    Note that a real app should include error checking, setting up the engine before initializing and also a basic system for interacting with the user.
-
-
-Module System
--------------
-
-While the engine gives an app programmer an API in the scale of dozens of modules, it occupies a single ``b4w`` namespace. To call a module’s method import it first with the ``b4w.require()`` function.
-
-It is possible to register external modules if their names do not collide with already existing modules. A module can be registered with a ``b4w.register()`` call. Check if a module with some name already exists with a ``b4w.module_check()`` call.
-
-Example:
+This file contains generic code shaped as a module. This module can be registered using the certain structure:
 
 .. code-block:: javascript
 
-    // check if module exists
+    b4w.register("my_module", function(exports, require) {
+
+        // module code
+        //...
+
+    });
+
+So, the code of a module is contained within a function that accepts ``exports`` and ``require`` parameters.
+
+#. ``require`` is the method used for loading engine modules. The generic example mentioned above loads several modules:
+
+    The most important ones of them are the ``app`` and ``data`` modules. The ``app`` module simplifies application initialization while the ``data`` module contains API methods for loading 3D scene data.
+
+    .. note::
+
+        To make module naming more convenient, ``m_`` prefix is often used (``m_app``, ``m_data`` etc.) to show that the variable is an engine module.
+
+#. ``exports`` is an object used for gaining access to module’s functions from outside (for example, from other modules). In this case, only the ``init`` function has been made external:
+
+    .. code-block:: javascript
+
+        b4w.register("my_module", function(exports, require) {
+
+            ...
+
+            exports.init = function() {
+                m_app.init({
+                canvas_container_id: "main_canvas_container",
+                callback: init_cb,
+                show_fps: DEBUG,
+                console_verbose: DEBUG,
+                autoresize: true
+            });
+        }
+
+        ...
+        });
+
+Application initialization begins with this function, and it is called outside of the module:
+
+.. code-block:: javascript
+
+     b4w.register("my_module", function(exports, require) {
+
+         ...
+
+         exports.init = function() {
+             m_app.init({
+                 canvas_container_id: "main_canvas_container",
+                 callback: init_cb,
+                 show_fps: DEBUG,
+                 console_verbose: DEBUG,
+                 autoresize: true
+             });
+         }
+
+         ...
+     });
+
+     // import the app module and start the app by calling the init method
+     b4w.require("my_module").init();
+
+After this, the :b4wref:`app.init app.init` method is called. It creates Canvas HTML element and performs all necessary action for initializing WebGL. This method has many different attributes, the most important ones of which are:
+
+* ``canvas_container_id`` set the id of the HTML element that acts as a container for the Canvas element. By default, an element with the ``main_canvas_container`` ID is used (this element is located in the main HTML file of the application).
+
+* ``callback`` is the function that is called after finishing initialization.
+
+When application initialization is completed, the :b4wref:`init_cb app.~AppInitCallback` function set by the ``callback`` parameter is called:
+
+.. code-block:: javascript
+
+    function init_cb(canvas_elem, success) {
+
+        if (!success) {
+            console.log("b4w init failure");
+            return;
+        }
+
+        m_preloader.create_preloader();
+
+        // ignore right-click on the canvas element
+        canvas_elem.oncontextmenu = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        };
+
+       load();
+    }
+
+It has following parameters:
+
+* canvas_elem is the created Canvas HTML element that will be used for rendering 3D content
+
+* success it the flag that indicates the success of the initialization. The ``false`` value meant that the application is unable to work due to initialization errors (for example, WebGL is not supported by the device).
+
+.. note::
+
+    The :b4wref:`app.init app.init` methods sets initialization to the ``window.onload`` event, so the ``init_cb`` function will have access to the entire DOM tree of the HTML document.
+
+Now we can begin loading 3D scene. This is done in the ``load`` function that is called from the ``init_cb``:
+
+.. code-block:: javascript
+
+    var APP_ASSETS_PATH = m_cfg.get_assets_path("my_project");
+
+    ...
+
+    function load() {
+        m_data.load(APP_ASSETS_PATH + "my_project.json", load_cb, preloader_cb);
+    }
+
+The :b4wref:`data.load data.load` method is used for loading. The first parameter of this method is the path to a 3D scene file. The path to a JSON file should be relative to the main HTML application file. Projects created in Project Manager have a dedicated asset folder, and you can easily obtain the path to it. This is done in the generic example code by introducing the ``APP_ASSETS_PATH`` global variable that is later used in the :b4wref:`data.load data.load`.
+
+The second parameter of the method is the :b4wref:`load_cb data.~LoadedCallback` function which is called after the 3D scene is loaded and prepared for rendering.
+
+.. code-block:: javascript
+
+    function load() {
+        m_data.load(APP_ASSETS_PATH + "my_project.json", load_cb, preloader_cb);
+    }
+
+    function load_cb(data_id, success) {
+
+        if (!success) {
+            console.log("b4w load failure");
+            return;
+        }
+
+        m_app.enable_camera_controls();
+
+        // place your code here
+
+    }
+
+Calling this function means that the application has finished loading and now starts scene rendering. As this is the very first moment when the 3D scene data will be available, it is a suitable moment for initializing and preparing everything related to the scene, its object, animations and other things. For example, standard camera controls can be enabled here with the :b4wref:`app.enable_camera_controls` method.
+
+Writing Application Logic
+.........................
+
+After initializing and loading 3D scene the application will proceed to work according to the logic set by the programmer such as interacting with input devices, manipulating scene objects, controlling camera behavior and so on.
+
+By observing the :ref:`application loading process <app_init_loading>`, we can determine several places suitable for performing various tasks.
+
+#. The :b4wref:`app.init app.init` method used for starting the initialization accepts engine configuration parameters. So you can configure the engine right before calling this method using URL attributes as a base:
+
+    .. code-block:: javascript
+
+        b4w.register("my_module", function(exports, require) {
+
+        ...
+
+        exports.init = function() {
+            var url_params = m_app.get_url_params();
+            if (url_params && "show_fps" in url_params)
+                var show_fps = true;
+            else
+                var show_fps = false;
+
+            m_app.init({
+                canvas_container_id: "main_canvas_container",
+                callback: init_cb,
+                autoresize: true
+                show_fps: show_fps
+            });
+        }
+
+            ...
+        });
+        b4w.require("my_module").init();
+
+#. Initialization is started by the ``window.onload`` action, which means that after it is completed, the :b4wref:`init_cb app.~AppInitCallback` function will have access to the whole DOM tree. At this moment, you already can perform some preparations such as creating and setting up interface elements. However, the 3D scene itself is not yet loaded, and its objects are not yet available.
+
+#. After the 3D scene is loaded, the :b4wref:`load_cb data.~LoadedCallback` function is called. At this moment, all scene objects become available, thus any action that concerns them can be implemented in this function. Some examples can be found in the  :ref:`Code Snippets <code_snippets>` application.
+
+Logic can be added to the application by using either browser or engine API:
+
+#. Basic keyboard/mouse/gamepad input can be implemented with standard event handlers by using the ``addEventListener`` method. In more complex cases you can use the :b4wmod:`input` API module. The engine also features the :b4wref:`input.add_click_listener` method that registers both mouse clicks and touch screen events which makes it useful for writing applications compatible with desktop and mobile devices alike.
+
+#. Time-stretched events that have to be performed at every frame (procedural animation, for example) can be implemented with methods such as :b4wref:`main.set_render_callback`, :b4wref:`main.append_loop_cb`, :b4wref:`time.animate` and :b4wref:`time.set_timeout`. Standard ``setTimeout`` and ``setInterval`` methods can also be used.
+
+#. For complex logic that takes into account both user actions and the state of the 3D scene can use engine’s :ref:`event-driven model <event_model>` that is based on sensor system.
+
+Module System
+.............
+
+Blend4Web engine is built upon modular structure: all engine API methods are separated into several modules. If necessary, a module can be plugged into the application with the ``require`` method. We recommend to structure the code of the actual application into modules as well.
+
+1) Registering Modules
+
+A module is essentially a code block wrapped by a specific structure that is used to register it:
+
+.. code-block:: javascript
+
+    b4w.register("my_module1", function(exports, require) {
+
+        // module code
+        ...
+    });
+
+    b4w.register("my_module2", function(exports, require) {
+
+        // module code
+        ...
+    });
+
+    ...
+
+The :b4wref:`b4w.register` method is used for registering modules. You can only register custom modules if their names do not coincide with the regular API modules. If necessary, the :b4wref:`b4w.module_check` method to check if a module with a given name is present:
+
+.. code-block:: javascript
+
     if (b4w.module_check("my_module"))
         throw "Failed to register module: my_module";
 
-    // register my_module
     b4w.register("my_module", function(exports, require) {
 
-        // import module "version"
-        var m_version = require("version");
+        // module code
+        ...
 
-        // export print_build_date() from module "my_module"
-        exports.print_build_date = function() {
-            // exec function date() from module "version"
-            console.log("Engine build date: " + m_version.date());
-        }
     });
 
-    // import module "my_module"
-    var m_my_module = b4w.require("my_module");
+2) Loading Modules
 
-    // exec function print_build_date() from module "my_module"
-    m_my_module.print_build_date();
+Custom modules, just like regular ones, can be plugged in with the ``require`` method:
 
+.. code-block:: javascript
 
+    b4w.register("my_module1", function(exports, require) {
 
-Creating Apps Quickly
----------------------
+        var mod2 = require("my_module2")
 
-Creating an app from scratch can be a tedious task, especially for beginners. To address this there is a special add-on for the engine called ``app``:
+        ...
+    });
 
-.. code-block:: html
+3) Application Initialization
 
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <script src="b4w.min.js"></script>
-    <script>
+Application initialization in Blend4Web is usually done with a call like this:
 
-    var m_app = b4w.require("app");
-    var m_data = b4w.require("data");
+.. code-block:: javascript
 
-    m_app.init({
-        canvas_container_id: "container_id",
-        callback: load_cb
-    })
+    b4w.require("my_module").init();
 
-    function load_cb() {      
-        m_data.load("some_scene.json", loaded_cb);
-    }
+Here, the ``my_module`` custom module and its ``init`` external function do, in a certain sense, act as the entry point to the application.
 
-    function loaded_cb() {
-        m_app.enable_camera_controls();
-    }
+.. note::
 
-    </script>
-    </head>
+    In the global visibility scope a module can be loaded with the same :b4wref:`b4w.require` method available as a method of the global ``b4w`` object: ``b4w.require("MODULE_NAME")``.
 
-    <body>
-        <div id="container_id" style="width: 350px; height: 200px;"></div>
-    </body>
+4) Using Multiple Modules
 
-    </html>
+After a project is created in the :ref:`Project Manager <project_management>`, its generic application JS-file will contain only one module. However, while developing the application, you might need to separate your code into several logic parts. In this case, you can either create several modules inside one file, or you can create several files each one of them contain one module.
 
-In this case the ``app`` module will create a ``<canvas>`` element inside the container with the specified ``container_id`` id. Then it will initialize the engine after the page is loaded and will finally execute the ``load_cb()`` callback.
+If your application uses multiple modules, keep in mind that every one of them should be properly registered before initialization starts, or you will get an engine error if you try to call a module that is not yet registered. If you are using several JS files, the script that starts the initialization (contains application entry point) should the last one to be plugged into the main HTML application file.
 
-Then the some_scene.json scene is loaded similar to the previous example. The only difference is that after the scene is loaded, the control system is initialized and camera movement with keyboard and mouse (or sensor screen) becomes possible.
+Background Transparency
+=======================
 
-In case when the ``app`` module is used, it is necessary to explicitly specify dimensions of the container element. Otherwise, the created ``<canvas>`` element will have zero dimensions.
+The ``background_color`` and ``alpha`` parameters are passed to the :b4wref:`m_app.init` method placed in the load callback function (a function that is called right after the scene is loaded), like this:
+
+.. code-block:: javascript
+
+    m_app.init ({
+        alpha: true,
+        background_color: [0.7, 0.7, 0.7, 1]
+       //this method sets the background to an opaque light gray color
+    });
+
+The combination of the parameters passed to the method defines how the backgrounds of the Blend4Web application and the HTML application blend together. Available options are:
+
+1. ``alpha`` = false
+	The color of the background is defined by the ``background_color`` of the Blend4Web application, the background of the HTML application is not taken into consideration.
+
+.. image:: src_images/developers/developers_background_opaque.png
+   :align: center
+   :width: 100%
+
+2. ``alpha`` = true
+	The background of the HTML application might influence the background of the Blend4Web application based on its transparency which is defined by the fourth component of the ``background_color`` parameter (``alpha`` = ``background_color[3]``, not to be confused with the ``alpha`` parameter mentioned above).
+
+	background_color[3] = 1
+		This produces the same result as if the alpha parameter has been turned off (``alpha`` = false)
+
+	background_color[3] = 0
+		Additive blending is used.
+
+                .. image:: src_images/developers/developers_background_add.png
+                   :align: center
+                   :width: 100%
+
+                Picture above shows an HTML page containing a Blend4Web application with a blue [0, 0, 1] background that blends with the page's red (``Red``) color producing a violet tone.
+
+	background_color[3] > 0
+		Additive blending is used with the ``background_color`` having a greater influence.
+
+                .. image:: src_images/developers/developers_background_semiopaque.png
+                   :align: center
+                   :width: 100%
+
+                This picture shows the same HTML page with the same Blend4Web app, however, the ``alpha`` value is set to 0.5, leading to a darker tone of the application background.
+
+The mechanisms of alpha lending are described in greater detail in the :ref:`Color Management <alpha_compositing>` chapter.
+
+By default, the ``alpha`` parameter is set to true and the ``background_color`` is set to transparent black [0, 0, 0, 0], which means that the application will have an HTML background with no influences from the background of the Blend4Web application.
+
+Background transparency can also be utilized in :ref:`Web Player applications <web_player_app>` by using the ``alpha`` :ref:`URL attribute <webplayer_attributes>`. To use this feature, firstly you need to enable the ``Background transparency (alpha)`` parameter in the :ref:`Web Player Params <web_player_params>` group while creating the application.
+
+If Blend4Web application uses sky rendering, the application canvas will be fully covered by objects (including sky), so the background will be fully opaque and not influenced by alpha settings.
+
+.. note::
+    Sky rendering is enabled by default in Blend4Web scenes created in :ref:`Project Manager <project_management>`. Don't forget, in order to use a transparent background you will need to manually disable sky rendering.
 
 
 .. _converter:
@@ -502,7 +351,7 @@ To support a wider range of platforms, a Python script (*scripts/converter.py*) 
 
 There are two ways to run this script.
 
-Firstly, you can run it automatically using the project mangement system. The ``Convert Resources`` button can be found in the main page of the :ref:`Project Manager <project_management>`, in the ``Operations`` tab at the right side of the screen. 
+Firstly, you can run it automatically using the project management system. The ``Convert Resources`` button can be found in the main page of the :ref:`Project Manager <project_management>`, in the ``Operations`` tab at the right side of the screen. 
 
 .. image:: src_images/developers/developers_convert_resources.png
    :align: center
@@ -532,6 +381,55 @@ To exclude some directory from resource conversion, it is enough to put a file n
 
 The **resize_textures** argument is used for decreasing texture resolution for the **LOW** mode.
 
+.. _converter_commands:
+
+Commands
+--------
+
+Commands for conversion:
+
+* ``resize_textures`` converts textures to lower resolution.
+
+* ``convert_dds`` converts textures to :ref:`DDS format <dds>`.
+
+* ``convert_pvr`` converts textures to :ref:`PVR format <pvrtc>`.
+
+* ``convert_media`` converts audio and video files to :ref:`alternative formats <converter_data_format>`.
+
+* ``convert_gzip`` generates GZIP-compressed versions of ".json" and ".bin" scene files and ".dds" and ".pvr" textures.
+
+Commands for resource cleanup:
+
+* ``cleanup_textures`` removes low resolution textures generated by the ``resize_textures`` command.
+
+* ``cleanup_dds`` removes DDS texture files generated by the ``convert_dds`` command.
+
+* ``cleanup_pvr`` removes PVR texture files generated by the ``convert_pvr`` command.
+
+* ``cleanup_media`` removes audio and video files in alternative formats that were generated by the ``convert_media`` command.
+
+* ``cleanup_gzip`` removes GZIP-compressed files generated by the ``convert_gzip`` command.
+
+Commands for image compression:
+
+* ``compress_png`` compresses PNG files in order to decrease their size. This option requires OptiPNG tool to be installed and set up in the ``PATH`` environment variable.
+
+Other commands:
+
+* ``check_dependencies`` checks :ref:`converter dependencies <converter_deps>`
+
+.. _converter_arguments:
+
+Arguments
+---------
+
+* ``-d``, ``--dir <dir_path>`` enables using an alternative directory to store converted files. The <dir_path> value specifies the path to this directory.
+
+* ``-j``, ``--jobs <jobs>`` specifies the number of jobs (threads) to run simultaneously. If this parameter is set to zero or is not specified, the number will be calculated automatically based on the number of CPUs.
+
+* ``-v``, ``--verbose`` enables outputting more information about files that are being converted. For example, when converting textures into DDS format, the script will show progress percentage for every file that is being converted.
+
+.. _converter_deps:
 
 Dependencies
 ------------
@@ -551,7 +449,7 @@ If some program is not installed, the following message will be displayed:
 The list of dependencies is listed in the following table:
 
 +-------------------------------+-------------------------------+
-| Name                          | Ubuntu 15.04 package          |
+| Name                          | Ubuntu 16.04 package          |
 |                               |                               |
 +===============================+===============================+
 | ImageMagick                   | imagemagick                   |
@@ -562,6 +460,8 @@ The list of dependencies is listed in the following table:
 +-------------------------------+-------------------------------+
 | FFmpeg                        | ffmpeg                        |
 +-------------------------------+-------------------------------+
+| PVRTC                         | install manually              |
++-------------------------------+-------------------------------+
 
 .. note::
 
@@ -571,9 +471,9 @@ The list of dependencies is listed in the following table:
 
 For MS Windows users it is not necessary to install these packages since they are already present in the SDK.
 
-**Mac OS**
+**macOS**
 
-Mac OS users can install the `brew <http://www.brew.sh/>`_ package manager first and then install any missing packages.
+macOS users can install the `brew <http://www.brew.sh/>`_ package manager first and then install any missing packages.
 
 Before installing packages, install the libpng and libjpeg libraries using these commands:
 
@@ -606,37 +506,36 @@ Now you can build and install the package:
 
 .. _converter_data_format:
 
-Data Format
------------
+Data Formats
+------------
 
 The conversion is performed as follows:
 
 for audio (convert_media):
-    * ogg, oga -> mp4
-    * mp3 -> ogg
-    * mp4, m4a -> ogg
+    * ogg (ogv, oga) -> mp4
+    * mp3 -> oga
+    * mp4 (m4v, m4a) -> oga
+    * webm -> m4a
 
 We recommend to use ``ogg`` as a base format. In this case the only conversion required for cross-browser compatibility will be ``ogg`` to ``mp4``. Example of an input file: ``file_name.ogg``, example of an output file: ``file_name.altconv.mp4``.
 
 for video (convert_media):
-    * webm -> m4v
-    * mp4, m4v -> webm
-    * ogg, ogv -> webm
-    * webm -> seq
-    * mp4, m4v -> seq
-    * ogg, ogv -> seq
+    * ogg (ogv, oga) -> m4v / seq
+    * mp3 -> webm / seq
+    * mp4 (m4v, m4a) -> webm / seq
+    * webm -> m4v / seq
 
 We recommend to use ``WebM`` as a base format. In this case the only conversion required for cross-browser compatibility will be ``webm`` to ``m4v`` (``webm`` to ``seq`` for iPhone). Example of an input file: ``file_name.webm``, example of an output file: ``file_name.altconv.m4v``.
 
 for images (convert_dds):
-    * png -> dds
-    * jpg -> dds
-    * bmp -> dds
+    * png -> dds/pvr
+    * jpg -> dds/pvr
+    * bmp -> dds/pvr
     * gif -> dds
 
 Example of an input file: ``file_name.jpg``, example of an output file: ``file_name.altconv.jpg.dds``.
 
-For the purpose of optimizing application performance it's possible to use ``min50`` (halved) and ``DDS`` textures. In order to do this, we need to pass the following parameters during initialization of the application:
+For the purpose of optimizing application performance it's possible to use ``min50`` (halved) and ``DDS`` or ``PVRTC`` (compressed) textures. In order to do this, we need to pass the following parameters during initialization of the application:
 
 .. code-block:: javascript
 
@@ -650,7 +549,25 @@ For the purpose of optimizing application performance it's possible to use ``min
         // . . .
     }
 
+.. note::
+    If you are planning to use textures compressed into :ref:`PVRTC <pvrtc>` format, then replace this line of code
+
+     .. code-block:: javascript
+
+         assets_dds_available: true,
+
+    with the following:
+
+     .. code-block:: javascript
+
+         assets_pvr_available: true,
+
+    This will tell the engine to load PVRTC textures, if such are present in the ``./assets/`` folder.
+
 .. _dds:
+
+DDS Texture Compression
+.......................
 
 ``DDS`` textures require less memory (4 times less for ``RGBA`` data and 6 times for ``RGB`` data), but using them has following downsides:
 
@@ -668,7 +585,40 @@ During exporting the scene from Blender to the ``JSON`` format (but not the ``HT
 
 Textures can be converted to the ``DDS`` format using the :ref:`project manger <project_management>` or the *scripts/converter.py* script described above.
 
+.. _pvrtc:
+
+PVRTC Texture Compression
+.........................
+
+``PVRTC`` is another texture compression format used primarily on iOS devices. In some cases it can produce texture files up to two times smaller than same texture images would take in ``DDS`` format.
+
+The format has two compression settings that are supported by the engine: 2-bpp (two bits per pixel) and 4-bpp (four bits per pixel).
+
+As with ``DDS`` format, textures compressed using the ``PVRTC`` algorithm may not work on some platforms, especially mobile, because using this compression format require support for the ``IMG_texture_compression_pvrtc`` WebGL extension.
+
+The PVRTC library and SDK are available for Windows, Linux and macOS systems alike. Installation packages can be downloaded from the `Power VR Insider <https://community.imgtec.com/developers/powervr/>`_ web page.
+
+The Blend4Web engine uses a console PVRTC tool. To use it, you need to add the path to it to the ``PATH`` environmental variable, like the following:
+
+.. code-block:: bash
+
+    export PATH = <InstallDir>\PVRTexTool\CLI\<PLATFORM>\
+
+where <InstallDir> is the PVRTexTool installation directory and <PLATFORM> is a folder that contains the version of the tool that corresponds to your OS, for example, ``\Windows_x86_64\`` for 64-bit Windows OS.
+
+.. note::
+    In Windows systems, environment variables can be set in the ``System`` (in Windows 10 and 8) or ``Properties`` (in Windows 7 and Vista) dialogue window by choosing ``Advanced System Settings`` -> ``Environment Variables``, or by using console commands:
+
+    .. code-block:: bash
+
+        SET PATH = <InstallDir>\PVRTexTool\CLI\<PLATFORM>\
+
+After this, you will be able to convert the textures to the PVR format by using converter.py script with the ``convert_dds`` command.
+
 .. _seq:
+
+SEQ Video Format
+................
 
 The ``.seq`` file format is used for sequential video. This is applied for IE 11 and iPhone because they are currently missing support for standard video formats for textures. Using dds format for images is more optimal compared to other formats.
 
@@ -676,7 +626,52 @@ The engine can use files which are manually created by a user if they have the f
 
 You can also use the free and cross-platform application `Miro Video Converter <http://www.mirovideoconverter.com/>`_ to convert media files.
 
+.. _gzip:
 
+GZIP Compression
+================
+
+Typical Blend4Web application can use various resource formats from standard  HTML, JS, CSS, PNG or JPEG files to engine-specific JSON- and BIN-files that contain scene data. Compressed  DDS/PVR image formats are also an option. Both big and small applications benefit from decreasing the size of the resources, as this also decreases the loading time.
+
+Usually, loading time can be decreased by setting up caching on the server that contains web application. You can also enable GZIP compression for various file types.
+
+Speaking of the specific file types, GZIP compression should be used for  JSON, BIN, DDS and PVR files. JSON and BIN files, being the main scene files, can contain large amounts of data, while DDS and PVR also can be quite large (at least when compared to standard PNG and JPEG files), and there can be quite a lot of them.
+
+But if for some reason GZIP compression cannot be set up on the server, it can be enabled in the application itself.
+
+The engine can load compressed resources in the form of ``.gz`` files. To use this feature in a ``WebPlayer JSON`` type project, you need to pass the ``compressed_gzip`` URL parameter. If you are developing your own application, you need to pass the ``assets_gzip_available`` configuration parameter during the initialization.
+
+    .. code-block:: javascript
+
+        var m_app = require("app");
+
+        m_app.init({
+            canvas_container_id: "main_canvas_container",
+            callback: init_cb,
+            show_fps: DEBUG,
+            console_verbose: DEBUG,
+            autoresize: true,
+            assets_gzip_available: true
+        });
+
+Compressed ``.gz`` files should be placed alongside the original ones, for example, like this:
+
+    .. code-block:: javascript
+
+        my_project/
+            assets/
+                my_scene.json
+                my_scene.json.gz
+                my_scene.bin
+                my_scene.bin.gz
+
+This also applies to the ``.dds`` and ``.pvr`` files and their compressed counterparts ``.dds.gz`` and ``.pvr.gz``.
+
+.. note::
+
+    If a compressed ``.gz`` is not present, engine will load the original file and output a corresponding message to the console.
+
+GZIP compressed files can be generated with the ``convert resources`` :ref:`command <project_manager>` that can be found in the Project Manager interface. This can also be done in the console by running the :ref:`./scripts/converter.py <converter>` script with the ``compress_gzip`` (for compressing resources) or the ``cleanup_gzip`` (for removing compressed files) command.
 
 .. _code_snippets:
 
@@ -691,15 +686,36 @@ Currently, this application contains the following examples:
     * Camera Animation - procedural camera animation
     * Camera Move Styles - changing control modes for the camera
     * Canvas Texture - working with canvas textures
+    * Change Image - changing texture images on-the-fly
     * Custom Anchors - creating custom annotations
     * Dynamic Geometry - procedural geometry modification
+    * Gamepad - an example of controlling a character via gamepad
     * Gyro (Mobile Only) - working with mobile devices' gyroscopes
     * Instancing - copying scene objects in runtime
+    * Lines - procedural lines rendering
     * Material API - tweaking material properties and replacing objects' materials
     * Morphing - using shape keys
+    * Multitouch (Mobile Only) - using mobile devices multitouch sensor
+    * Pathfinding - an example of calculating paths and using navigation meshes
     * Ray Test - the usage of raycasting for obstacles detection
+    * VR - a VR application example
+    * Webcam - using media stream from a web camera
 
-The Code Snippets application is available at ``SDK/apps_dev/code_snippets/code_snippets_dev.html``. It can be also run by using a link in the ``index.html`` file located in the SDK root.
+The Code Snippets application is available at ``./apps_dev/code_snippets/code_snippets_dev.html``. It can be also run by using a link in the ``index.html`` file located in the SDK root.
+
+
+Loading Application Assets
+==========================
+
+To simplify project maintenance and server deployment always keep your application asset files (exported scenes, textures, sounds, etc) separate from other project files (JavaScript, CSS, HTML, etc). Inside your SDK this asset directory is located at ``projects/my_project/assets``.
+
+To load files (e.g by using :b4wref:`data.load()`) from this directory use the :b4wref:`config.get_assets_path()` method:
+
+.. code-block:: javascript
+
+    m_data.load(m_config.get_assets_path("my_project") + "loaded_scene.json", load_cb);
+
+This way you ensure that your applications will find assets independently of the current development stage (developed, built or deployed).
 
 .. _event_model:
 
@@ -793,11 +809,16 @@ When the "Stone" object collides with any physical material of "TERRAIN" or "WAL
 SDK File Structure
 ==================
 
+
+**addons**
+    **blend4web**
+        Blender addon
+
 **apps_dev**
-    source code of the applications
+    SDK apps source code
 
     **code_snippets**
-        source files of the Blend4Web API usage demonstration application
+        source files of the Code Snippets application
 
         **scripts**
             Blend4Web API usage examples' source files
@@ -805,11 +826,35 @@ SDK File Structure
     **dairy_plant**
         source files of the Dairy Plant demo (available only in SDK Pro)
 
+    **demos_animation**
+        project files of the basic animation demos
+
+    **demos_environment**
+        project files of the basic environment demos
+
+    **demos_interactivity**
+        project files of the basic interactivity demos
+
+    **demos_materials**
+        project files of the basic materials demos
+
+    **demos_media**
+        project files of the basic media demos
+
+    **demos_particles**
+        project files of the basic particles demos
+
+    **demos_physics**
+        project files of the basic physics demos
+
+    **demos_postprocessing**
+        project files of the basic postprocessing demos
+
+    **farm**
+        source files of the Farm demo (available only in SDK Pro)
+
     **fashion**
         source files of the Fashion Show demo (available only in SDK Pro)
-
-    **firstperson**
-        source files of the Farm demo (available only in SDK Pro)
 
     **flight**
         source files of the Island demo
@@ -820,14 +865,17 @@ SDK File Structure
     **project.py**
         script for application developers
 
+    **space_disaster**
+        source files of the Space Disaster app
+
+    **tutorials**
+        source files of the Blend4Web tutorials
+
     **victory_day_2015**
         source files of the V-Day 70 greeting card
 
     **viewer**
         the sources files of the Viewer application
-
-        **assets.json**
-            metadata with information about scenes loaded by the Viewer
 
     **webplayer**
         source files of the Web Player app
@@ -837,9 +885,6 @@ SDK File Structure
 
 **blender**
     source files of the Blender scenes
-
-**blender_scripts**
-    exporter and utility scripts for Blender
 
 **csrc**
     source code (in C) of the binary part of the engine exporter and of the other utilities
@@ -857,16 +902,16 @@ SDK File Structure
             Compiled engine files. Shared by all applications from SDK (hence the name).
 
     **assets** 
-        downloadable resources: scenes, textures and sounds
+        application assets: scenes, textures and sounds
 
     **doc**
         the current user manual in HTML format, built automatically from *doc_src*
 
-    **globals_detect**
-        utility code for detecting global variables
+    **webglreport**
+        WebGL report application
 
-    **tutorials**
-        source files for the tutorials
+**distfiles**
+    distribution builder lists
 
 **doc_src**
     source files of the current manual written in reST
@@ -878,16 +923,16 @@ SDK File Structure
     files with license texts
 
 **Makefile**
-    makefile for building the engine, the applications, the documentation and for deploying on a remote server (not available as a free version)
+    makefile for building the engine, the applications, and the documentation
+
+**projects**
+    directory for user projects
 
 **README.rst**
     README file
 
 **scripts**
     scripts
-
-    **blend4web.lst**, **blend4web_sdk_free.lst** and **blend4web_sdk_pro.lst** (optional)
-        lists of the files for building distributions
 
     **check_resources.py**
         script for checking of and reporting about unused resources (images and sounds referenced by the exported files)
@@ -932,7 +977,7 @@ SDK File Structure
         script starting the local web server which calculates complexity of the shaders
 
     **translator.py**
-        script for building addon translations
+        script for building add-on translations
 
 **shaders**
     GLSL shaders of the engine
@@ -941,7 +986,7 @@ SDK File Structure
     main source code of the engine's kernel
 
     **addons** 
-        source code of engine addons
+        source code of engine add-ons
 
     **ext**
         source code of the external declarations that form the engine's API
@@ -949,8 +994,11 @@ SDK File Structure
     **libs**
         source code of the libraries
 
+**tmp**
+    directory for temporary files (e.g. Fast Preview)
+
 **tools**
-    Various tools for building the engine, apps or convert resources
+    various tools for building the engine, apps or convert resources
 
     **converter_utils**
         binary builds of the tools for resource conversion
@@ -1028,20 +1076,20 @@ Application developers can also set the **quality** parameter upon engine initia
     });
     
 
-.. _canvas_nonfullscreen_coords:
+.. _non_standard_canvas_pos:
 
-Non-FullScreen Web Apps
-=======================
+Non-Standard Canvas Position and Orientation
+============================================
 
 The Canvas element, to which the rendering is performed, can change its position relative to the browser window. This can occur due to some manipulations over the DOM tree, or as a result of page scrolling which is especially relevant for non-fullscreen web applications.
 
 In most cases this will not affect the performance of the app by any means. However, some DOM events related to mouse cursor or touch position may carry incorrect information. This occurs because the coordinates obtained from the corresponding events are measured relative to the origin of the browser window, while the engine works with the coordinate space of the Canvas element itself (its origin is located in the top left corner).
 
-1) If the top left corner of the Canvas element matches the top left corner of the browser window and is fixed in its position (non-movable) then it's sufficient to use event.clientX and event.clientY coordinates of the input events or :b4wref:`mouse.get_coords_x()`/:b4wref:`mouse.get_coords_y()` methods.
+1) If the top left corner of the Canvas element matches the top left corner of the browser window and is fixed in its position (non-movable) then it's sufficient to use event.clientX and event.clientY coordinates of the input events or :b4wref:`mouse.get_coords_x()` and :b4wref:`mouse.get_coords_y()` methods.
 
 .. code-block:: javascript
 
-    var m_mouse   = require("mouse");
+    var m_mouse = require("mouse");
 
     // . . .
     var x = event.clientX;
@@ -1051,59 +1099,92 @@ In most cases this will not affect the performance of the app by any means. Howe
     var y = m_mouse.get_coords_y(event);
     // . . .
 
-2) In the case of the scrolled browser window, you have to use event.pageX and event.pageY coordinates.
+|
+
+2) In the case of more sophisticated manipulations with the Canvas element (scrolling of the page elements, displacement from the top level corner of the browser window, changes in the DOM-tree) it's needed to obtain properly calculated coordinates. This can be done by using the aforementioned :b4wref:`mouse.get_coords_x()` and :b4wref:`mouse.get_coords_y()` methods with a ``true`` value as a third parameter:
 
 .. code-block:: javascript
 
-    // . . .
-    var x = event.pageX;
-    var y = event.pageY;
-    // . . .
+    var m_mouse = require("mouse");
 
-3) In the case of more sophisticated manipulations with the Canvas element (scrolling of the page elements, displacement from the top level corner of the browser window, changes in the DOM-tree) you need to perform correct coordinate conversions. In order to obtain coordinates suitable for use in the engine, you can covert them by using the ``client_to_canvas_coords()`` method of the ``container`` module:
-
-.. code-block:: javascript
-
-    var m_cont   = require("container");
-    var _vec2_tmp = new Float32Array(2);
     // . . .
-    var canvas_xy = m_cont.client_to_canvas_coords(event.clientX, event.clientY, _vec2_tmp);
+    var x = m_mouse.get_coords_x(event, false, true);
+    var y = m_mouse.get_coords_y(event, false, true);
     // . . .
 
 |
 
-    In order to obtain coordinates in the Canvas space, the engine should know its position relative to the browser window. However, if this position is subjected to changes during the work of the app (due to scrolling for example), the Canvas position should be recalculated. To do this automatically, you can set the ``track_container_position`` property upon app initialization:
-
-.. code-block:: javascript
-
-    exports.init = function() {
-        m_app.init({
-            // . . .
-            track_container_position: true,
-            // . . .
-        });
-        // . . .
-    }
-
-|
-
-    Please note, that this setting can lead to performance degradation in some browsers (such as Firefox) due to frequent DOM tree accesses. If the performance is critical, you can update the Canvas position manually when it is really necessary. To do this, use the ``force_offsets_updating()`` and ``update_canvas_offsets()`` methods instead of the ``track_container_position`` setting, or even the lower-level ``set_canvas_offsets()`` method from the ``container`` module:
+Another option in this case is to use the :b4wref:`container.client_to_canvas_coords()` method as follows:
 
 .. code-block:: javascript
 
     var m_cont = require("container");
+
+    var _vec2_tmp = new Float32Array(2);
+
     // . . .
-    m_cont.force_offsets_updating();
-    // . . .
-    m_cont.update_canvas_offsets();
-    // . . .
-    m_cont.set_canvas_offsets(offset_left, offset_top);
+    var coords_xy = m_cont.client_to_canvas_coords(event.clientX, event.clientY, _vec2_tmp);
     // . . .
 
-|
+.. _mobile_web_apps:
 
-4) The possibility to scale the whole webpage can lead to Canvas element displacement on mobile devices. The described decisions are suitable in this case. However, you can lock scaling at all and thus avoid such problems. It is enough to add the following meta-tag to the page's header:
+Mobile Web Apps
+===============
+
+An option to scale the whole webpage and change the orientation of a mobile device should be considered when creating user interface for a web application. It is recommended to prevent scaling and keep the aspect ratio of a webpage constant to avoid possible problems. This can be achieved by adding the following meta-tag to the page header:
 
 .. code-block:: html
 
-    <meta name="viewport" content="user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+Sometimes you might need to lock a mobile device to a certain orientation, especially when you don't want to make both landscape and portrait interface variants. Since the native screenlock API is experimental and isn't widespread, this might be easier to do using CSS rules.
+
+To keep the orientation in landscape mode only, one can set rotation for the <html> element by 90 degrees in the portrait mode:
+
+.. code-block:: css
+
+    @media (orientation : portrait) {
+        html {
+            position: absolute;
+            width: 100vh;
+            height: 100vw;
+            overflow: hidden;
+
+            -moz-transform: rotate(90deg);
+            -ms-transform: rotate(90deg);
+            -webkit-transform: rotate(90deg);
+            transform: rotate(90deg);
+            -moz-transform-origin: top left;
+            -ms-transform-origin: top left;
+            -webkit-transform-origin: top left;
+            transform-origin: top left;
+
+            left: 100%;
+        }
+    }
+
+|
+
+Similarly, the CSS rule for the portrait mode only should look like the following:
+
+.. code-block:: css
+
+    @media (orientation : landscape) {
+        html {
+            position: absolute;
+            width: 100vh;
+            height: 100vw;
+            overflow: hidden;
+
+            -moz-transform: rotate(-90deg);
+            -ms-transform: rotate(-90deg);
+            -webkit-transform: rotate(-90deg);
+            transform: rotate(-90deg);
+            -moz-transform-origin: top left;
+            -ms-transform-origin: top left;
+            -webkit-transform-origin: top left;
+            transform-origin: top left;
+
+            top: 100%;
+        }
+    }

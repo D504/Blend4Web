@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,15 +17,15 @@
 bl_info = {
     "name": "Blend4Web",
     "author": "Blend4Web Development Team",
-    "version": (16, 7, 0),
-    "blender": (2, 77, 0),
-    "b4w_format_version": "5.07",
+    "version": (17, 6, 0),
+    "blender": (2, 78, 0),
+    "b4w_format_version": "6.02",
     "location": "File > Import-Export",
     "description": "Tool for interactive 3D visualization on the Internet",
     "warning": "",
     "wiki_url": "https://www.blend4web.com/doc",
     "tracker_url": "https://www.blend4web.com/en/forums/forum/17/",
-    "category": "Import-Export"
+    "category": "Blend4Web"
 }
 
 load_module_script =\
@@ -87,8 +87,6 @@ else:
 from bpy.types import AddonPreferences
 from bpy.props import StringProperty, IntProperty, BoolProperty
 
-PATH_TO_ASSETS = "apps_dev/viewer"
-ASSETS_NAME = "assets.json"
 NODE_TREE_BLEND = "b4w_nodes.blend"
 
 # addon initialization messages
@@ -98,6 +96,7 @@ class B4WInitErrorDialog(bpy.types.Operator):
     bl_idname = "b4w.init_error_dialog"
     bl_label = "Blend4Web initialization error."
     bl_options = {"INTERNAL"}
+    msg = bpy.props.StringProperty()
 
     def execute(self, context):
         return {'FINISHED'}
@@ -109,7 +108,9 @@ class B4WInitErrorDialog(bpy.types.Operator):
 
     def draw(self, context):
         row = self.layout.row()
-        row.label("Incorrect addon directory name.", icon="ERROR")
+        if (self.msg == ""):
+            self.msg = "Incorrect addon directory name."
+        row.label(self.msg, icon="ERROR")
 bpy.utils.register_class(B4WInitErrorDialog)
 
 @bpy.app.handlers.persistent
@@ -117,29 +118,6 @@ def draw_init_error_message(arg):
     if draw_init_error_message in bpy.app.handlers.scene_update_pre:
         bpy.app.handlers.scene_update_pre.remove(draw_init_error_message)
     bpy.ops.b4w.init_error_dialog("INVOKE_DEFAULT")
-
-@bpy.app.handlers.persistent
-def add_asset_file(arg):
-    p = bpy.context.user_preferences.addons[__package__].preferences
-    path_to_sdk = p.b4w_src_path
-    os.path.abspath(path_to_sdk)
-    path_to_assets = os.path.join(path_to_sdk, PATH_TO_ASSETS, ASSETS_NAME)
-    path_to_assets = exporter.guard_slashes(os.path.normpath(path_to_assets))
-    if os.path.isfile(path_to_assets):
-        for text in bpy.data.texts:
-            if text.b4w_assets_load and text.name == ASSETS_NAME:
-                if (text.filepath != path_to_assets or text.is_modified):
-                    bpy.data.texts.remove(text)
-                    break
-                else:
-                    return
-        text = bpy.data.texts.load(path_to_assets)
-        text.b4w_assets_load = True
-    else:
-        for text in bpy.data.texts:
-            if text.b4w_assets_load:
-                bpy.data.texts.remove(text)
-                break
 
 def need_append(b4w_node):
     if not b4w_node in bpy.data.node_groups:
@@ -160,8 +138,9 @@ def add_node_tree(arg):
                     data_to.node_groups.append(b4w_node)
 
 @bpy.app.handlers.persistent
-def fix_cam_limits_storage(arg):
+def cam_reform(arg):
     for cam in bpy.data.cameras:
+        # camera limits
         if "b4w_rotation_down_limit_storage" in cam:
             cam.b4w_rotation_down_limit = cam["b4w_rotation_down_limit_storage"]
             del cam["b4w_rotation_down_limit_storage"]
@@ -174,6 +153,15 @@ def fix_cam_limits_storage(arg):
             cam.b4w_use_target_distance_limits = cam["b4w_use_distance_limits"]
             cam.b4w_use_zooming = cam["b4w_use_distance_limits"]
             del cam["b4w_use_distance_limits"]
+
+        # dof settings
+        if "b4w_dof_front" in cam:
+            cam.b4w_dof_front_end = cam["b4w_dof_front"]
+            cam.b4w_dof_front_start = 0
+
+        if "b4w_dof_rear" in cam:
+            cam.b4w_dof_rear_end = cam["b4w_dof_rear"]
+            cam.b4w_dof_rear_start = 0
 
 def index_by_var_name(collection, name):
     for i in range(len(collection)):
@@ -397,21 +385,20 @@ def logic_nodetree_reform(arg):
                             node.strings.add()
                             node.strings[-1].name = "inp2"
 
+                    if node.type in ["SHOW", "HIDE"]:
+                        if not "ch" in node.bools:
+                            node.bools.add()
+                            node.bools[-1].name = "ch"
+
                     if node.type == "ENTRYPOINT":
                         if not "js" in node.bools:
                             node.bools.add()
                             node.bools[-1].name = "js"
 
+
 def init_runtime_addon_data():
     p = bpy.context.user_preferences.addons[__package__].preferences
-    if p.b4w_autodetect_sdk_path == "":
-        sdk = init_validation.detect_sdk()
-        if sdk:
-            p.b4w_autodetect_sdk_path = sdk
-        else:
-            p.b4w_autodetect_sdk_path = ""
-        if not (p.b4w_autodetect_sdk_path == "") and p.b4w_src_path == "":
-                p.b4w_src_path = copy.copy(p.b4w_autodetect_sdk_path)
+    p.b4w_src_path = init_validation.detect_sdk() or "";
 
 def register():
     if not _init_is_ok:
@@ -444,9 +431,8 @@ def register():
 
     init_runtime_addon_data()
 
-    bpy.app.handlers.load_post.append(add_asset_file)
     bpy.app.handlers.load_post.append(add_node_tree)
-    bpy.app.handlers.load_post.append(fix_cam_limits_storage)
+    bpy.app.handlers.load_post.append(cam_reform)
     bpy.app.handlers.scene_update_pre.append(init_validation.check_addon_dir)
     bpy.app.handlers.load_post.append(logic_nodetree_reform)
     # tweak for viewport

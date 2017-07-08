@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -23,26 +22,24 @@
  */
 b4w.module["screenshooter"] = function(exports, require) {
 
-var m_main = require("main");
+var m_screen = require("screen");
+var m_print  = require("print");
 
 /**
  * Take a screenshot and download as screenshot.png image.
+ * @method module:screenshooter.shot
+ * @param {string} [format="image/png"] The MIME image format ("image/png",
+ * "image/jpeg", "image/webp" and so on)
+ * @param {number} [quality=1.0] Number between 0 and 1 for types: "image/jpeg",
+ * "image/webp"
+ * @example
+ * var m_scrn = require("screenshooter");
+ * m_scrn.shot();
+ * @deprecated Use {@link module:screen.shot} instead
  */
-exports.shot = function() {
-
-    var cb = function(data) {
-        var a = window.document.createElement("a");
-        document.body.appendChild(a);
-
-        a.style.display = "none";
-        a.href = data;
-        a.download = "screenshot.png";
-        a.click();
-
-        document.body.removeChild(a);
-    }
-
-    m_main.canvas_data_url(cb);
+exports.shot = function(format, quality) {
+    m_print.error_deprecated("shot", "screen.shot");
+    m_screen.shot(format, quality);
 }
 
 };

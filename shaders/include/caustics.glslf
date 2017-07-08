@@ -1,31 +1,36 @@
-#import cellular2x2_caust
+#ifndef CAUSTICS_GLSLF
+#define CAUSTICS_GLSLF
 
-#export apply_caustics
-
-#var CAUST_SPEED vec2(0.0)
-#var CAUST_SCALE 0.0
-#var CAUST_BRIGHT 0.0
+/*==============================================================================
+                                    VARS
+==============================================================================*/
 #var SUN_NUM 0
+#var CAUST_SCALE 0.25
+#var CAUST_SPEED vec2(0.0)
+#var CAUST_BRIGHT 0.5
+
+/*============================================================================*/
+
+#include <procedural.glslf>
+#include <math.glslv>
 
 #define CAUSTICS_VIEW_DISTANCE 100.0
 
 //Add caustics to underwater objects
-void apply_caustics (inout vec3 color, float plane_pos,
+void apply_caustics(inout vec3 color, float plane_pos,
                     float time, vec4 shadow_factor, vec3 normal,
                     vec3 sun_direction, vec3 sun_color_intens,
-                    vec4 sun_quat, vec3 pos_world, float view_dist) {
+                    vec4 sun_q, vec3 pos_world, float view_dist) {
 
     if (view_dist > CAUSTICS_VIEW_DISTANCE)
         return;
 
-    vec4 q = sun_quat;
     vec3 v = pos_world + normal;
 
     v.xz = 10.0 * sin(0.1 * v.xz);
 
     // rotate world coordinates to match sun directions
-    vec3 rotated_world = v + 2.0 *
-                    cross(-q.xyz, cross(-q.xyz, v) + q.w * v);
+    vec3 rotated_world = qrot(qinv(sun_q), v);
     vec2 texcoord = rotated_world.xz;
 
     vec3 light_vec = sun_direction;
@@ -61,3 +66,6 @@ void apply_caustics (inout vec3 color, float plane_pos,
 
     color += sun_color_intens * caustics * height_factor * fade;
 }
+
+#endif
+

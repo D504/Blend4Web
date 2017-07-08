@@ -110,16 +110,16 @@ All above mentioned operations can be performed with a single command:
 
     make all
 
-Building the Addon
-==================
+Building the Add-on
+===================
 
-Binary Blend4Web addon builds are available for the following platforms: Linux x32/64, OS X x64, Windows x32/64. At the same time users can compile the addon by themselves.
+Binary Blend4Web addon builds are available for the following platforms: Linux x32/64, macOS x64, Windows x32/64. At the same time users can compile the addon by themselves.
 
 To do this Python 3.x (it's better if it's the same version as in Blender) and a C compiler are required. Under Linux it's enough to install the python3-dev and build-essential packages.
 
 Paths relative to the repository root:
     - build script: ``csrc/b4w_bin/build.py``
-    - Blend4Web addon: ``blender_scripts/addons/blend4web/``
+    - Blend4Web addon: ``addons/blend4web/``
 
 The building process is started in the following way:
 
@@ -140,32 +140,32 @@ located in the same directory as the addon. Example: ``b4w_bin_Linux_64.so``. Af
 Dependencies
 ============
 
-To do this Python 3.x (it's better if it's the same version as in Blender) and a C compiler are required. Under Linux it's enough to install the python3-dev and build-essential packages.
-
 All dependencies are listed in the table below in order of decreasing importance.
 
 +-------------------------------+-------------------------------+----------------------------+
-| Name                          | Ubuntu 14.04 package          | Purpose                    |
+| Name                          | Ubuntu 16.04 package          | Purpose                    |
 |                               |                               |                            |
 +===============================+===============================+============================+
-| Bash                          | Included by default           | interpretator for scripts  |
+| Bash                          | included by default           | script interpreter         |
 +-------------------------------+-------------------------------+----------------------------+
-| Python 3                      | Included by default           | interpretator for scripts  |
+| Python 3                      | included by default           | script interpreter         |
 +-------------------------------+-------------------------------+----------------------------+
 | NodeJS                        | nodejs                        | compiling shaders          |
 +-------------------------------+-------------------------------+----------------------------+
 | Java                          | default-jre                   | compiling and obfuscating  |
 |                               |                               | the engine modules         |
 +-------------------------------+-------------------------------+----------------------------+
-| Emscripten                    | `from EMSDK source code`_     | building Uranium           |
+| ImageMagick                   | imagemagick                   | converting textures        |
 +-------------------------------+-------------------------------+----------------------------+
-| ImageMagick                   | imagemagick                   | converting resources       |
+| NVIDIA Texture Tools          | libnvtt-bin                   | converting textures        |
 +-------------------------------+-------------------------------+----------------------------+
-| NVIDIA Texture Tools          | libnvtt-bin                   | converting resources       |
+| Libav                         | libav-tools                   | converting media resources |
 +-------------------------------+-------------------------------+----------------------------+
 | NVIDIA Cg Toolkit             | nvidia-cg-toolkit             | debugging shaders          |
 +-------------------------------+-------------------------------+----------------------------+
-| Libav                         | libav-tools                   | converting resources       |
+| OptiPNG                       | optipng                       | optimizing PNG files       |
++-------------------------------+-------------------------------+----------------------------+
+| Emscripten                    | `from EMSDK source code`_     | building Uranium           |
 +-------------------------------+-------------------------------+----------------------------+
 | Gnuplot                       | gnuplot                       | debugging                  |
 +-------------------------------+-------------------------------+----------------------------+
@@ -173,23 +173,24 @@ All dependencies are listed in the table below in order of decreasing importance
 +-------------------------------+-------------------------------+----------------------------+
 | xsel                          | xsel                          | debugging                  |
 +-------------------------------+-------------------------------+----------------------------+
-| Sphinx                        | sphinx-doc                    | building the manual        |
-|                               |                               | (HTML version)             |
+| Sphinx                        | python3-sphinx                | building the manual        |
 +-------------------------------+-------------------------------+----------------------------+
-| sphinx-intl                   | installed with PIP            | building the manual        |
-|                               |                               | (internationalization)     |
+| sphinx-intl                   | installed with PIP v3         | building the manual        |
+|                               | (pip3 install sphinx-intl)    | (internationalization)     |
 +-------------------------------+-------------------------------+----------------------------+
-| TeX Live                      | texlive, texlive-latex-extra  | building the manual        |
+| TeX Live                      | texlive texlive-latex-extra   | building the manual        |
 |                               | texlive-lang-cyrillic         | (PDF version)              |
+|                               | texlive-lang-chinese          |                            |
+|                               | texlive-xetex                 |                            |
 +-------------------------------+-------------------------------+----------------------------+
-| JSDoc 3                       | `from JSDoc source code`_     | building the API           |
-|                               |                               | documentation              |
+| JSDoc 3                       | installed with NPM            | building the API           |
+|                               | (npm install -g jsdoc)        | documentation              |
 +-------------------------------+-------------------------------+----------------------------+
-| PEG.js                        | `from PEG.js source code`_    | shader preprocessing       |
+| PEG.js                        | `from PEG.js source code`_    | building shader            |
+|                               |                               | preprocessor               |
 +-------------------------------+-------------------------------+----------------------------+
 
 .. _from EMSDK source code: http://kripken.github.io/emscripten-site/docs/building_from_source/index.html
-.. _from JSDoc source code: https://github.com/jsdoc3/jsdoc
 .. _from PEG.js source code: http://pegjs.majda.cz/
 
 Naming Functions and Variables
@@ -239,7 +240,7 @@ Debugging
 
 Engine debugging is performed with the ``debug.js`` module methods.
 
-The structure of the current render graph can be saved in the DOT format using the ``b4w.debug.scenegraph_to_dot()`` call, for example, in the browser console. After calling this method, save the console's output into the file with the .gv extension. To get the graph in a visual form the `graphviz <http://www.graphviz.org/>`_ utilities are required. Converting to the SVG format is performed using the command:
+The structure of the current render graph can be saved in the DOT format using the ``b4w.debug.scenegraph_to_dot()`` call, for example, in the browser console. After calling this method, save the console output into the file with the .gv extension. To get the graph in a visual form the `graphviz <http://www.graphviz.org/>`_ utilities are required. Converting to the SVG format is performed using the command:
 
 .. code-block:: bash
 
@@ -291,7 +292,7 @@ The compiler performs the following procedures related to shader code validation
 * reporting about unused variables and functions (dead code),
 * checking the syntax of shaders,
 * checking the conformance of shaders to the import/export mechanism,
-* removing odd or repetitive tokens: spaces, endlines and semicolons.
+* removing odd or repetitive tokens: spaces, line ends and semicolons.
 
 
 .. index:: compiling shaders; obfuscation
@@ -420,7 +421,7 @@ For example:
 6. The usage of the #include directive should not lead to ambiguity during the obfuscation of the include file. This can happen when multiple shaders are included into the same file and the above defined directives (like #var or #define) can have influence on any of them. Also, it's better not to use undeclared functions and variables in the include file.
 
 7. Multi-level includes or multiple inclusion of the same include into the same shader is not supported.
-8. The shader's malfunction can also be caused by nontrivial using of preprocessing, for example, creating an invalid GLSL code:
+8. Shader malfunction can also be caused by nontrivial using of preprocessing, for example, creating an invalid GLSL code:
 
 .. code-block:: glsl
 
@@ -462,14 +463,6 @@ Table of possible errors:
 +=====================================+===========================================+
 | Error! Ambiguous obfuscation in     | Ambiguous obfuscation in the 'FILE_NAME'  |
 | include file 'FILE_NAME'.           | include file.                             |
-+-------------------------------------+-------------------------------------------+
-| Error! Bad preprocessing collision  | Error in the FILE_NAME file. Its          |
-| while obfuscation identifier:       | impossible to obfuscate the NAME variable |
-| \'NAME'. Varying/uniform or         | because of redefining at preprocessing.   |
-| varying/attribute qualifiers        | Redefining the same variable with         |
-| combination. File: 'FILE_NAME'.     | different qualifiers. Unacceptable        |
-|                                     | combinations: varying/uniform,            |
-|                                     | varying/attribute.                        |
 +-------------------------------------+-------------------------------------------+
 | Error! Extension NAME is            | The NAME WebGL extension used in the      |
 | unsupported in obfuscator. File:    | FILE_NAME file is not supported by the    |

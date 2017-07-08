@@ -2,21 +2,24 @@
 
 b4w.register("gamepad", function(exports, require) {
 
-var m_app    = require("app");
-var m_anim   = require("animation");
-var m_data   = require("data");
-var m_cfg    = require("config");
-var m_cnst   = require("constraints");
-var m_ctl    = require("controls");
-var m_cont   = require("container");
-var m_gp_cf  = require("gp_conf");
-var m_input  = require("input");
-var m_obj    = require("objects");
-var m_scenes = require("scenes");
-var m_trans  = require("transform");
-var m_vec3   = require("vec3");
-var m_quat   = require("quat");
-var m_util   = require("util");
+var m_app     = require("app");
+var m_anim    = require("animation");
+var m_data    = require("data");
+var m_cfg     = require("config");
+var m_cnst    = require("constraints");
+var m_ctl     = require("controls");
+var m_cont    = require("container");
+var m_gp_cf   = require("gp_conf");
+var m_input   = require("input");
+var m_obj     = require("objects");
+var m_scenes  = require("scenes");
+var m_trans   = require("transform");
+var m_vec3    = require("vec3");
+var m_quat    = require("quat");
+var m_util    = require("util");
+var m_version = require("version");
+
+var DEBUG = (m_version.type() === "DEBUG");
 
 var _vec3_tmp = new Float32Array(3);
 var _vec3_tmp2 = new Float32Array(3);
@@ -33,12 +36,14 @@ var COLLISION_RAD = 6 * 6;
 
 exports.init = function() {
     m_app.init({
-        canvas_container_id: "canvas_cont",
+        canvas_container_id: "main_canvas_container",
         callback: init_cb,
         physics_enabled: false,
         alpha: true,
         show_fps: true,
         autoresize: true,
+        assets_dds_available: !DEBUG,
+        assets_min50_available: !DEBUG,
         console_verbose: true
     });
 }
@@ -80,7 +85,7 @@ function create_gmpd_sensors() {
         var ellapsed = m_ctl.get_sensor_value(obj, id, 5);
 
         var troll_quat = m_trans.get_rotation(obj, _quat_tmp);
-        var troll_view_vec = m_vec3.transformQuat(m_util.AXIS_Z, troll_quat, _vec3_tmp);
+        var troll_view_vec = m_vec3.transformQuat(m_util.AXIS_MY, troll_quat, _vec3_tmp);
         m_vec3.scale(troll_view_vec, STEP, troll_view_vec);
 
         var troll_trans = m_trans.get_translation(obj, _vec3_tmp2);
@@ -116,9 +121,9 @@ function create_gmpd_sensors() {
                     || m_ctl.get_sensor_value(obj, id, 2);
             var hor = left_hor_axis > AXIS_THRESHOLD ? left_hor_axis : 0;
             if (left)
-                m_quat.rotateY(troll_quat, ROT_ANGLE * ellapsed, troll_quat);
+                m_quat.rotateZ(troll_quat, ROT_ANGLE * ellapsed, troll_quat);
             if (hor)
-                m_quat.rotateY(troll_quat, -hor * ROT_ANGLE * ellapsed, troll_quat);
+                m_quat.rotateZ(troll_quat, -hor * ROT_ANGLE * ellapsed, troll_quat);
             break;
         case "RIGHT":
             var right = m_ctl.get_sensor_value(obj, id, 0)
@@ -126,9 +131,9 @@ function create_gmpd_sensors() {
                     || m_ctl.get_sensor_value(obj, id, 2);
             var hor = left_hor_axis < -AXIS_THRESHOLD ? left_hor_axis : 0;
             if (right)
-                m_quat.rotateY(troll_quat, -ROT_ANGLE * ellapsed, troll_quat);
+                m_quat.rotateZ(troll_quat, -ROT_ANGLE * ellapsed, troll_quat);
             if (hor)
-                m_quat.rotateY(troll_quat, -hor * ROT_ANGLE * ellapsed, troll_quat);
+                m_quat.rotateZ(troll_quat, -hor * ROT_ANGLE * ellapsed, troll_quat);
             break;
         };
 
@@ -212,20 +217,20 @@ function get_last_gmpd_id() {
 function set_camera_pos() {
     var camobj = m_scenes.get_active_camera();
     var troll_rig = m_scenes.get_object_by_name("troll_rig");
-    m_cnst.append_track(camobj, troll_rig);
+    m_cnst.append_track(camobj, troll_rig, "-Z", "Y");
 }
 
 function chech_dist_from_middle(point) {
-    return (point[0] * point[0] + point[2] * point[2]) < COLLISION_RAD;
+    return (point[0] * point[0] + point[1] * point[1]) < COLLISION_RAD;
 }
 
 function create_interface() {
     var gmpd_settings = document.createElement("a");
     gmpd_settings.innerHTML = "Settings";
-    gmpd_settings.className = "text";
+    gmpd_settings.className = "btn";
     gmpd_settings.style.position = "absolute";
-    gmpd_settings.style.bottom = "50px";
-    gmpd_settings.style.right = "50px";
+    gmpd_settings.style.bottom = "12px";
+    gmpd_settings.style.right = "20px";
     var main_cont = m_cont.get_container();
     main_cont.appendChild(gmpd_settings);
     var is_hiden = true;

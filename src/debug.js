@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -26,14 +25,18 @@
  */
 b4w.module["__debug"] = function(exports, require) {
 
+var m_batch  = require("__batch");
 var m_compat = require("__compat");
 var m_cfg    = require("__config");
 var m_ext    = require("__extensions");
+var m_graph  = require("__graph");
+var m_obj    = require("__objects");
 var m_print  = require("__print");
+var m_scenes = require("__scenes");
+var m_subs   = require("__subscene");
 var m_tex    = require("__textures");
 var m_time   = require("__time");
 var m_util   = require("__util");
-var m_graph  = require("__graph");
 
 var cfg_def = m_cfg.defaults;
 
@@ -58,18 +61,20 @@ var _debug_view_subs = null;
 var _assert_struct_last_obj = null;
 var _assert_struct_init = false;
 
+var _vbo_garbage_info = {};
+
 exports.DV_NONE = 0;
 exports.DV_OPAQUE_WIREFRAME = 1;
 exports.DV_TRANSPARENT_WIREFRAME = 2;
 exports.DV_FRONT_BACK_VIEW = 3;
-exports.DV_DEBUG_SPHERES = 4;
+exports.DV_BOUNDINGS = 4;
 exports.DV_CLUSTERS_VIEW = 5;
 exports.DV_BATCHES_VIEW = 6;
 exports.DV_RENDER_TIME = 7;
 
 /**
  * Setup WebGL context
- * @param ctx webgl context
+ * @param gl webgl context
  */
 exports.setup_context = function(gl) {
     // WebGLRenderingContext.cpp
@@ -82,7 +87,7 @@ exports.setup_context = function(gl) {
         "CONTEXT_LOST_WEBGL"                // 37442
     ];
 
-    for (var i in errors) {
+    for (var i = 0; i < errors.length; i++) {
         var error = errors[i];
         if (error in gl)
             ERRORS[gl[error]] = error;
@@ -99,6 +104,159 @@ function set_debug_view_subs(subs) {
 exports.get_debug_view_subs = get_debug_view_subs;
 function get_debug_view_subs() {
     return _debug_view_subs;
+}
+
+exports.fill_vbo_garbage_info = function(vbo_id, sh_pair_str, attr_name, 
+        byte_size, is_in_usage) {
+    if (!_vbo_garbage_info[vbo_id])
+        _vbo_garbage_info[vbo_id] = { shaders: sh_pair_str, attrs: {} };
+
+    if (!(attr_name in _vbo_garbage_info[vbo_id].attrs))
+        _vbo_garbage_info[vbo_id].attrs[attr_name] = byte_size;
+
+    if (is_in_usage)
+        _vbo_garbage_info[vbo_id].attrs[attr_name] = 0;
+}
+
+exports.calc_vbo_garbage_byte_size = function() {
+    var size = 0;
+    for (var vbo_id in _vbo_garbage_info)
+        for (var name in _vbo_garbage_info[vbo_id].attrs)
+            size += _vbo_garbage_info[vbo_id].attrs[name];
+    return size;
+}
+
+exports.show_vbo_garbage_info = function() {
+    var info_obj = {}
+    for (var vbo_id in _vbo_garbage_info)
+        for (var name in _vbo_garbage_info[vbo_id].attrs) {
+            var byte_size = _vbo_garbage_info[vbo_id].attrs[name];
+            if (byte_size) {
+                var sh_str = _vbo_garbage_info[vbo_id].shaders;
+                if (!(sh_str in info_obj))
+                    info_obj[sh_str] = { total_size: 0, attrs: {} };
+
+                if (!(name in info_obj[sh_str].attrs))
+                    info_obj[sh_str].attrs[name] = 0;
+                info_obj[sh_str].attrs[name] += byte_size;
+                info_obj[sh_str].total_size += byte_size;
+            }
+        }
+
+    for (var sh_str in info_obj) {
+        m_print.groupCollapsed(sh_str, info_obj[sh_str].total_size);
+        for (var name in info_obj[sh_str].attrs)
+            m_print.log_raw(name, info_obj[sh_str].attrs[name]);
+
+        m_print.groupEnd();
+    }
+}
+
+exports.print_batches_stat = function() {
+    var batches_props = {};
+    
+    // properties that don't affect batching
+    var excluded_props = [
+        "bounds_local", "bufs_data", "id", "attribute_setters", "num_vertices", 
+        "num_triangles", "material_names", "shader", "bpy_tex_names"
+    ];
+
+    var static_count = 0;
+    var dynamic_count = 0;
+
+    var objs = m_obj.get_scene_objs(m_scenes.get_main(), "MESH", m_obj.DATA_ID_ALL);
+    for (var i = 0; i < objs.length; i++) {
+        for (var j = 0; j < objs[i].scenes_data.length; j++)
+            for (var k = 0; k < objs[i].scenes_data[j].batches.length; k++) {
+
+                var batch = m_batch.clone_batch(objs[i].scenes_data[j].batches[k]);
+                
+                var shader_pair = batch.shaders_info.vert + "/" + batch.shaders_info.frag;
+                batch["shaders_info.directives"] = batch.shaders_info.directives;
+                batch["shaders_info.node_elements"] = batch.shaders_info.node_elements;
+                delete batch.shaders_info;
+                for (var l = 0; l < excluded_props.length; l++)
+                    delete batch[excluded_props[l]];
+
+                if (objs[i].is_dynamic) {
+                    dynamic_count++;
+                    continue;
+                } else
+                    static_count++;
+
+                if (!(batch.type in batches_props))
+                    batches_props[batch.type] = {}
+
+                if (!(shader_pair in batches_props[batch.type]))
+                    batches_props[batch.type][shader_pair] = {}
+
+                for (var prop in batch) {
+                    if (!(prop in batches_props[batch.type][shader_pair]))
+                        batches_props[batch.type][shader_pair][prop] = {};
+
+                    var str_val = JSON.stringify(batch[prop]);
+
+                    if (!(str_val in batches_props[batch.type][shader_pair][prop]))
+                        batches_props[batch.type][shader_pair][prop][str_val] = 0;
+
+                    batches_props[batch.type][shader_pair][prop][str_val]++;
+                }
+            }
+    }
+
+    m_print.group("Batches statistics:");
+    m_print.log_raw("STATIC/DYNAMIC count:", static_count + "/" + dynamic_count);
+    m_print.group("STATIC batches diversity:");
+
+    for (var type in batches_props)
+        for (var shader_pair in batches_props[type])
+            print_batches_stat_props(batches_props[type][shader_pair], type, shader_pair);
+
+    m_print.groupEnd();
+    m_print.groupEnd();
+}
+
+function print_batches_stat_props(props_dict, type, shader_pair) {
+    var props_array = [];
+    for (var prop in props_dict)
+        if (m_util.get_dict_length(props_dict[prop]) > 1)
+            props_array.push([prop, props_dict[prop]])
+
+    props_array.sort(function(a, b) {
+        var a_len = m_util.get_dict_length(a[1]);
+        var b_len = m_util.get_dict_length(b[1]);
+        if (b_len != a_len)
+            return b_len - a_len;
+        return a < b ? -1 : b < a ? 1 : 0;
+    });
+
+    if (props_array.length) {
+        m_print.groupCollapsed(type + " " + shader_pair);
+        m_print.log_raw("Property different variants (>1) | Property name");
+        for (var i = 0; i < props_array.length; i++) {
+            m_print.groupCollapsed(m_util.get_dict_length(props_array[i][1]), props_array[i][0]);
+            print_batches_stat_props_values(props_array[i][1]);
+        }
+        m_print.groupEnd();
+    }
+}
+
+function print_batches_stat_props_values(values_dict) {
+    m_print.log_raw("Batches count for this property value | Property value");
+
+    var values_array = [];
+    for (var value in values_dict)
+        values_array.push([value, values_dict[value]]);
+
+    values_array.sort(function(a, b) {
+        if (b[1] != a[1])
+            return b[1] - a[1];
+        return a[0] < b[0] ? -1 : b[0] < a[0] ? 1 : 0;
+    });
+
+    for (var j = 0; j < values_array.length; j++)
+        m_print.log_raw(values_array[j][1], values_array[j][0]);
+    m_print.groupEnd();
 }
 
 /**
@@ -120,7 +278,7 @@ exports.check_gl = function(msg) {
 /**
  * Check status of currently bounded framebuffer object,
  * Print error if framebuffer is incomplete.
- * @returns {Boolean} true if framebuffer complete
+ * @returns {boolean} true if framebuffer complete
  */
 exports.check_bound_fb = function() {
 
@@ -163,7 +321,7 @@ exports.check_depth_only_issue = function() {
     var framebuffer = _gl.createFramebuffer();
     _gl.bindFramebuffer(_gl.FRAMEBUFFER, framebuffer);
 
-    var texture = m_tex.create_texture("DEBUG", m_tex.TT_DEPTH);
+    var texture = m_tex.create_texture(m_tex.TT_DEPTH, false);
     m_tex.resize(texture, 1, 1);
 
     var w_tex = texture.w_texture;
@@ -189,6 +347,10 @@ exports.check_depth_only_issue = function() {
  * Found on Firefox 46.
  */
 exports.check_multisample_issue = function() {
+    // msaa is disabled
+    if (cfg_def.msaa_samples == 1)
+        return false;
+
     // use cached result
     if (_multisample_issue != -1)
         return _multisample_issue;
@@ -231,30 +393,20 @@ exports.check_ff_cubemap_out_of_memory = function() {
 }
 
 /**
- * Get shader compile status, throw exception if compilation failed.
  * Prints shader text numbered lines and error.
  * @param {WebGLShader} shader Shader object
- * @param {String} shader_id Shader id
- * @param {String} shader_text Shader text
+ * @param {string} shader_id Shader id
+ * @param {string} shader_text Shader text
  */
-exports.check_shader_compiling = function(shader, shader_id, shader_text) {
+exports.report_shader_compiling_error = function(shader, shader_id, shader_text) {
 
     if (!cfg_def.gl_debug)
         return;
 
-    if (!_gl.getShaderParameter(shader, _gl.COMPILE_STATUS)) {
+    shader_text = supply_line_numbers(shader_text);
 
-        var ext_ds = cfg_def.allow_shaders_debug_ext && m_ext.get_debug_shaders();
-        if (ext_ds)
-            var shader_text = ext_ds.getTranslatedShaderSource(shader);
-
-        shader_text = supply_line_numbers(shader_text);
-       
-        m_print.error("shader compilation failed:\n" + shader_text + "\n" + 
-            _gl.getShaderInfoLog(shader) + " (" + shader_id + ")");
-
-        m_util.panic("Engine failed: see above for error messages");
-    }
+    m_print.error("shader compilation failed:\n" + shader_text + "\n" +
+        _gl.getShaderInfoLog(shader) + " (" + shader_id + ")");
 }
 
 function supply_line_numbers(text) {
@@ -268,37 +420,28 @@ function supply_line_numbers(text) {
 }  
 
 /**
- * Get shader program link status, throw exception if linking failed.
+ * Prints shader text numbered lines and error.
  * @param {WebGLProgram} program Shader program object
- * @param {String} shader_id Shader id
+ * @param {string} shader_id Shader id
+ * @param {string} vshader_text Vertex shader text
+ * @param {string} fshader_text Fragment shader text
  */
-exports.check_shader_linking = function(program, shader_id, vshader, fshader, 
-    vshader_text, fshader_text) {
+exports.report_shader_linking_error = function(program, shader_id,
+        vshader_text, fshader_text) {
 
     if (!cfg_def.gl_debug)
         return;
 
-    if (!_gl.getProgramParameter(program, _gl.LINK_STATUS)) {
-    
-        var ext_ds = cfg_def.allow_shaders_debug_ext && m_ext.get_debug_shaders();
-        if (ext_ds) {
-            var vshader_text = ext_ds.getTranslatedShaderSource(vshader);
-            var fshader_text = ext_ds.getTranslatedShaderSource(fshader);
-        }
+    vshader_text = supply_line_numbers(vshader_text);
+    fshader_text = supply_line_numbers(fshader_text);
 
-        vshader_text = supply_line_numbers(vshader_text);
-        fshader_text = supply_line_numbers(fshader_text);
-
-        m_print.error("shader linking failed:\n" + vshader_text + "\n\n\n" + 
-            fshader_text + "\n" + 
-            _gl.getProgramInfoLog(program) + " (" + shader_id + ")");
-
-        m_util.panic("Engine failed: see above for error messages");
-    }
+    m_print.error("shader linking failed:\n" + vshader_text + "\n\n\n" +
+        fshader_text + "\n" +
+        _gl.getProgramInfoLog(program) + " (" + shader_id + ")");
 }
 
 exports.render_time_start_subs = function(subs) {
-    if (!(cfg_def.show_hud_debug_info || subs.type == "PERFORMANCE"))
+    if (!(cfg_def.show_hud_debug_info || subs.type == m_subs.PERFORMANCE))
         return;
 
     if (subs.do_not_debug)
@@ -318,8 +461,8 @@ function create_render_time_query() {
     var ext = m_ext.get_disjoint_timer_query();
 
     if (ext) {
-        var query = ext.createQueryEXT();
-        ext.beginQueryEXT(ext.TIME_ELAPSED_EXT, query);
+        var query = ext.createQuery();
+        ext.beginQuery(query);
     } else
         var query = performance.now();
 
@@ -327,14 +470,14 @@ function create_render_time_query() {
 }
 
 exports.render_time_stop_subs = function(subs) {
-    if (!(cfg_def.show_hud_debug_info || subs.type == "PERFORMANCE"))
+    if (!(cfg_def.show_hud_debug_info || subs.type == m_subs.PERFORMANCE))
         return;
 
     if (subs.do_not_debug)
         return;
 
     var render_time = calc_render_time(subs.debug_render_time_queries, 
-            subs.debug_render_time);
+            subs.debug_render_time, true);
     if (render_time)
         subs.debug_render_time = render_time;
 }
@@ -344,7 +487,7 @@ exports.render_time_stop_batch = function(batch) {
         return;
 
     var render_time = calc_render_time(batch.debug_render_time_queries, 
-            batch.debug_render_time);
+            batch.debug_render_time, true);
     if (render_time)
         batch.debug_render_time = render_time;
 }
@@ -358,29 +501,30 @@ function is_debug_view_render_time_mode() {
 /**
  * External method for debugging purposes
  */
-exports.process_timer_queries = process_timer_queries;
-function process_timer_queries(subs) {
+exports.process_timer_queries = function(subs) {
     var render_time = calc_render_time(subs.debug_render_time_queries, 
-            subs.debug_render_time);
+            subs.debug_render_time, false);
     if (render_time)
         subs.debug_render_time = render_time;
 }
 
-function calc_render_time(queries, prev_render_time) {
+function calc_render_time(queries, prev_render_time, end_query) {
     var ext = m_ext.get_disjoint_timer_query();
     var render_time = 0;
 
     if (ext) {
-        ext.endQueryEXT(ext.TIME_ELAPSED_EXT);
+        if (end_query)
+            ext.endQuery();
+
         for (var i = 0; i < queries.length; i++) {
             var query = queries[i];
 
-            var available = ext.getQueryObjectEXT(query,
-                    ext.QUERY_RESULT_AVAILABLE_EXT);
-            var disjoint = _gl.getParameter(ext.GPU_DISJOINT_EXT);
+            var available = ext.getQueryAvailable(query);
+
+            var disjoint = _gl.getParameter(ext.getDisjoint());
 
             if (available && !disjoint) {
-                var elapsed = ext.getQueryObjectEXT(query, ext.QUERY_RESULT_EXT);
+                var elapsed = ext.getQueryObject(query);
                 render_time = elapsed / 1000000;
                 if (prev_render_time)
                     render_time = m_util.smooth(render_time,
@@ -402,7 +546,7 @@ function calc_render_time(queries, prev_render_time) {
 
 /**
  * Print number of executions per frame.
- * @param {String} Counter ID
+ * @param {string} counter ID
  */
 exports.exec_count = function(counter) {
     if (counter in _exec_counters)
@@ -481,7 +625,7 @@ exports.print_telemetry = function(time) {
     for (var i = 0; i < _telemetry_messages.length; i++) {
         var msg = _telemetry_messages[i];
 
-        var time = msg[0];
+        time = msg[0];
 
         if (time < start_time_ms)
             continue;
@@ -515,7 +659,7 @@ exports.plot_telemetry = function(time) {
     for (var i = 0; i < _telemetry_messages.length; i++) {
         var msg = _telemetry_messages[i];
 
-        var time = msg[0];
+        time = msg[0];
 
         if (time < start_time_ms)
             continue;
@@ -595,41 +739,92 @@ exports.assert_cons = function(value, constructor) {
 }
 
 /**
- * Check whether the two objects have the same structure.
+ * Check whether the two objects have the same structure with proper values.
  */
-exports.assert_structure = assert_structure;
-function assert_structure(obj1, obj2) {
+exports.assert_struct = assert_struct;
+function assert_struct(obj1, obj2) {
 
-    if (typeof obj1 != typeof obj2)
+    if (!is_valid(obj1))
+        m_util.panic("Structure assertion failed: invalid first object value");
+
+    if (!is_valid(obj2))
+        m_util.panic("Structure assertion failed: invalid second object value");
+
+    if (!cmp_type(obj1, obj2))
         m_util.panic("Structure assertion failed: incompatible types");
 
-    // ignore simple types or null's
-    if (!(obj1 !== null && obj2 !== null && typeof obj1 == "object"))
+    // continue with objects
+    if (!(obj1 != null && obj2 != null && typeof obj1 == "object" &&
+                !m_util.is_arr_buf_view(obj1) && !(obj1 instanceof Array)))
         return;
 
     for (var i in obj1) {
+        if (!is_valid(obj1[i]))
+            m_util.panic("Structure assertion failed: invalid value for key " +
+                    "in the first object: " + i);
         if (!(i in obj2))
             m_util.panic("Structure assertion failed: missing key in the first object: " + i);
     }
 
     for (var i in obj2) {
+        if (!is_valid(obj2[i]))
+            m_util.panic("Structure assertion failed: invalid value for key " +
+                    "in the second object: " + i);
         if (!(i in obj1))
             m_util.panic("Structure assertion failed: missing key in the second object: " + i);
-        if (typeof obj1[i] != typeof obj2[i])
+        if (!cmp_type(obj1[i], obj2[i]))
             m_util.panic("Structure assertion failed: incompatible types for key " + i);
     }
 }
 
+function is_valid(obj) {
+    if (typeof obj == "undefined")
+        return false;
+    else if (typeof obj == "number" && isNaN(obj))
+        return false;
+    else
+        return true;
+}
+
+function cmp_type(obj1, obj2) {
+    var type1 = typeof obj1;
+    var type2 = typeof obj2;
+
+    if (type1 != type2)
+        return false;
+
+    // additional checks for js arrays or array buffers
+    if (obj1 != null && obj2 != null && typeof obj1 == "object") {
+        var is_arr1 = obj1 instanceof Array;
+        var is_arr2 = obj2 instanceof Array;
+
+        if ((is_arr1 && !is_arr2) || (!is_arr1 && is_arr2))
+            return false;
+
+        var is_abv1 = m_util.is_arr_buf_view(obj1);
+        var is_abv2 = m_util.is_arr_buf_view(obj2);
+
+        if ((is_abv1 && !is_abv2) || (!is_abv1 && is_abv2))
+            return false;
+    }
+
+    return true;
+}
+
 /**
- * Assert stucture - sequential form.
+ * Assert object stucture - sequential form.
+ * There is no cleanup, so always reload the page.
  */
-exports.assert_structure_seq = function(obj) {
+exports.assert_struct_seq = function(obj) {
     if (!_assert_struct_init)
         _assert_struct_init = true;
     else
-        assert_structure(obj, _assert_struct_last_obj);
+        assert_struct(obj, _assert_struct_last_obj);
 
-    _assert_struct_last_obj = obj;
+    if (obj != null && typeof obj == "object")
+        _assert_struct_last_obj = m_util.clone_object_nr(obj);
+    else
+        _assert_struct_last_obj = obj;
 }
 
 exports.fake_load = function(stageload_cb, interval, start, end, loaded_cb) {
@@ -679,7 +874,7 @@ exports.nodegraph_to_dot = function(graph, detailed_print) {
             case "TEXTURE_COLOR":
             case "TEXTURE_NORMAL":
                 data_info = "\ntexture: " + attr.data.value.name + "\n(" 
-                        + attr.data.value.image.filepath + ")";
+                        + attr.data.value.img_filepath + ")";
                 break;
             }
 
@@ -747,8 +942,20 @@ exports.nodegraph_to_dot = function(graph, detailed_print) {
     return m_graph.debug_dot(graph, nodes_label_cb, edges_label_cb);
 }
 
+/**
+ * NOTE: need to find better place for this internal method
+ */
+exports.get_gl = function() {
+    return _gl;
+}
+
 exports.cleanup = function() {
     _debug_view_subs = null;
+    _vbo_garbage_info = {};
+}
+
+exports.reset = function() {
+    _gl = null;
 }
 
 }

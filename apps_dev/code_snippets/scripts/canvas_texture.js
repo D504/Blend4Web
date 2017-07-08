@@ -2,13 +2,16 @@
 
 b4w.register("canvas_texture", function(exports, require) {
 
-var m_tex    = require("textures");
-var m_data   = require("data");
-var m_app    = require("app");
-var m_main   = require("main");
-var m_sfx    = require("sfx");
-var m_scenes = require("scenes");
-var m_cfg    = require("config");
+var m_tex     = require("textures");
+var m_data    = require("data");
+var m_app     = require("app");
+var m_main    = require("main");
+var m_sfx     = require("sfx");
+var m_scenes  = require("scenes");
+var m_cfg     = require("config");
+var m_version = require("version");
+
+var DEBUG = (m_version.type() === "DEBUG");
 
 var GIF_FRAMES_NUMBER = 24;
 var GIF_DELAY_TIME = 100;
@@ -17,12 +20,15 @@ var APP_ASSETS_PATH = m_cfg.get_std_assets_path() + "code_snippets/canvas_textur
 
 exports.init = function() {
     m_app.init({
-        canvas_container_id: "canvas_cont",
+        canvas_container_id: "main_canvas_container",
         callback: init_cb,
         show_fps: true,
         physics_enabled: false,
+        background_color: [1, 1, 1, 1],
         alpha: true,
         autoresize: true,
+        assets_dds_available: !DEBUG,
+        assets_min50_available: !DEBUG,
         console_verbose: true
     });
 }

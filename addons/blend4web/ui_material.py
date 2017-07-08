@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -182,6 +182,7 @@ class B4W_MATERIAL_PT_shading(MaterialButtonsPanel, Panel):
 
             col = split.column()
             col.prop(mat, "use_shadeless")
+            col.prop(mat, "use_tangent_shading")
             col.prop(mat, "b4w_double_sided_lighting", text = _("Double-Sided Lighting"))
 
 
@@ -505,8 +506,8 @@ class B4W_WaterMaterial(MaterialButtonsPanel, bpy.types.Panel):
 
         row = layout.row()
         row.active = getattr(mat, "b4w_water_dynamic")
-        row.prop(mat, "b4w_waves_height", text=_("Wave Height"))
-        row.prop(mat, "b4w_waves_length", text=_("Wave Length"))
+        row.prop(mat, "b4w_waves_height", text=_("Waves Height"))
+        row.prop(mat, "b4w_waves_length", text=_("Waves Length"))
 
         row = layout.row()
         row.active = getattr(mat, "b4w_water_dynamic")

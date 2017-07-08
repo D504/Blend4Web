@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 if (!window["b4w"])
@@ -24,14 +23,6 @@ if (!window["b4w"])
  * Namespace compatibility add-on. Enables access to engine modules by
  * <code>b4w.MODULE</code>. Provides no external methods.
  * @module ns_compat
- *
- * @cc_externs animation armature assets camera config controls constraints container
- * @cc_externs data debug geometry hud lights main material math particles physics
- * @cc_externs rgb rgba scenes sfx textures transform util version nla input
- *
- * @cc_externs vec3 vec4 quat mat3 mat4
- *
- * @cc_externs app camera_anim gp_conf gyroscope hmd_conf hmd mixer mouse npc_ai ns_compat preloader storage
  */
 b4w.module["ns_compat"] = function(exports, require) {
 

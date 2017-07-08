@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -279,7 +279,7 @@ class B4WLocalServer():
 class B4WShutdownServer(bpy.types.Operator):
     bl_idname = "b4w.stop_server"
     bl_label = p_("B4W Stop Server", "Operator")
-    bl_description = _("Stop server")
+    bl_description = _("Stop development server")
     bl_options = {"INTERNAL"}
 
     def execute(self, context):
@@ -289,7 +289,7 @@ class B4WShutdownServer(bpy.types.Operator):
 class B4WStartServer(bpy.types.Operator):
     bl_idname = "b4w.start_server"
     bl_label = p_("B4W Start Server", "Operator")
-    bl_description = _("Start server")
+    bl_description = _("Start development server")
     bl_options = {"INTERNAL"}
 
     def execute(self, context):
@@ -299,7 +299,7 @@ class B4WStartServer(bpy.types.Operator):
 class B4WOpenSDK(bpy.types.Operator):
     bl_idname = "b4w.open_sdk"
     bl_label = p_("B4W Open SDK", "Operator")
-    bl_description = _("Open Blend4Web SDK")
+    bl_description = _("Open Blend4Web SDK index page")
     bl_options = {"INTERNAL"}
 
     def execute(self, context):
@@ -322,7 +322,7 @@ class B4WOpenProjManager(bpy.types.Operator):
 class B4WPreviewScene(bpy.types.Operator):
     bl_idname = "b4w.preview"
     bl_label = p_("B4W Preview", "Operator")
-    bl_description = _("Preview the current scene in the Viewer")
+    bl_description = _("Preview the current scene in the Blend4Web Viewer")
     bl_options = {"INTERNAL"}
 
     def execute(self, context):
@@ -381,7 +381,7 @@ def correct_resources_path(previewdir):
                 sound["filepath"] = guard_slashes(join("resources", file_name))
     if len(os.listdir(res_dir_path)):
         try:
-            f  = open(json_path, "w")
+            f  = open(json_path, "w", encoding="utf-8")
         except IOError as exp:
             raise FileError("Permission denied")
         else:
@@ -390,12 +390,17 @@ def correct_resources_path(previewdir):
 
 def copy_resource(resource_path, previewdir):
     abs_path = abspath(join(previewdir, resource_path))
-    file_name = split(resource_path)[-1]
+    filename = os.path.split(abs_path)[1]
+    filename_cl, ext = os.path.splitext(filename)
+    new_file_name = filename_cl
+    new_file_name += "_"
+    new_file_name += hashlib.md5(abs_path.encode()).hexdigest()
+    new_file_name += ext
     res_dir_path = join(previewdir, "resources")
-    new_abs_path = join(res_dir_path, file_name)
+    new_abs_path = join(res_dir_path, new_file_name)
     if os.path.isfile(abs_path):
         shutil.copy(abs_path, new_abs_path)
-    return file_name
+    return new_file_name
 
 def register():
     bpy.app.handlers.scene_update_pre.append(init_server)

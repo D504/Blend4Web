@@ -5,9 +5,9 @@
 
 exports.translate = function(ast_data) {
     var text = translation_unit(ast_data.ast);
-    text = return_vardef(text);
+    text = return_vardef_tokens(text);
     text = return_nodes(text);
-    text = return_directive(text);
+    text = process_directives(text);
     return text;
 }
 
@@ -793,8 +793,6 @@ function struct_type(node) {
 /*============================================================================
                                   SERVICE
 ============================================================================*/
-// NOTE: import/export data doesn't convert into comments and doesn't return to source 
-
 function get_before_special_comments(node) {
     var text = "";
 
@@ -835,7 +833,7 @@ function keyword(node) {
     return text + node.name;
 }
 
-function return_vardef(text) {
+function return_vardef_tokens(text) {
     var expr = /\/\*%replace%from%(.*?)%to%(.*?)%\*\/.*?\/\*%replace_end%\*\//gi;
     text = text.replace(expr, " $1 ");
 
@@ -845,9 +843,8 @@ function return_vardef(text) {
     return text;
 }
 
-function return_directive(text) {
+function process_directives(text) {
     var expr = /\/\*%directive%(.*?)%directive_end%\*\//gi;
-
     text = text.replace(expr, "$1");
 
     return text;
@@ -859,6 +856,7 @@ function return_nodes(text) {
     var expr_node_inout_param = /\/\*%(node_in|node_out|node_param)%\*\/\s*((?:.|[\s\S])*?);\s*\/\*%(?:node_in_end|node_out_end|node_param_end)%(.*?)%(.*?)%(\d+)%\*\//gm;
     var expr_textlines = /\/\*%node_textline%(.*?)%\*\/((?:.|[\s\S])*?)\/\*%node_textline_end%(\d+)%\*\//g;
     var expr_condition = /\/\*%node_condition%((?:.|[\s\S])*?)%(.*?)%(\d+)%\*\//g;
+    var expr_node_var = /\/\*%node_var%((?:.|[\s\S])*?)%(.*?)%(\d+)%\*\//g;
 
     // get node_params, node_in, node_out, textline tokens
     while ((res = expr_node_inout_param.exec(text)) != null) {
@@ -901,6 +899,18 @@ function return_nodes(text) {
         });
     }
 
+    while ((res = expr_node_var.exec(text)) != null) {
+        var source_txt = res[1];
+        var node_parent = res[2];
+        var offset = parseInt(res[3]);
+        if (!(node_parent in node_tokens))
+            node_tokens[node_parent] = [];
+        node_tokens[node_parent].push({
+            text: source_txt + "\n",
+            offset: offset
+        });
+    }
+
     for (var i in node_tokens) 
         node_tokens[i].sort( function(a, b) {
             return a.offset - b.offset;
@@ -911,6 +921,7 @@ function return_nodes(text) {
     text = text.replace(expr_node_inout_param, "");
     text = text.replace(expr_textlines, "");
     text = text.replace(expr_condition, "");
+    text = text.replace(expr_node_var, "");
 
     // return node_params, node_in, node_out directives
     for (var node in node_tokens) {
@@ -933,33 +944,5 @@ function return_nodes(text) {
     text = text.replace(expr, "#node $1");
     expr = /\/\*%endnode%\*\//gi;
     text = text.replace(expr, "#endnode");
-    return text;
-}
-
-exports.decl_to_exp = function(node) {
-    var text = get_before_special_comments(node);
-    var list = node.list;
-    for (var i = 0; i < list.vars.length; i++) {
-        var curr_node = list.vars[i];
-        
-        if (i > 0) {
-            text += get_before_special_comments(curr_node.punctuation.comma);    
-            if (curr_node.identifier.array_size || curr_node.initializer)
-                text += curr_node.punctuation.comma.data;
-        }
-        if (curr_node.identifier.array_size || curr_node.initializer) {
-            text += identifier(curr_node.identifier);
-            if (curr_node.identifier.array_size) {
-                text += get_before_special_comments(curr_node.identifier.punctuation); 
-                text += punctuation(curr_node.identifier.punctuation.left_bracket);
-                text += constant_expression(curr_node.identifier.array_size);
-                text += punctuation(curr_node.identifier.punctuation.right_bracket);
-            } else if (curr_node.initializer) {
-                text += operation(curr_node.operation);
-                text += initializer(curr_node.initializer);
-            }
-        }
-    }
-    text += punctuation(node.punctuation.semicolon);
     return text;
 }

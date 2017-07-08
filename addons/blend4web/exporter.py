@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -22,10 +22,12 @@ import mathutils
 import math
 import os
 import struct
+import configparser
 # import cProfile
 import operator
 import re
 import imp
+import sys
 
 import blend4web
 
@@ -42,12 +44,23 @@ for m in b4w_modules:
 
 from blend4web.translator import _, p_, get_translate
 
+BINARY_CHAR_SIZE = 1
 BINARY_INT_SIZE = 4
 BINARY_SHORT_SIZE = 2
 BINARY_FLOAT_SIZE = 4
 
 MSG_SYMBOL_WIDTH = 6
 ROW_HEIGHT = 20
+
+POS_ERR = 1
+NOR_ERR = 2
+TAN_ERR = 3
+TCO_ERR = 4
+TCO2_ERR = 5
+GRP_ERR = 6
+COL_ERR = 7
+SHADE_TNB_ERR = 8
+
 
 SUF_HAIR_DUPLI = "_HAIR_DUPLI"
 
@@ -82,7 +95,8 @@ SUPPORTED_NODES = ["NodeFrame", "ShaderNodeMaterial", "ShaderNodeCameraData", \
         "ShaderNodeHairInfo", "ShaderNodeObjectInfo", "ShaderNodeWireframe", \
         "ShaderNodeTangent", "ShaderNodeLayerWeight", "ShaderNodeLightPath", \
         "ShaderNodeAttribute", "ShaderNodeOutputLamp", "ShaderNodeScript", \
-        "ShaderNodeMixShader", "ShaderNodeAddShader", "ShaderNodeNewGeometry"]
+        "ShaderNodeMixShader", "ShaderNodeAddShader", "ShaderNodeNewGeometry", \
+        "ShaderNodeFresnel", "ShaderNodeOutputWorld", "ShaderNodeBackground"]
 
 PARALLAX_HEIGHT_MAP_INPUT_NAME = "Height Map"
 PARALLAX_HEIGHT_MAP_INPUT_NODE = "ShaderNodeTexture"
@@ -99,6 +113,7 @@ _bpy_bindata_int = bytearray();
 _bpy_bindata_float = bytearray();
 _bpy_bindata_short = bytearray();
 _bpy_bindata_ushort = bytearray();
+_bpy_bindata_uchar = bytearray();
 
 _export_data = None
 _main_json_str = ""
@@ -125,8 +140,6 @@ _b4w_export_errors = []
 
 _vehicle_integrity = {}
 
-_packed_files_data = {}
-
 _rendered_scenes = []
 
 _additional_scene_objects = []
@@ -145,9 +158,17 @@ _fallback_world = None
 _fallback_material = None
 _fallback_texture = None
 
+_default_material = None
+
 _performed_cleanup = False
 
+_proj_util_module = None
+
 _dg_counter = 0
+
+_unique_packed_images = None
+
+_unique_packed_sounds = None
 
 # speaker distance maximum
 SPKDISTMAX = 10000
@@ -166,6 +187,13 @@ class MaterialError(Exception):
     def __str__(self):
         return self.message
 
+class PathError(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def __str__(self):
+        return self.message
+
 class ExportError(Exception):
     def __init__(self, message, component, comment=None):
         self.message = message
@@ -176,17 +204,6 @@ class ExportError(Exception):
 
     def __str__(self):
         return "Export error: " + self.component_name + ": " + self.message
-
-class InternalError(Exception):
-    def __init__(self, message=None):
-        self.message = message
-        clean_exported_data()
-
-    def __str__(self):
-        if (self.message):
-            return "B4W internal error: " + self.message
-        else:
-            return "B4W internal error: unknown"
 
 class FileError(Exception):
     def __init__(self, message=None):
@@ -400,8 +417,11 @@ def get_filepath_blend(export_filepath):
         try:
             blend_rel = os.path.relpath(blend_abs, os.path.dirname(json_abs))
         except ValueError as exp:
-            _file_error = exp
-            raise FileError("Export to different disk is forbidden")
+            if _is_fast_preview:
+                blend_rel = blend_abs
+            else:
+                _file_error = exp
+                raise FileError("Export to different disk is forbidden")
 
         return guard_slashes(os.path.normpath(blend_rel))
     else:
@@ -434,6 +454,7 @@ def attach_export_properties(tags):
             if tag == "objects":
                 component["curve_exp_done"] = False
                 component["hair_exp_done"] = False
+                component["force_to_mesh"] = False
             if tag == "groups":
                 component["hair_exp_done"] = False
             if tag == "scenes":
@@ -442,7 +463,8 @@ def attach_export_properties(tags):
 def check_dupli_groups(objects, group_number):
     global _dg_counter
     for obj in objects:
-        if obj.dupli_group and obj.dupli_type == "GROUP":
+        if obj.dupli_group and obj.dupli_type == "GROUP" and\
+                hasattr(obj.dupli_group, "objects"):
             _dg_counter += 1
             check_dupli_groups(obj.dupli_group.objects, _dg_counter)
 
@@ -463,6 +485,8 @@ def detach_export_properties(tags):
                 del component["hair_exp_done"]
             if "metaballs_processed" in component:
                 del component["metaballs_processed"]
+            if "force_to_mesh" in component:
+                del component["force_to_mesh"]
 
 def gen_uuid(comp, addition=""):
     # type + name + lib path/blend path
@@ -497,7 +521,7 @@ def particle_object_is_valid(obj):
 def obj_to_mesh_needed(obj):
     """Check if object require copy of obj.data during export"""
     if (obj.type == "CURVE" or obj.type == "SURFACE" or obj.type == "META" 
-            or obj.type == "FONT"):
+            or obj.type == "FONT" or obj["force_to_mesh"]):
         return True
     elif (obj.type == "MESH"
             and (obj.b4w_apply_modifiers or obj.b4w_loc_export_vertex_anim 
@@ -523,6 +547,7 @@ def obj_has_nonuniform_scale(obj):
 def obj_auto_apply_modifiers(obj):
     if ('b4w_apply_modifiers' in obj.keys()
             or find_modifier(obj, "ARMATURE")
+            or find_modifier(obj, "ARRAY")
             or obj.b4w_loc_export_vertex_anim):
         return False
     else:
@@ -542,23 +567,23 @@ def get_obj_data(obj, scene):
                         if slot.material is not None:
                             data.materials.append(slot.material)
 
-                new_name = None
+                new_name_addition = None
                 if obj.b4w_apply_modifiers or obj_auto_apply_modifiers(obj):
-                    new_name = obj.name + "_MODIFIERS_APPLIED"
+                    new_name_addition = "_MODIFIERS_APPLIED"
                 elif obj.b4w_loc_export_vertex_anim:
-                    new_name = obj.name + "_VERTEX_ANIM"
+                    new_name_addition = "_VERTEX_ANIM"
                 elif use_split_normals(obj):
-                    new_name = obj.name + "_VERTEX_NORMALS"
+                    new_name_addition = "_VERTEX_NORMALS"
                 elif obj.b4w_apply_scale or obj_auto_apply_scale(obj):
-                    new_name = obj.name + "_NONUNIFORM_SCALE_APPLIED"
+                    new_name_addition = "_NONUNIFORM_SCALE_APPLIED"
                 elif obj.b4w_shape_keys:
-                    new_name = obj.name + "_SHAPE_KEYS"
+                    new_name_addition =  "_SHAPE_KEYS"
 
-                if new_name is not None:
+                if new_name_addition is not None:
                     # prevent bugs when linked and local meshes have the same name
-                    if obj.data.library is not None:
-                        new_name += obj.data.library.filepath
-                    data.name = new_name
+                    if obj.library is not None:
+                        new_name_addition  = obj.library.filepath + new_name_addition
+                    data.name = obj.name + new_name_addition
 
                 if obj.type == "MESH":
                     data.b4w_override_boundings = obj.data.b4w_override_boundings
@@ -608,6 +633,18 @@ def mesh_get_active_vc(mesh):
 
     return None
 
+def mesh_get_active_uv(mesh):
+    # NOTE: cannot rely on uv_textures.active or uv_textures.active_index
+    # properties (may be incorrect)
+    if mesh.uv_textures:
+        for uv in mesh.uv_textures:
+            if uv.active:
+                return uv
+
+        return mesh.uv_textures[0]
+
+    return None
+
 def scenes_store_select_all_layers():
     global _scene_active_layers
     _scene_active_layers = {}
@@ -648,30 +685,13 @@ def scenes_restore_selected_layers():
                 for i in range(len(layers_data)):
                     scene.layers[i] = layers_data[i]
 
+    _scene_active_layers = {}
+
 def get_scene_lib_path(scene):
     if scene.library:
         return scene.library.filepath
     else:
         return ""
-
-def packed_resource_get_unique_name(resource):
-    unique_rsrc_id = resource.name + resource.filepath
-    if resource.library:
-        unique_rsrc_id += resource.library.filepath
-    # fix overwriting collision for export/html export
-    if _is_html_export:
-        unique_rsrc_id += "%html_export%"
-
-    ext = os.path.splitext(resource.filepath)[1]
-    unique_name = hashlib.md5(unique_rsrc_id.encode()).hexdigest() + ext
-
-    if bpy.data.filepath and _export_filepath is not None:
-        export_dir = os.path.split(_export_filepath)[0]
-        result_name = os.path.join(export_dir, unique_name)
-    else:
-        result_name = os.path.join(os.getcwd(), unique_name)
-
-    return result_name
 
 def get_main_json_data():
     return _main_json_str
@@ -679,10 +699,30 @@ def get_main_json_data():
 def get_binaries_data():
     bin_version = get_b4w_bin_info()
     return bin_version + _bpy_bindata_int + _bpy_bindata_float \
-            + _bpy_bindata_short + _bpy_bindata_ushort
+            + _bpy_bindata_short + _bpy_bindata_ushort + _bpy_bindata_uchar;
 
 def get_packed_data():
-    return _packed_files_data
+    packed_data = {}
+
+    for img_hash in _unique_packed_images:
+        data = _unique_packed_images[img_hash]
+
+        # filepath and packed_file are the same for all images
+        bpy_image = _bpy_uuid_cache[data[0]]
+        image_data = _export_uuid_cache[data[0]]
+        packed_data[image_data["filepath"]] = b4w_bin.get_packed_data(
+                bpy_image.packed_file.as_pointer())
+
+    for snd_hash in _unique_packed_sounds:
+        data = _unique_packed_sounds[snd_hash]
+        
+        # filepath and packed_file are the same for all sounds
+        bpy_sound = _bpy_uuid_cache[data[0]]
+        sound_data = _export_uuid_cache[data[0]]
+        packed_data[sound_data["filepath"]] = b4w_bin.get_packed_data(
+                bpy_sound.packed_file.as_pointer())
+
+    return packed_data
 
 def get_b4w_bin_info():
     format_version = blend4web.bl_info["b4w_format_version"]
@@ -694,6 +734,7 @@ def process_components(tags):
     for tag in tags:
         _export_data[tag] = []
 
+    check_shared_data(bpy.data.scenes)
     for scene in getattr(bpy.data, "scenes"):
         if do_export(scene):
             process_scene(scene)
@@ -703,7 +744,6 @@ def process_components(tags):
         raise FileError("No exported scene found. Can't perform export.")
 
     check_main_scene(_export_data["scenes"])
-    check_shared_data(_export_data)
 
     for action in getattr(bpy.data, "actions"):
         if not (action.name + "_B4W_BAKED" in bpy.data.actions):
@@ -773,6 +813,12 @@ def get_fallback_material():
         _fallback_material.use_shadeless = True
     return _fallback_material
 
+def get_default_material():
+    global _default_material
+    if not _default_material:
+        _default_material = bpy.data.materials.new("DEFAULT")
+    return _default_material
+
 def get_fallback_texture():
     global _fallback_texture
     if not _fallback_texture:
@@ -795,7 +841,7 @@ def process_action(action):
     act_data["fcurves"] = OrderedDict()
 
     if len(action.fcurves) == 0:
-        warn("The action \"%s\" has no fcurves." % action.name + ".")
+        warn("The action \"%s\" has no fcurves" % action.name + ".")
 
     # collect fcurves indices
     fc_indices = OrderedDict()
@@ -817,6 +863,7 @@ def process_action(action):
             if data_path.find("rotation_euler") > -1:
                 del fc_indices[data_path]
 
+    wrong_action_names = []
     for data_path in fc_indices:
         is_scale = data_path.find("scale") > -1
         is_location = data_path.find("location") > -1
@@ -852,18 +899,9 @@ def process_action(action):
 
             fcurve = action.fcurves[index]
 
-            # rotate by 90 degrees around x-axis to match standard OpenGL for
-            # location and rotation, see pose section for detailed math
-            array_index = fcurve_array_index = fcurve.array_index
-
+            array_index = fcurve.array_index
             if is_scale:
                 array_index = 0
-            elif is_location or is_rotation_euler: # x y z
-                if fcurve_array_index == 1: array_index = 2
-                elif fcurve_array_index == 2: array_index = 1
-            elif is_rotation_quat: # w x y z
-                if fcurve_array_index == 2: array_index = 3
-                elif fcurve_array_index == 3: array_index = 2
             elif is_node and array_index == num_channels:
                 # Do not export alpha channel for RGB nodes
                 break
@@ -891,8 +929,10 @@ def process_action(action):
                 elif interpolation == "CONSTANT":
                     intercode = 2
                 else:
-                    raise ExportError("Wrong F-Curve interpolation mode", action,
-                            "Only BEZIER, LINEAR or CONSTANT mode is allowed for F-Curve interpolation.")
+                    if not action.name in wrong_action_names:
+                        wrong_action_names.append(action.name)
+                    interpolation = "BEZIER"
+                    intercode = 0
 
                 co = list(keyframe_point.co)
                 hl = list(keyframe_point.handle_left)
@@ -905,13 +945,6 @@ def process_action(action):
                     has_decimal_frames = True
 
                 co[0] = round(co[0])
-
-                # rotate by 90 degrees around x-axis to match standard OpenGL
-                if (is_location or is_rotation_euler) and fcurve_array_index == 1 \
-                        or is_rotation_quat and fcurve_array_index == 2:
-                    co = [co[0], -co[1]]
-                    hl = [hl[0], -hl[1]]
-                    hr = [hr[0], -hr[1]]
 
                 # write to plain array:
                     # interpolation code
@@ -927,7 +960,8 @@ def process_action(action):
                 # file size optimization: left handle needed only if
                 # PREVIOS keyframe point is bezier, right handle needed only if
                 # THIS keyframe point is bezier
-                if previous and previous.interpolation == "BEZIER":
+                if previous and (previous.interpolation != "LINEAR"
+                        and previous.interpolation != "CONSTANT"):
                     keyframes_data.extend(hl)
                 if interpolation == "BEZIER":
                     keyframes_data.extend(hr)
@@ -952,6 +986,11 @@ def process_action(action):
 
             _bpy_bindata_float.extend(keyframes_data_bin)
 
+    for action_name in wrong_action_names:
+        err("Wrong F-Curve interpolation mode for " + action_name +
+                    ". Only BEZIER, LINEAR or CONSTANT mode is allowed " +
+                    "for F-Curve interpolation. Switch to BEZIER.")
+
     if has_decimal_frames:
         err("The \"" + action.name + "\" action has decimal frames. " +
                 "Converted to integer.")
@@ -964,6 +1003,15 @@ def get_mat_action_num_channels(action, node_name):
     mats = bpy.data.materials
     for mat in mats:
         node_tree = mat.node_tree
+        if not node_tree:
+            continue
+        num_channels_mat = num_node_channels(action.name, node_tree, node_name)
+        if num_channels_mat:
+            return num_channels_mat
+    # cycles world actions
+    worlds = bpy.data.worlds
+    for world in worlds:
+        node_tree = world.node_tree
         if not node_tree:
             continue
         num_channels_mat = num_node_channels(action.name, node_tree, node_name)
@@ -1063,6 +1111,8 @@ def process_scene(scene):
     scene_data["b4w_enable_object_selection"] = scene.b4w_enable_object_selection
     scene_data["b4w_enable_outlining"] = scene.b4w_enable_outlining
     scene_data["b4w_enable_anchors_visibility"] = scene.b4w_enable_anchors_visibility
+    scene_data["b4w_lod_smooth_type"] = scene.b4w_lod_smooth_type
+    scene_data["b4w_lod_hyst_interval"] = scene.b4w_lod_hyst_interval
     
     tags = scene.b4w_tags
 
@@ -1072,6 +1122,11 @@ def process_scene(scene):
         sdt["description"] = get_tags_description(tags)
     else:
         scene_data["b4w_tags"] = None
+
+    if hasattr(scene, "b4w_custom_prop"):
+        scene_data["b4w_custom_prop"] = encode_custom_prop(scene.b4w_custom_prop)
+    else:
+        scene_data["b4w_custom_prop"] = None
 
     # process scene links
     scene_data["objects"] = []
@@ -1120,9 +1175,8 @@ def process_scene(scene):
     check_scene_data(scene_data, scene)
     _curr_stack["scenes"].pop()
 
-    if scene.b4w_enable_cluster_batching:
-        clusterer.run(_export_uuid_cache, _bpy_uuid_cache, scene_data, 
-                scene.b4w_cluster_size)
+    clusterer.run(_export_uuid_cache, _bpy_uuid_cache, scene_data, 
+            scene.b4w_cluster_size, scene.b4w_lod_cluster_size_mult)
 
 def get_tags_description(tags):
     if tags.desc_source == "TEXT":
@@ -1209,8 +1263,8 @@ def get_logic_nodetree_name(scene):
 
     return tree_name
 
-def force_mute_node(node_data, desc):
-     node_data['mute'] = True
+def force_mute_node(node_data, desc=None):
+    node_data['mute'] = True
 
 def process_scene_nla(scene, scene_data):
     scene_data["b4w_use_nla"] = scene.b4w_use_nla
@@ -1323,7 +1377,13 @@ def process_scene_nla(scene, scene_data):
                         force_mute_node(slot_data, "World is not selected or not exported.")
 
             elif slot['type'] == "INHERIT_MAT":
-                check_objects_paths(slot, slot_data)
+                for o in slot["objects_paths"]:
+                    obj = logic_node_tree.object_by_path(bpy.data.objects, slot["objects_paths"][o])
+                    if (obj and do_export(obj) and object_is_valid(obj) and obj.b4w_dynamic_geometry):
+                        pass
+                    else:
+                        force_mute_node(slot_data)
+                check_materials_names(slot, slot_data)
 
             elif slot['type'] == "SET_SHADER_NODE_PARAM":
                 obj = logic_node_tree.object_by_path(bpy.data.objects, slot["objects_paths"]["id0"])
@@ -1390,43 +1450,41 @@ def process_scene_nla(scene, scene_data):
             elif slot['type'] == "MOVE_CAMERA":
                 check_objects_paths(slot, slot_data)
 
+            elif slot['type'] == "SET_CAMERA_MOVE_STYLE":
+                obj = logic_node_tree.object_by_path(bpy.data.objects, slot["objects_paths"]["id0"])
+                if (obj and do_export(obj) and object_is_valid(obj)):
+                    pass
+                else:
+                    force_mute_node(slot_data, "Object is not selected or not exported.")
+                if slot["common_usage_names"]['camera_move_style'] in ["HOVER", "TARGET"] and slot['bools']['pvo']:
+                    obj = logic_node_tree.object_by_path(bpy.data.objects, slot["objects_paths"]["id1"])
+                    if (obj and do_export(obj) and object_is_valid(obj)):
+                        pass
+                    else:
+                        force_mute_node(slot_data, "Object is not selected or not exported.")
+
+            elif slot['type'] == "SET_CAMERA_LIMITS":
+                obj = logic_node_tree.object_by_path(bpy.data.objects, slot["objects_paths"]["id0"])
+                if (obj and do_export(obj) and object_is_valid(obj)):
+                    pass
+                else:
+                    force_mute_node(slot_data, "Object is not selected or not exported.")
+
             elif slot['type'] == "MOVE_TO":
                 check_objects_paths(slot, slot_data)
 
             elif slot['type'] == "TRANSFORM_OBJECT":
                 check_objects_paths(slot, slot_data)
-                #rotate axis if not variables
-                if not (slot_data["bools"]["try"] or slot_data["bools"]["trz"]):
-                    slot_data["floats"]["try"], slot_data["floats"]["trz"] = slot_data["floats"]["trz"], -slot_data["floats"]["try"]
-                if not (slot_data["bools"]["roy"] or slot_data["bools"]["roz"]):
-                    slot_data["floats"]["roy"], slot_data["floats"]["roz"] = slot_data["floats"]["roz"], -slot_data["floats"]["roy"]
-
-                if slot_data["common_usage_names"]["space_type"] == "WORLD":
-                    slot_data["common_usage_names"]["space_type"] = 0
-                elif slot_data["common_usage_names"]["space_type"] == "PARENT":
-                    slot_data["common_usage_names"]["space_type"] = 1
-                elif slot_data["common_usage_names"]["space_type"] == "LOCAL":
-                    slot_data["common_usage_names"]["space_type"] = 2
 
             elif slot['type'] == "STRING":
                 #remove unused elements
-                if slot['param_string_operation'] != "SPLIT":
+                if slot['common_usage_names']['string_operation'] != "SPLIT":
                     del slot_data["variables"]["dst1"]
-                if slot['param_string_operation'] != "REPLACE":
+                if slot["common_usage_names"]['string_operation'] != "REPLACE":
                     del slot_data["bools"]["id2"]
                     del slot_data["variables"]["id2"]
                     del slot_data["strings"]["id2"]
-                
-                if slot['param_string_operation'] == "JOIN":
-                    slot_data["floats"]["sop"] = 0
-                elif slot['param_string_operation'] == "FIND":
-                    slot_data["floats"]["sop"] = 1
-                elif slot['param_string_operation'] == "REPLACE":
-                    slot_data["floats"]["sop"] = 2
-                elif slot['param_string_operation'] == "SPLIT":
-                    slot_data["floats"]["sop"] = 3
-                elif slot['param_string_operation'] == "COMPARE":
-                    slot_data["floats"]["sop"] = 4
+
             elif slot['type'] == "SPEAKER_PLAY" or slot['type'] == "SPEAKER_STOP":
                 check_objects_paths(slot, slot_data)
 
@@ -1447,6 +1505,20 @@ def check_objects_paths(slot, slot_data):
         else:
             force_mute_node(slot_data, "Object is not selected or not exported.")
 
+def check_materials_names(slot, slot_data):
+    for index in slot["materials_names"]:
+        mat = slot["materials_names"][index]
+        obj = logic_node_tree.object_by_path(bpy.data.objects, slot["objects_paths"][index])
+
+        if obj:
+            obj_has_mat = False
+            for mat_slot in obj.material_slots:
+                if mat_slot.material and do_export(mat_slot.material) and mat_slot.material.name == mat:
+                    obj_has_mat = True
+                    break
+
+            if not obj_has_mat:
+                force_mute_node(slot_data)
 
 def process_scene_dyn_compr_settings(scene_data, scene):
     dcompr = scene.b4w_dynamic_compressor_settings
@@ -1464,6 +1536,8 @@ def process_scene_shadow_settings(scene_data, scene):
     dct = scene_data["b4w_shadow_settings"] = OrderedDict()
 
     dct["csm_resolution"] = int(shadow.csm_resolution)
+    dct["blur_samples"] = shadow.blur_samples
+    dct["soft_shadows"] = shadow.soft_shadows
     dct["self_shadow_polygon_offset"] = round_num(shadow.self_shadow_polygon_offset, 2)
     dct["self_shadow_normal_offset"] = round_num(shadow.self_shadow_normal_offset, 3)
 
@@ -1513,6 +1587,8 @@ def process_scene_bloom_settings(scene_data, scene):
     dct["key"] = round_num(bloom.key, 2)
     dct["blur"] = round_num(bloom.blur, 2)
     dct["edge_lum"] = round_num(bloom.edge_lum, 2)
+    dct["adaptive"] = bloom.adaptive
+    dct["average_luminance"] = bloom.average_luminance
 
 def process_scene_motion_blur_settings(scene_data, scene):
     motion_blur = scene.b4w_motion_blur_settings
@@ -1548,7 +1624,9 @@ def process_object_type(obj, data, curve_as_curve):
     if obj.type != "EMPTY":
         if obj.data is None:
             # broken object data
-            raise InternalError("Object data not available for \"" + obj.name + "\"")
+            err("Object " + obj.name + " has no data or data is broken. "
+                    + "Change object type to EMPTY.")
+            return "EMPTY"
 
         is_main_metaball = check_main_metaball(obj, data)
         if data is None:
@@ -1653,9 +1731,10 @@ def process_object(obj, is_curve=False, is_hair=False):
         dg_uuid = obj_data["dupli_group"]["uuid"]
         dg_data = _export_uuid_cache[dg_uuid]
         if not dg_data["objects"]:
-            raise ExportError("Dupli group error", obj, "Objects from the \""  +
+            err("Dupli group error for object " + obj.name + ". Objects from the \""  +
                     dg_data["name"] + "\" dupli group on the object \"" +
-                    obj_data["name"] + "\" cannot be exported")
+                    obj_data["name"] + "\" cannot be exported.")
+            obj_data["dupli_group"] = None
     else:
         obj_data["dupli_group"] = None
 
@@ -1679,6 +1758,9 @@ def process_object(obj, is_curve=False, is_hair=False):
 
     obj_data["b4w_cluster_data"] = OrderedDict()
     obj_data["b4w_cluster_data"]["cluster_id"] = -1
+    obj_data["b4w_cluster_data"]["cluster_center"] = None
+    # NOTE: unused
+    obj_data["b4w_cluster_data"]["cluster_radius"] = 0
 
     # NOTE: give more freedom to objs with edited normals
     obj_data["modifiers"] = []
@@ -1687,8 +1769,7 @@ def process_object(obj, is_curve=False, is_hair=False):
         process_object_modifiers(obj_data["modifiers"], obj.modifiers, obj)
 
     if not is_hair:
-        obj_data["constraints"] = process_constraints(obj.constraints,
-                                        "object: \"" + obj.name + "\"")
+        obj_data["constraints"] = process_constraints(obj, True)
         obj_data["particle_systems"] = process_object_particle_systems(obj, data)
     else:
         obj_data["constraints"] = []
@@ -1707,6 +1788,8 @@ def process_object(obj, is_curve=False, is_hair=False):
     obj_data["b4w_do_not_cull"] = obj.b4w_do_not_cull
     obj_data["b4w_disable_fogging"] = obj.b4w_disable_fogging
     obj_data["b4w_do_not_render"] = obj.b4w_do_not_render
+    obj_data["b4w_hidden_on_load"] = obj.b4w_hidden_on_load
+    obj_data["b4w_hide_chldr_on_load"] = obj.b4w_hidden_on_load and obj.b4w_hide_chldr_on_load
     obj_data["b4w_shadow_cast"] = obj.b4w_shadow_cast
     obj_data["b4w_shadow_receive"] = obj.b4w_shadow_receive
     obj_data["b4w_reflexible"] = obj.b4w_reflexible
@@ -1733,8 +1816,6 @@ def process_object(obj, is_curve=False, is_hair=False):
     dct["leaves_stiffness_col"] = detail_bend.leaves_stiffness_col
     dct["leaves_phase_col"] = detail_bend.leaves_phase_col
     dct["overall_stiffness_col"] = detail_bend.overall_stiffness_col
-
-    obj_data["b4w_lod_transition"] = round_num(obj.b4w_lod_transition, 3);
 
     if is_hair:
         obj_data["lod_levels"] = []
@@ -1796,7 +1877,7 @@ def process_object(obj, is_curve=False, is_hair=False):
             obj_data["b4w_vehicle_settings"] = None
 
 
-        store_vehicle_integrity(obj)
+        store_vehicle_integrity(obj_data)
 
         obj_data["b4w_character"] = obj.b4w_character
         if obj.b4w_character:
@@ -1849,6 +1930,8 @@ def process_object(obj, is_curve=False, is_hair=False):
     else:
         sca = [1.0, 1.0, 1.0]
 
+    obj_data["pass_index"] = obj.pass_index
+
     # resolving clean_parent_inverse issue
     if obj.parent:
         sca_parent = obj.parent.scale
@@ -1864,15 +1947,15 @@ def process_object(obj, is_curve=False, is_hair=False):
         sca = list(map(operator.mul, sca, pinv_scale))
         rot.rotate(mat_inv_parent)
         obj_data["pinverse_tsr"] = round_iterable( 
-            [pinv_translation[0], pinv_translation[2], -pinv_translation[1], 
+            [pinv_translation[0], pinv_translation[1], pinv_translation[2], 
             pinv_scale[0],
-            pinv_rotation_quat.x, pinv_rotation_quat.z, -pinv_rotation_quat.y, pinv_rotation_quat.w], 5)
+            pinv_rotation_quat.x, pinv_rotation_quat.y, pinv_rotation_quat.z, pinv_rotation_quat.w], 5)
 
-    obj_data["location"] = round_iterable([loc[0], loc[2], -loc[1]], 5)
+    obj_data["location"] = round_iterable([loc[0], loc[1], loc[2]], 5)
 
-    obj_data["rotation_quaternion"] = round_iterable([rot[0], rot[1], rot[3], -rot[2]], 5)
+    obj_data["rotation_quaternion"] = round_iterable([rot[0], rot[1], rot[2], rot[3]], 5)
 
-    obj_data["scale"] = round_iterable([sca[0], sca[2], sca[1]], 5)
+    obj_data["scale"] = round_iterable([sca[0], sca[1], sca[2]], 5)
 
     if obj.b4w_enable_object_tags:
         tags = obj.b4w_object_tags
@@ -1882,6 +1965,11 @@ def process_object(obj, is_curve=False, is_hair=False):
         odt["category"] = tags.category
     else:
         obj_data["b4w_object_tags"] = None
+
+    if hasattr(obj, "b4w_custom_prop"):
+        obj_data["b4w_custom_prop"] = encode_custom_prop(obj.b4w_custom_prop)
+    else:
+        obj_data["b4w_custom_prop"] = None
 
     if obj.b4w_enable_anchor:
         anchor = obj.b4w_anchor
@@ -1901,38 +1989,79 @@ def process_object(obj, is_curve=False, is_hair=False):
 
     return OrderedDict({ "uuid": obj_data["uuid"] })
 
+def encode_custom_prop(prop):
+    # property group, "object"
+    if hasattr(prop, "bl_rna"):
+        dic = OrderedDict()
+        for key in sorted(prop.bl_rna.properties.keys()):
+            if key == "rna_type":
+                continue
+            dic[key] = encode_custom_prop(getattr(prop, key))
+        return dic
+    # "primitive"
+    elif (type(prop) == int or
+             type(prop) == float or
+             type(prop) == bool or
+             type(prop) == str):
+        return prop
+    # "array"
+    else:
+        return [encode_custom_prop(i) for i in prop]
+
 def get_rotation_quat(obj):
     if obj.rotation_mode == "AXIS_ANGLE":
         angle = obj.rotation_axis_angle[0]
         axis = obj.rotation_axis_angle[1:4]
-        return mathutils.Quaternion(axis, angle)
+        quat = mathutils.Quaternion(axis, angle)
     elif obj.rotation_mode == "QUATERNION":
-        return obj.rotation_quaternion
+        quat = obj.rotation_quaternion
     else:
-        return obj.rotation_euler.to_quaternion()
+        quat = obj.rotation_euler.to_quaternion()
 
-def store_vehicle_integrity(obj):
-    if obj.b4w_vehicle:
-        if obj.b4w_vehicle_settings.name not in _vehicle_integrity:
-            _vehicle_integrity[obj.b4w_vehicle_settings.name] = {
+    # NOTE: there can be set a non-normalized quaternion in Blender
+    quat.normalize()
+    return quat
+
+def store_vehicle_integrity(obj_data):
+    vehicle_settings = obj_data["b4w_vehicle_settings"]
+    if vehicle_settings:
+        if vehicle_settings["name"] not in _vehicle_integrity:
+            _vehicle_integrity[vehicle_settings["name"]] = {
                 "hull": None,
                 "chassis": None,
                 "bob": None,
-                "wheel": None,
-                "other": None
+                "other": None,
+                "fl_wheel": None,
+                "fr_wheel": None,
+                "bl_wheel": None,
+                "br_wheel": None,
+                "steering_wheel": None,
+                "speedometer": None,
+                "tachometer": None
             }
 
-        if obj.b4w_vehicle_settings.part == "HULL":
-            _vehicle_integrity[obj.b4w_vehicle_settings.name]["hull"] = obj
-        elif obj.b4w_vehicle_settings.part == "CHASSIS":
-            _vehicle_integrity[obj.b4w_vehicle_settings.name]["chassis"] = obj
-        elif obj.b4w_vehicle_settings.part == "BOB":
-            _vehicle_integrity[obj.b4w_vehicle_settings.name]["bob"] = obj
-        elif obj.b4w_vehicle_settings.part in ["WHEEL_FRONT_LEFT",
-                "WHEEL_FRONT_RIGHT", "WHEEL_BACK_LEFT", "WHEEL_BACK_RIGHT"]:
-            _vehicle_integrity[obj.b4w_vehicle_settings.name]["wheel"] = obj
+        if vehicle_settings["part"] == "HULL":
+            _vehicle_integrity[vehicle_settings["name"]]["hull"] = obj_data
+        elif vehicle_settings["part"] == "CHASSIS":
+            _vehicle_integrity[vehicle_settings["name"]]["chassis"] = obj_data
+        elif vehicle_settings["part"] == "BOB":
+            _vehicle_integrity[vehicle_settings["name"]]["bob"] = obj_data
+        elif vehicle_settings["part"] == "WHEEL_FRONT_LEFT":
+            _vehicle_integrity[vehicle_settings["name"]]["fl_wheel"] = obj_data
+        elif vehicle_settings["part"] == "WHEEL_FRONT_RIGHT":
+            _vehicle_integrity[vehicle_settings["name"]]["fr_wheel"] = obj_data
+        elif vehicle_settings["part"] == "WHEEL_BACK_LEFT":
+            _vehicle_integrity[vehicle_settings["name"]]["bl_wheel"] = obj_data
+        elif vehicle_settings["part"] == "WHEEL_BACK_RIGHT":
+            _vehicle_integrity[vehicle_settings["name"]]["br_wheel"] = obj_data
+        elif vehicle_settings["part"] == "STEERING_WHEEL":
+            _vehicle_integrity[vehicle_settings["name"]]["steering_wheel"] = obj_data
+        elif vehicle_settings["part"] == "SPEEDOMETER":
+            _vehicle_integrity[vehicle_settings["name"]]["speedometer"] = obj_data
+        elif vehicle_settings["part"] == "TACHOMETER":
+            _vehicle_integrity[vehicle_settings["name"]]["tachometer"] = obj_data
         else:
-            _vehicle_integrity[obj.b4w_vehicle_settings.name]["other"] = obj
+            _vehicle_integrity[vehicle_settings["name"]]["other"] = obj_data
 
 def process_object_game_settings(obj_data, obj):
     game = obj.game
@@ -2034,18 +2163,12 @@ def process_object_pose(obj_data, obj, pose):
             # finally get "pseudo" (i.e. baked) matrix basis by reverse operation
             mb = ml.inverted_safe() * mch * ml
 
-            # change axes from Blender to OpenGL
-            m_rotX = mathutils.Matrix.Rotation(-math.pi / 2, 4, "X")
-            m_rotXi = m_rotX.inverted_safe()
-            mb = m_rotX * mb * m_rotXi
-
             # flatten
             mb = matrix4x4_to_list(mb)
             pose_bone_data["matrix_basis"] = round_iterable(mb, 5)
 
             comp_name = "bone: \"" + pose_bone.name + "\" in object: \"" + obj.name + "\""
-            pose_bone_data["constraints"] = process_constraints(pose_bone.constraints,
-                                                                comp_name)
+            pose_bone_data["constraints"] = process_constraints(pose_bone, False)
 
             obj_data["pose"]["bones"].append(pose_bone_data)
 
@@ -2177,14 +2300,19 @@ def process_camera(camera):
 
     cam_data["angle"] = round_num(camera.angle, 6)
     cam_data["angle_y"] = round_num(camera.angle_y, 6)
+    cam_data["sensor_fit"] = camera.sensor_fit
     cam_data["ortho_scale"] = round_num(camera.ortho_scale, 3)
     cam_data["clip_start"] = round_num(camera.clip_start, 3)
     cam_data["clip_end"] = round_num(camera.clip_end, 3)
     cam_data["dof_distance"] = round_num(camera.dof_distance, 3)
-    cam_data["b4w_dof_front"] = round_num(camera.b4w_dof_front, 3)
-    cam_data["b4w_dof_rear"] = round_num(camera.b4w_dof_rear, 3)
+    cam_data["b4w_dof_front_start"] = round_num(camera.b4w_dof_front_start, 3)
+    cam_data["b4w_dof_front_end"] = round_num(camera.b4w_dof_front_end, 3)
+    cam_data["b4w_dof_rear_start"] = round_num(camera.b4w_dof_rear_start, 3)
+    cam_data["b4w_dof_rear_end"] = round_num(camera.b4w_dof_rear_end, 3)
     cam_data["b4w_dof_power"] = round_num(camera.b4w_dof_power, 2)
     cam_data["b4w_dof_bokeh"] = camera.b4w_dof_bokeh
+    cam_data["b4w_dof_bokeh_intensity"] = round_num(camera.b4w_dof_bokeh_intensity, 2)
+    cam_data["b4w_dof_foreground_blur"] = camera.b4w_dof_foreground_blur
     cam_data["b4w_move_style"] = camera.b4w_move_style
 
     cam_data["b4w_hover_zero_level"] = camera.b4w_hover_zero_level
@@ -2233,8 +2361,8 @@ def process_camera(camera):
     cam_data["b4w_pivot_z_max"] = camera.b4w_pivot_z_max
 
     # translate to b4w coordinates
-    b4w_target = [camera.b4w_target[0], camera.b4w_target[2], \
-            -camera.b4w_target[1]]
+    b4w_target = [camera.b4w_target[0], camera.b4w_target[1], \
+            camera.b4w_target[2]]
     cam_data["b4w_target"] = round_iterable(b4w_target, 3)
 
     # process camera links
@@ -2274,8 +2402,8 @@ def process_curve(curve):
         points = []
         for point in spline.points:
             points.append(point.co[0])
+            points.append(point.co[1])
             points.append(point.co[2])
-            points.append(-point.co[1])
             points.append(point.tilt)
             points.append(point.co[3])
 
@@ -2299,7 +2427,14 @@ def process_lamp(lamp):
 
     lamp_data["name"] = lamp.name
     lamp_data["uuid"] = gen_uuid(lamp)
-    lamp_data["type"] = lamp.type
+
+    if lamp.type == "AREA":
+        lamp_data["type"] = "SUN"
+        err("The lamp object \"" + lamp.name + "\" has unsupported AREA type. Changed to SUN.")
+    else:
+        lamp_data["type"] = lamp.type
+
+
     lamp_data["energy"] = round_num(lamp.energy, 3)
     lamp_data["distance"] = round_num(lamp.distance, 3)
 
@@ -2310,6 +2445,7 @@ def process_lamp(lamp):
         lamp_data["falloff_type"] = lamp.falloff_type
         lamp_data["clip_start"] = lamp.shadow_buffer_clip_start
         lamp_data["clip_end"] = lamp.shadow_buffer_clip_end
+        lamp_data["use_sphere"] = lamp.use_sphere
     else:
         lamp_data["falloff_type"] = None
         lamp_data["clip_start"] = 0.1
@@ -2378,7 +2514,8 @@ def process_material(material, uuid = None):
     mat_data["use_vertex_color_paint"] = material.use_vertex_color_paint
 
     if mat_data["use_vertex_color_paint"] and not _curr_stack["data"][-1].vertex_colors:
-        raise MaterialError("Incomplete mesh \"" + _curr_stack["data"][-1].name +
+        mat_data["use_vertex_color_paint"] = False
+        err("Incomplete mesh \"" + _curr_stack["data"][-1].name +
             "\" Material settings require vertex colors.")
 
     # export custom properties
@@ -2446,8 +2583,9 @@ def process_material(material, uuid = None):
     if material.b4w_terrain:
         if not check_vertex_color_empty(_curr_stack["data"][-1], mat_data["b4w_dynamic_grass_size"]) \
                 or not check_vertex_color_empty(_curr_stack["data"][-1], mat_data["b4w_dynamic_grass_color"]):
-            raise MaterialError("Incomplete mesh \"" +_curr_stack["data"][-1].name + 
+            err("Incomplete mesh \"" +_curr_stack["data"][-1].name + 
                 "\" Dynamic grass vertex colors required by material settings.")
+            mat_data["b4w_terrain"] = False
 
     mat_data["b4w_do_not_render"] = material.b4w_do_not_render
     use_textures = check_available_textures(material)
@@ -2498,6 +2636,9 @@ def process_material(material, uuid = None):
 
     mat_data["use_transparency"] = material.use_transparency
     mat_data["use_shadeless"] = material.use_shadeless
+    mat_data["use_tangent_shading"] = check_material_tangent_shading(material)
+    mat_data["pass_index"] = material.pass_index
+
     mat_data["offset_z"] = round_num(material.offset_z, 2)
 
     game_settings = material.game_settings
@@ -2507,7 +2648,7 @@ def process_material(material, uuid = None):
     mat_data["uv_vc_key"] = ""
     # process material links
     if mat_data["use_nodes"]:
-        process_node_tree(mat_data, material)
+        process_node_tree(mat_data, material, False)
     else:
         mat_data["node_tree"] = None
     process_material_texture_slots(mat_data, material)
@@ -2605,16 +2746,20 @@ def process_texture(texture, uuid = None):
 
     # process texture links
     if hasattr(texture, "image"):
-        image = texture.image
-        if not image:
-            raise MaterialError("No image in the \"" + texture.name + "\" texture.")
-        if do_export(image):
-            tex_data["image"] = gen_uuid_dict(image)
-            process_image(image)
-    else:
-        tex_data["image"] = None
+        if texture.image:
+            image = texture.image
+            if do_export(image):
+                tex_data["image"] = gen_uuid_dict(image)
+                try:
+                    process_image(image)
+                except PathError as ex:
+                    err(str(ex))
+                    tex_data["image"] = None
+        else:
+            tex_data["image"] = None
+            warn("Texture \"" + texture.name + "\" has no image.")
 
-    if (texture.type == "IMAGE" and texture.image.source == "MOVIE"):
+    if (texture.type == "IMAGE" and texture.image and texture.image.source == "MOVIE"):
         tex_data["frame_duration"] = texture.image_user.frame_duration
         tex_data["frame_offset"] = texture.image_user.frame_offset
         tex_data["frame_start"] = texture.image_user.frame_start
@@ -2678,26 +2823,44 @@ def process_image(image):
     image_data["name"] = image.name
     image_data["uuid"] = gen_uuid(image)
 
-    if image.packed_file is not None:
-        packed_data = b4w_bin.get_packed_data(image.packed_file.as_pointer())
-        packed_file_path = get_json_relative_filepath(
-                packed_resource_get_unique_name(image))
-
-        # NOTE: fix image path without extension, e.g. custom image created in
-        # Blender and packed as PNG
-        if os.path.splitext(packed_file_path)[1] == "":
-            packed_file_path += "." + image.file_format.lower()
-
-        _packed_files_data[packed_file_path] = packed_data
-        image_data["filepath"] = packed_file_path
-    else:
-        image_data["filepath"] = get_filepath(image)
+    ext = os.path.splitext(image.filepath)[1]
+    # NOTE: fix image path without extension, e.g. custom image created in
+    # Blender and packed as PNG
+    ext = ext if ext != "" else "." + image.file_format.lower()
+    process_media_path(image, image_data, ext, _unique_packed_images)
 
     image_data["size"] = list(image.size)
     image_data["source"] = image.source
+    image_data["colorspace_settings_name"] = image.colorspace_settings.name
     _export_data["images"].append(image_data)
     _export_uuid_cache[image_data["uuid"]] = image_data
     _bpy_uuid_cache[image_data["uuid"]] = image
+
+def process_media_path(bpy_datablock, export_datablock, ext, unique_media_data):
+    if bpy_datablock.packed_file is not None:
+        data_buffer = bpy_datablock.packed_file.data
+        # fix overwriting collision for export/html export
+        if _is_html_export:
+            data_buffer = bytearray(data_buffer)
+            data_buffer.extend(bytes(b"%html_export%"))
+        hash_str = hashlib.md5(data_buffer).hexdigest()
+
+        if hash_str not in unique_media_data:
+            unique_media_data[hash_str] = []
+        unique_media_data[hash_str].append(export_datablock["uuid"])
+
+        pack_filepath = hash_str + ext
+
+        if bpy.data.filepath and _export_filepath is not None:
+            export_dir = os.path.split(_export_filepath)[0]
+            pack_filepath = os.path.join(export_dir, pack_filepath)
+        else:
+            pack_filepath = os.path.join(os.getcwd(), pack_filepath)
+
+        pack_filepath = get_json_relative_filepath(pack_filepath)
+        export_datablock["filepath"] = pack_filepath
+    else:
+        export_datablock["filepath"] = get_filepath(bpy_datablock)
 
 def get_filepath(comp):
     path_b = comp.filepath.replace("//", "")
@@ -2725,7 +2888,8 @@ def get_json_relative_filepath(path):
             return path_res
         else:
             _file_error = exp
-            raise FileError("Loading of resources from different disk is forbidden")
+            raise PathError("Loading of resources from different disk is forbidden. " +
+                    "Couldn't load " + path_res)
     # clean
     return guard_slashes(os.path.normpath(path_relative))
 
@@ -2746,11 +2910,13 @@ def process_mesh(mesh, obj_user):
     # NOTE: mesh uniqueness
     mat_names = ""
     for slot in obj_user.material_slots:
-        # None for empty slot
-        if not slot.material:
-            raise ExportError("Incomplete mesh", mesh, "Material slot is empty")
+
+        if slot.material:
+            material = slot.material
+        else:
+            material = get_default_material()
         
-        mat_names += "%" + slot.material.name
+        mat_names += "%" + material.name
 
     mesh_data["uuid"] = gen_uuid(mesh, mat_names)
 
@@ -2764,7 +2930,11 @@ def process_mesh(mesh, obj_user):
     mesh_data["materials"] = []
 
     for slot in obj_user.material_slots:
-        material = slot.material
+
+        if slot.material:
+            material = slot.material
+        else:
+            material = get_default_material()
 
         if do_export(material):
 
@@ -2785,17 +2955,8 @@ def process_mesh(mesh, obj_user):
     process_mesh_vertex_groups(mesh_data, obj_user)
 
     mesh_data["uv_textures"] = []
-    if mesh.uv_textures:
-        # export 2 uv_textures only
-        mesh_uv_count = len(mesh.uv_textures)
-        if mesh_uv_count > 2:
-            warn("Only 2 UV textures are allowed for a mesh. The mesh \"" + mesh.name
-                 + "\" has " + str(mesh_uv_count) + " UVs.")
-            mesh_data["uv_textures"].append(mesh.uv_textures[0].name)
-            mesh_data["uv_textures"].append(mesh.uv_textures[1].name)
-        else:
-            for uv_texture in mesh.uv_textures:
-                mesh_data["uv_textures"].append(uv_texture.name)
+    for uv_texture in mesh.uv_textures:
+        mesh_data["uv_textures"].append(uv_texture.name)
 
     active_vc = mesh_get_active_vc(mesh)
     if active_vc:
@@ -2809,7 +2970,6 @@ def process_mesh(mesh, obj_user):
     vertex_animation = bool(obj_user.b4w_loc_export_vertex_anim)
     edited_normals = bool(mesh.use_auto_smooth)
     vertex_groups = bool(obj_user.vertex_groups)
-    vertex_colors = bool(mesh.vertex_colors)
     shape_keys = bool(obj_user.b4w_shape_keys) and "key_blocks" in dir(mesh.shape_keys)
 
     if obj_user.b4w_apply_scale or obj_auto_apply_scale(obj_user):
@@ -2855,7 +3015,18 @@ def process_mesh(mesh, obj_user):
     # derived mesh_data["materials"]
     if len(mesh_data["materials"]):
         for mat_index in range(len(obj_user.material_slots)):
-            material = obj_user.material_slots[mat_index].material
+
+            if obj_user.material_slots[mat_index].material:
+                material = obj_user.material_slots[mat_index].material
+            else:
+                material = get_default_material()
+
+            has_uv = len(mesh.uv_layers) > 0
+            use_tnb_shading = check_material_tangent_shading(material)
+            if use_tnb_shading and not has_uv:
+                warn("Object:\"" + _curr_stack["object"][-1].name + "\" > " +
+                        "Material:\"" + material.name + "\". Material " + 
+                        "tangent shading is enabled, but object's mesh has no UV map.")
             if do_export(material):
                 if material.type == "HALO":
                     disab_flat = True
@@ -2863,19 +3034,22 @@ def process_mesh(mesh, obj_user):
                     disab_flat = False
                 submesh_data = export_submesh(mesh, mesh_ptr, obj_user,
                         obj_ptr, mat_index, disab_flat, vertex_animation,
-                        edited_normals, shape_keys, vertex_groups, vertex_colors,
-                        mesh_data)
+                        edited_normals, shape_keys, vertex_groups, mesh_data, 
+                        use_tnb_shading and has_uv)
                 mesh_data["submeshes"].append(submesh_data)
     else:
         submesh_data = export_submesh(mesh, mesh_ptr, obj_user, obj_ptr, -1,
                 False, vertex_animation, edited_normals, shape_keys, vertex_groups,
-                vertex_colors, mesh_data)
+                mesh_data, False)
         mesh_data["submeshes"].append(submesh_data)
 
     if len(mesh_data["materials"]) > 1:
         mesh.calc_tessface()
         bounding_data = b4w_bin.calc_bounding_data(mesh_ptr, -1)
-        process_mesh_boundings(mesh_data, mesh, bounding_data, "b4w_")
+        mesh_data["b4w_boundings"] = OrderedDict()
+        process_mesh_boundings(mesh_data["b4w_boundings"], mesh, bounding_data, True)
+
+    mesh_data["is_boundings_overridden"] = mesh.b4w_override_boundings
 
     _export_data["meshes"].append(mesh_data)
     _export_uuid_cache[mesh_data["uuid"]] = mesh_data
@@ -2884,50 +3058,82 @@ def process_mesh(mesh, obj_user):
 
     return mesh_data["uuid"]
 
-def process_mesh_boundings(mesh_data, mesh, bounding_data, pref):
-    if (mesh.b4w_override_boundings):
+def check_material_tangent_shading(material):
+    if not material.use_nodes and material.use_tangent_shading:
+        return True
+    
+    if material.use_nodes and check_tangent_shading_r(material):
+        return True
+    
+    return False
+
+def check_tangent_shading_r(source):
+    if source.node_tree:
+        for node in source.node_tree.nodes:
+            if node.type == "MATERIAL" or node.type == "MATERIAL_EXT":
+                if node.material and node.material.use_tangent_shading:
+                    return True
+            elif node.type == "GROUP":
+                if check_tangent_shading_r(node):
+                    return True
+    return False
+
+def process_mesh_boundings(mesh_bdata, mesh, bounding_data, whole_mesh):
+    if mesh.b4w_override_boundings:
         bounding_box = mesh.b4w_boundings
 
-        if bounding_box.min_x > bounding_box.max_x \
-                or bounding_box.min_y > bounding_box.max_y \
-                or bounding_box.min_z > bounding_box.max_z:
+        max_x = bounding_box.max_x
+        min_x = bounding_box.min_x
+        max_y = bounding_box.max_y
+        min_y = bounding_box.min_y
+        max_z = bounding_box.max_z
+        min_z = bounding_box.min_z
 
-            raise ExportError("Wrong overrided bounding box", mesh, \
-                              "Check the mesh's bounding box values")
+        if min_x > max_x:
+            min_x, max_x = max_x, min_x
+        if min_y > max_y:
+            min_y, max_y = max_y, min_y
+        if min_z > max_z:
+            min_z, max_z = max_z, min_z
 
-        dct = mesh_data[pref + "bounding_box"] = OrderedDict()
-        dct["max_x"] = round_num(bounding_box.max_x, 5)
-        dct["min_x"] = round_num(bounding_box.min_x, 5)
+        if (max_x != bounding_box.max_x or max_y != bounding_box.max_y
+                or max_z != bounding_box.max_z):
+            warn("Wrong overridden bounding box for mesh " + mesh.name +
+                              ". Check the mesh's bounding box values.")
 
-        dct["max_y"] = round_num(bounding_box.max_z, 5)
-        dct["min_y"] = round_num(bounding_box.min_z, 5)
+        dct = mesh_bdata["bb"] = OrderedDict()
+        dct["max_x"] = round_num(max_x, 5)
+        dct["min_x"] = round_num(min_x, 5)
 
-        dct["max_z"] = round_num(-bounding_box.min_y, 5)
-        dct["min_z"] = round_num(-bounding_box.max_y, 5)
+        dct["max_y"] = round_num(max_y, 5)
+        dct["min_y"] = round_num(min_y, 5)
 
-        x_width = (bounding_box.max_x - bounding_box.min_x) / 2
-        y_width = (bounding_box.max_y - bounding_box.min_y) / 2
-        z_width = (bounding_box.max_z - bounding_box.min_z) / 2
-        x_cen = (bounding_box.max_x + bounding_box.min_x) / 2
-        y_cen = (bounding_box.max_y + bounding_box.min_y) / 2
-        z_cen = (bounding_box.max_z + bounding_box.min_z) / 2
-        bounding_center = round_iterable([x_cen, z_cen, -y_cen], 5)
+        dct["max_z"] = round_num(max_z, 5)
+        dct["min_z"] = round_num(min_z, 5)
+
+        x_width = (max_x - min_x) / 2
+        y_width = (max_y - min_y) / 2
+        z_width = (max_z - min_z) / 2
+        x_cen = (max_x + min_x) / 2
+        y_cen = (max_y + min_y) / 2
+        z_cen = (max_z + min_z) / 2
+        bounding_center = round_iterable([x_cen, y_cen, z_cen], 5)
 
         # calculate ellipsoid boundings
         sq3 = math.sqrt(3)
-        mesh_data[pref + "bounding_ellipsoid_axes"] = round_iterable([sq3 * x_width, sq3 * z_width, sq3 * y_width], 5)
-        mesh_data[pref + "bounding_ellipsoid_center"] = bounding_center
+        mesh_bdata["be_ax"] = round_iterable([sq3 * x_width, sq3 * y_width, sq3 * z_width], 5)
+        mesh_bdata["be_cen"] = bounding_center
 
-        if pref:
+        if whole_mesh:
             srad = math.sqrt(x_width * x_width + y_width * y_width + z_width * z_width)
             crad = math.sqrt(x_width * x_width + y_width * y_width)
-            mesh_data[pref + "bounding_sphere_radius"] = round_num(srad, 5)
-            mesh_data[pref + "bounding_cylinder_radius"] = round_num(crad, 5)
+            mesh_bdata["bs_rad"] = round_num(srad, 5)
+            mesh_bdata["bc_rad"] = round_num(crad, 5)
 
-            mesh_data[pref + "bounding_sphere_center"] = bounding_center
-            mesh_data[pref + "bounding_cylinder_center"] = bounding_center
+            mesh_bdata["bs_cen"] = bounding_center
+            mesh_bdata["bc_cen"] = bounding_center
     else:
-        dct = mesh_data[pref + "bounding_box"] = OrderedDict()
+        dct = mesh_bdata["bb"] = OrderedDict()
         dct["max_x"] = round_num(bounding_data["max_x"], 5)
         dct["max_y"] = round_num(bounding_data["max_y"], 5)
         dct["max_z"] = round_num(bounding_data["max_z"], 5)
@@ -2935,67 +3141,173 @@ def process_mesh_boundings(mesh_data, mesh, bounding_data, pref):
         dct["min_y"] = round_num(bounding_data["min_y"], 5)
         dct["min_z"] = round_num(bounding_data["min_z"], 5)
 
-        mesh_data[pref + "bounding_ellipsoid_axes"] = round_iterable([
+        mesh_bdata["be_ax"] = round_iterable([
             bounding_data["eaxis_x"],
             bounding_data["eaxis_y"],
             bounding_data["eaxis_z"]
         ], 5)
-        mesh_data[pref + "bounding_ellipsoid_center"] = round_iterable([
+        mesh_bdata["be_cen"] = round_iterable([
             bounding_data["ecen_x"],
             bounding_data["ecen_y"],
             bounding_data["ecen_z"]
         ], 5)
-        if pref:
-            mesh_data[pref + "bounding_sphere_radius"] \
+        if whole_mesh:
+            mesh_bdata["bs_rad"] \
                     = round_num(bounding_data["srad"], 5)
-            mesh_data[pref + "bounding_cylinder_radius"] \
+            mesh_bdata["bc_rad"] \
                     = round_num(bounding_data["crad"], 5)
-            mesh_data[pref + "bounding_sphere_center"] = round_iterable([
+            mesh_bdata["bs_cen"] = round_iterable([
                 bounding_data["scen_x"],
                 bounding_data["scen_y"],
                 bounding_data["scen_z"]
             ], 5)
-            mesh_data[pref + "bounding_cylinder_center"] = round_iterable([
+            mesh_bdata["bc_cen"] = round_iterable([
                 bounding_data["ccen_x"],
                 bounding_data["ccen_y"],
                 bounding_data["ccen_z"]
             ], 5)
-    if pref:
-        mesh_data["b4w_bounding_box_source"] = OrderedDict()
-        mesh_data["b4w_bounding_box_source"]["max_x"] = round_num(bounding_data["max_x"], 5)
-        mesh_data["b4w_bounding_box_source"]["max_y"] = round_num(bounding_data["max_y"], 5)
-        mesh_data["b4w_bounding_box_source"]["max_z"] = round_num(bounding_data["max_z"], 5)
-        mesh_data["b4w_bounding_box_source"]["min_x"] = round_num(bounding_data["min_x"], 5)
-        mesh_data["b4w_bounding_box_source"]["min_y"] = round_num(bounding_data["min_y"], 5)
-        mesh_data["b4w_bounding_box_source"]["min_z"] = round_num(bounding_data["min_z"], 5)
+    if whole_mesh:
+        dct = mesh_bdata["bb_src"] = OrderedDict()
+        dct["max_x"] = round_num(bounding_data["max_x"], 5)
+        dct["max_y"] = round_num(bounding_data["max_y"], 5)
+        dct["max_z"] = round_num(bounding_data["max_z"], 5)
+        dct["min_x"] = round_num(bounding_data["min_x"], 5)
+        dct["min_y"] = round_num(bounding_data["min_y"], 5)
+        dct["min_z"] = round_num(bounding_data["min_z"], 5)
+
+    dct = mesh_bdata["rbb"] = OrderedDict()
+    av_point_len = len(bounding_data["bbrcen"]) // BINARY_FLOAT_SIZE
+    dct["rbb_c"] = list(struct.unpack('f' * av_point_len, bounding_data["bbrcen"]))
+    rbb_scale_len = len(bounding_data["bbrscale"]) // BINARY_FLOAT_SIZE
+    dct["rbb_s"] = list(struct.unpack('f' * rbb_scale_len, bounding_data["bbrscale"]))
+
+    eigenvectors_len = len(bounding_data["eigenvectors"]) // BINARY_FLOAT_SIZE
+    e_vecs = list(struct.unpack('f' * eigenvectors_len,
+            bounding_data["eigenvectors"]))
+    mesh_bdata["caxis_x"] = [e_vecs[0], e_vecs[3], e_vecs[6]]
+    mesh_bdata["caxis_y"] = [e_vecs[1], e_vecs[4], e_vecs[7]]
+    mesh_bdata["caxis_z"] = [e_vecs[2], e_vecs[5], e_vecs[8]]
+
+def get_mat_uv_usage(mesh, mat_index, obj_user):
+    uv_usage = {}
+
+    if mesh.uv_textures:
+        # dynamic geometry means potential material inheritance, thus all 
+        # UVs should be exported
+        if obj_user.b4w_dynamic_geometry:
+            for uv in mesh.uv_textures:
+                uv_usage[uv.name] = 0b1
+        else:
+            for uv in mesh.uv_textures:
+                uv_usage[uv.name] = 0b0
+
+            mat = obj_user.material_slots[mat_index].material if mat_index >= 0 else None
+
+            # mutually exclusive        
+            nodes_usage = uv_nodes_usage(mat)
+            stack_usage = uv_stack_tex_usage(mat)
+
+            usage_data = {
+                "nodes": nodes_usage,
+                "stack": stack_usage
+            }
+
+            for usage_type in usage_data:
+                for uv_name in usage_data[usage_type]:
+                    if uv_name in uv_usage:
+                        uv_usage[uv_name] = 0b1
+
+    return uv_usage
+
+def uv_nodes_usage(mat):
+    nodes_usage = {}
+
+    if mat is not None and mat.use_nodes and mat.node_tree is not None:
+        uv_node_usage_iter(mat.node_tree, nodes_usage)
+
+    return nodes_usage
+
+def uv_node_usage_iter(node_tree, nodes_usage):
+    for node in node_tree.nodes:
+
+        uv_name = ""
+
+        if node.type == "GEOMETRY" and node.outputs["UV"].is_linked:
+                uv_name = get_uv_layer(_curr_stack["data"][-1], node.uv_layer)
+                
+        elif node.type == "UVMAP" and node.outputs["UV"].is_linked:
+                uv_name = get_uv_layer(_curr_stack["data"][-1],  node.uv_map)
+
+        elif node.type == "TEX_COORD" and node.outputs["UV"].is_linked:
+                uv_name = get_uv_layer(_curr_stack["data"][-1],  "")
+
+        elif node.type == "NORMAL_MAP":
+            # no need to export a UV map in this case
+            # if node.outputs["Normal"].is_linked:
+            #     uv_name = get_uv_layer(_curr_stack["data"][-1],  node.uv_map)
+            pass
+
+        elif node.type == "GROUP" and node.node_tree is not None:
+            uv_node_usage_iter(node.node_tree, nodes_usage)
+
+        if uv_name != "":
+            nodes_usage[uv_name] = True
+
+    return nodes_usage
+
+def uv_stack_tex_usage(mat):
+    stack_usage = {}
+
+    if mat is not None and not mat.use_nodes:
+
+        slots = mat.texture_slots
+        use_slots = mat.use_textures
+
+        for i in range(len(slots)):
+            slot = slots[i]
+            if (slot is not None and use_slots[i] and slot.texture 
+                    and do_export(slot.texture) and slot.texture_coords == "UV"):
+                uv_name = get_uv_layer(_curr_stack["data"][-1], slot.uv_layer)
+
+                if uv_name != "":
+                    stack_usage[uv_name] = True
+
+    return stack_usage
 
 def get_mat_vc_channel_usage(mesh, mat_index, obj_user):
     vc_channel_usage = {}
 
     if mesh.vertex_colors:
-        mat = obj_user.material_slots[mat_index].material if mat_index >= 0 else None
+        # dynamic geometry means potential material inheritance, thus all 
+        # channels should be exported
+        if obj_user.b4w_dynamic_geometry:
+            for vc in mesh.vertex_colors:
+                vc_channel_usage[vc.name] = 0b111
+        else:
+            for vc in mesh.vertex_colors:
+                vc_channel_usage[vc.name] = 0b000
 
-        nodes_usage = vc_channel_nodes_usage(mat)
-        dyn_grass_usage = vc_channel_dyn_grass_usage(mat)
-        bending_usage = vc_channel_bending_usage(obj_user)
-        color_paint_usage = vc_channel_color_paint_usage(mesh, mat)
-        psys_inheritance_usage = vc_channel_psys_inheritance(obj_user)
+            mat = obj_user.material_slots[mat_index].material if mat_index >= 0 else None
 
-        usage_data = {
-            "nodes": nodes_usage,
-            "dyn_grass": dyn_grass_usage,
-            "bending": bending_usage,
-            "color_paint": color_paint_usage,
-            "psys_inheritance": psys_inheritance_usage
-        }
+            nodes_usage = vc_channel_nodes_usage(mat)
+            dyn_grass_usage = vc_channel_dyn_grass_usage(mat)
+            bending_usage = vc_channel_bending_usage(obj_user)
+            color_paint_usage = vc_channel_color_paint_usage(mesh, mat)
+            psys_inheritance_usage = vc_channel_psys_inheritance(obj_user)
 
-        for usage_type in usage_data:
-            for vc_name in usage_data[usage_type]:
-                mask = usage_data[usage_type][vc_name]
-                if vc_name in vc_channel_usage:
-                    vc_channel_usage[vc_name] |= mask
-                else:
-                    vc_channel_usage[vc_name] = mask
+            usage_data = {
+                "nodes": nodes_usage,
+                "dyn_grass": dyn_grass_usage,
+                "bending": bending_usage,
+                "color_paint": color_paint_usage,
+                "psys_inheritance": psys_inheritance_usage
+            }
+
+            for usage_type in usage_data:
+                for vc_name in usage_data[usage_type]:
+                    if vc_name in vc_channel_usage:
+                        vc_channel_usage[vc_name] |= usage_data[usage_type][vc_name]
+
     return vc_channel_usage
 
 def vc_channel_nodes_usage(mat):
@@ -3013,10 +3325,8 @@ def vc_node_usage_iter(node_tree, vc_nodes_usage):
     for link in node_tree.links:
         if link.from_node.bl_idname == "ShaderNodeGeometry" \
                 and link.from_socket.identifier == "Vertex Color":
-            vcol_name = link.from_node.color_layer
+            vcol_name = get_vertex_color(_curr_stack["data"][-1], link.from_node.color_layer)
 
-            if not vcol_name and len(_curr_stack["data"][-1].vertex_colors):
-                vcol_name = _curr_stack["data"][-1].vertex_colors[0].name
             if vcol_name:
                 to_name = link.to_node.name
                 if vcol_name not in geometry_vcols:
@@ -3131,32 +3441,38 @@ def rgb_channels_to_mask(channel_name):
     return mask
 
 def export_submesh(mesh, mesh_ptr, obj_user, obj_ptr, mat_index, disab_flat,
-        vertex_animation, edited_normals, shape_keys, vertex_groups, vertex_colors,
-        mesh_data):
+        vertex_animation, edited_normals, shape_keys, vertex_groups, mesh_data, 
+        use_tnb_shading):
 
     if vertex_animation:
         if len(obj_user.b4w_vertex_anim) == 0:
-            raise ExportError("Incorrect vertex animation", mesh, \
-                    "Object has no vertex animation")
+            err("Incorrect vertex animation for mesh \"" + mesh.name +
+                    "\". Object has no vertex animation.")
+            vertex_animation = False
         else:
             for anim in obj_user.b4w_vertex_anim:
                 if len(anim.frames) == 0:
-                    raise ExportError("Incorrect vertex animation", mesh, \
-                            "Unbaked \"" + anim.name + "\" vertex animation")
+                    err("Incorrect vertex animation for mesh \"" + mesh.name +
+                            "\". Unbaked \"" + anim.name + "\" vertex animation.")
+                    vertex_animation = False
+                    break
                 elif len(mesh.vertices) != len(anim.frames[0].vertices):
-                    raise ExportError("Wrong vertex animation vertices count", \
-                            mesh, "It doesn't match with the mesh vertices " + \
+                    err("Wrong vertex animation vertices count for mesh \"" +
+                            mesh.name + "\". It doesn't match with the mesh vertices " +
                             "count for \"" + anim.name + "\"")
+                    vertex_animation = False
+                    break
 
     submesh_data = OrderedDict()
     mesh.calc_tessface()
     submesh_bounding_data = b4w_bin.calc_bounding_data(mesh_ptr, mat_index)
     submesh_data["boundings"] = OrderedDict()
     process_mesh_boundings(submesh_data["boundings"], mesh, submesh_bounding_data,
-            "")
+            False)
 
     if len(mesh_data["materials"]) <= 1:
-        process_mesh_boundings(mesh_data, mesh, submesh_bounding_data, "b4w_")
+        mesh_data["b4w_boundings"] = OrderedDict()
+        process_mesh_boundings(mesh_data["b4w_boundings"], mesh, submesh_bounding_data, True)
 
     is_degenerate_mesh = not bool(max( \
             abs(submesh_bounding_data["max_x"] - submesh_bounding_data["min_x"]), \
@@ -3167,19 +3483,38 @@ def export_submesh(mesh, mesh_ptr, obj_user, obj_ptr, mat_index, disab_flat,
     vc_mask_buffer = bytearray()
 
     for vc in mesh.vertex_colors:
-        if vc.name in vc_channel_usage:
-            vc_mask_buffer.append(vc_channel_usage[vc.name])
-        else:
-            vc_mask_buffer.append(0b000)
+        vc_mask_buffer.append(vc_channel_usage[vc.name])
 
-    try:
-        mesh.calc_normals_split()
-        mesh.calc_tessface()
-        submesh = b4w_bin.export_submesh(mesh_ptr, obj_ptr, mat_index, \
-                disab_flat, vertex_animation, edited_normals, shape_keys, vertex_groups, \
-                vertex_colors, vc_mask_buffer, is_degenerate_mesh)
-    except Exception as ex:
-        raise ExportError("Incorrect mesh", mesh, str(ex))
+    uv_usage = get_mat_uv_usage(mesh, mat_index, obj_user)
+    uv_usage_buffer = bytearray()
+    for uv in mesh.uv_textures:
+        uv_usage_buffer.append(uv_usage[uv.name])
+
+    mesh.calc_normals_split()
+    mesh.calc_tessface()
+    submesh = b4w_bin.export_submesh(mesh_ptr, obj_ptr, mat_index,
+                disab_flat, vertex_animation, edited_normals, shape_keys, use_tnb_shading,
+                vertex_groups, vc_mask_buffer, uv_usage_buffer, is_degenerate_mesh)
+
+    status_len = len(submesh["status"]) // BINARY_INT_SIZE
+    if status_len:
+        status = struct.unpack('i' * status_len, submesh["status"])[0]
+        if status == POS_ERR:
+            err("Incorrect mesh " + mesh.name + ". Wrong vertices positions.")
+        elif status == NOR_ERR:
+            err("Incorrect mesh " + mesh.name + ". Wrong normals.")
+        elif status == TAN_ERR:
+            err("Incorrect mesh " + mesh.name + ". Wrong tangents.")
+        elif status == TCO_ERR:
+            err("Incorrect mesh " + mesh.name + ". Wrong texture coordinates.")
+        elif status == TCO2_ERR:
+            err("Incorrect mesh " + mesh.name + ". Wrong texture coordinates.")
+        elif status == GRP_ERR:
+            err("Incorrect mesh " + mesh.name + ". Wrong vertex group weights.")
+        elif status == COL_ERR:
+            err("Incorrect mesh " + mesh.name + ". Wrong vertex color values.")
+        elif status == SHADE_TNB_ERR:
+            err("Incorrect mesh " + mesh.name + ". Wrong shading tangents values.")
 
     submesh_data["base_length"] = submesh["base_length"]
 
@@ -3195,6 +3530,18 @@ def export_submesh(mesh, mesh_ptr, obj_user, obj_ptr, mat_index, disab_flat,
             else:
                 submesh_data[prop_name] = [0, 0]
 
+    float_props = ["position", "texcoord", "shade_tangs"]
+    for prop_name in float_props:
+        if prop_name in submesh:
+            if len(submesh[prop_name]):
+                submesh_data[prop_name] = [
+                    len(_bpy_bindata_float) // BINARY_FLOAT_SIZE,
+                    len(submesh[prop_name]) // BINARY_FLOAT_SIZE
+                ]
+                _bpy_bindata_float.extend(submesh[prop_name])
+            else:
+                submesh_data[prop_name] = [0, 0]
+
     short_props = ["normal", "tangent"]
     for prop_name in short_props:
         if prop_name in submesh:
@@ -3207,7 +3554,7 @@ def export_submesh(mesh, mesh_ptr, obj_user, obj_ptr, mat_index, disab_flat,
             else:
                 submesh_data[prop_name] = [0, 0]
 
-    ushort_props = ["color", "group"]
+    ushort_props = ["group"]
     for prop_name in ushort_props:
         if prop_name in submesh:
             if len(submesh[prop_name]):
@@ -3219,26 +3566,30 @@ def export_submesh(mesh, mesh_ptr, obj_user, obj_ptr, mat_index, disab_flat,
             else:
                 submesh_data[prop_name] = [0, 0]
 
-    float_props = ["position", "texcoord", "texcoord2"]
-    for prop_name in float_props:
+    uchar_props = ["color"]
+    for prop_name in uchar_props:
         if prop_name in submesh:
             if len(submesh[prop_name]):
                 submesh_data[prop_name] = [
-                    len(_bpy_bindata_float) // BINARY_FLOAT_SIZE,
-                    len(submesh[prop_name]) // BINARY_FLOAT_SIZE
+                    len(_bpy_bindata_uchar) // BINARY_CHAR_SIZE,
+                    len(submesh[prop_name]) // BINARY_CHAR_SIZE
                 ]
-                _bpy_bindata_float.extend(submesh[prop_name])
+                _bpy_bindata_uchar.extend(submesh[prop_name])
             else:
                 submesh_data[prop_name] = [0, 0]
 
     submesh_data["vertex_colors"] = []
-    if mesh.vertex_colors:
-        for color_layer in mesh.vertex_colors:
-            if color_layer.name in vc_channel_usage:
-                col_layer_data = OrderedDict()
-                col_layer_data["name"] = color_layer.name
-                col_layer_data["mask"] = vc_channel_usage[color_layer.name]
-                submesh_data["vertex_colors"].append(col_layer_data)
+    for color_layer in mesh.vertex_colors:
+        if color_layer.name in vc_channel_usage and vc_channel_usage[color_layer.name]:
+            col_layer_data = OrderedDict()
+            col_layer_data["name"] = color_layer.name
+            col_layer_data["mask"] = vc_channel_usage[color_layer.name]
+            submesh_data["vertex_colors"].append(col_layer_data)
+
+    submesh_data["uv_layers"] = []
+    for uv_layer in mesh.uv_textures:
+        if uv_layer.name in uv_usage and uv_usage[uv_layer.name]:
+            submesh_data["uv_layers"].append(uv_layer.name)
 
     return submesh_data
 
@@ -3315,30 +3666,21 @@ def process_armature(armature):
         bone_data["name"] = bone.name
 
         # in bone space
-        head = [bone.head[0], bone.head[2], -bone.head[1]]
-        tail = [bone.tail[0], bone.tail[2], -bone.tail[1]]
+        head = [bone.head[0], bone.head[1], bone.head[2]]
+        tail = [bone.tail[0], bone.tail[1], bone.tail[2]]
 
         bone_data["head"] = round_iterable(head, 5)
         bone_data["tail"] = round_iterable(tail, 5)
 
         # in armature space
-        hl = [bone.head_local[0], bone.head_local[2], -bone.head_local[1]]
-        tl = [bone.tail_local[0], bone.tail_local[2], -bone.tail_local[1]]
+        hl = [bone.head_local[0], bone.head_local[1], bone.head_local[2]]
+        tl = [bone.tail_local[0], bone.tail_local[1], bone.tail_local[2]]
 
         bone_data["head_local"] = round_iterable(hl, 5)
         bone_data["tail_local"] = round_iterable(tl, 5)
 
         # Bone Armature-Relative Matrix
         ml = bone.matrix_local
-
-        # change axes from Blender to OpenGL
-        # see pose section for detailed math
-        m_rotX = mathutils.Matrix.Rotation(-math.pi / 2, 4, "X")
-        ml = m_rotX * ml * m_rotX.inverted_safe()
-
-        # this line is correct if there is no axes convertion
-        # for pose/animation (see pose section)
-        #ml = m_rotX * ml
 
         # flatten
         ml = matrix4x4_to_list(ml)
@@ -3363,7 +3705,11 @@ def process_speaker(speaker):
     sound = speaker.sound
     if sound:
         spk_data["sound"] = gen_uuid_dict(sound)
-        process_sound(sound)
+        try:
+            process_sound(sound)
+        except PathError as ex:
+            err(str(ex))
+            spk_data["sound"] = None
     else:
         spk_data["sound"] = None
 
@@ -3417,14 +3763,8 @@ def process_sound(sound):
     sound_data["name"] = sound.name
     sound_data["uuid"] = gen_uuid(sound)
 
-    if sound.packed_file is not None:
-        packed_data = b4w_bin.get_packed_data(sound.packed_file.as_pointer())
-        packed_file_path = get_json_relative_filepath(
-                packed_resource_get_unique_name(sound))
-        _packed_files_data[packed_file_path] = packed_data
-        sound_data["filepath"] = packed_file_path
-    else:
-        sound_data["filepath"] = get_filepath(sound)
+    ext = os.path.splitext(sound.filepath)[1]
+    process_media_path(sound, sound_data, ext, _unique_packed_sounds)
 
     _export_data["sounds"].append(sound_data)
     _export_uuid_cache[sound_data["uuid"]] = sound_data
@@ -3434,7 +3774,9 @@ def process_particle(particle):
     """type ParticleSettings"""
 
     if "export_done" in particle and particle["export_done"]:
-        return
+        # this means particle was successfully exported previously
+        return gen_uuid(particle) in _bpy_uuid_cache
+
     particle["export_done"] = True
 
     part_data = OrderedDict()
@@ -3513,19 +3855,7 @@ def process_particle(particle):
     part_data["b4w_vcol_from_name"] = particle.b4w_vcol_from_name
     part_data["b4w_vcol_to_name"] = particle.b4w_vcol_to_name
 
-
-
-
-    bb_align_blender = particle.b4w_billboard_align
-    if bb_align_blender == "XY":
-        bb_align = "ZX"
-    elif bb_align_blender == "ZX":
-        bb_align = "XY"
-    else:
-        bb_align = bb_align_blender
-
-    part_data["b4w_billboard_align"] = bb_align
-
+    part_data["b4w_billboard_align"] = particle.b4w_billboard_align
     part_data["billboard_tilt"] = particle.billboard_tilt
     part_data["billboard_tilt_random"] = particle.billboard_tilt_random
 
@@ -3538,7 +3868,7 @@ def process_particle(particle):
     # NOTE: it seams only single slot supported
     part_data["texture_slots"] = []
     for slot in particle.texture_slots:
-        if slot and do_export(slot.texture):
+        if slot and slot.texture is not None and do_export(slot.texture):
             slot_data = OrderedDict()
             if slot.texture.type == "NONE" and slot.texture.b4w_source_type == "SCENE":
                 fallback_texture = get_fallback_texture()
@@ -3561,17 +3891,20 @@ def process_particle(particle):
 
     if particle.type == "HAIR" and particle.render_type == "OBJECT":
         if particle.dupli_object is None:
-            raise ExportError("Particle system error", particle, \
-                    "Dupli object isn't specified")
+            err("Particle system error for " + particle.name +
+                    ". Dupli object isn't specified.")
+            return False
 
         if not particle_object_is_valid(particle.dupli_object):
-            raise ExportError("Particle system error", particle, \
-                    "Wrong dupli object type '" + particle.dupli_object.type)
+            err("Particle system error for " + particle.name +
+                    ". Wrong dupli object type '" + particle.dupli_object.type)
+            return False
 
         if not do_export(particle.dupli_object):
-            raise ExportError("Particle system error", particle, \
-                    "Dupli object " + particle.dupli_object.name \
-                    + " doesn't export")
+            err("Particle system error for " + particle.name +
+                    ". Dupli object " + particle.dupli_object.name
+                    + " has not been exported.")
+            return False
         part_data["dupli_object"] = process_object(particle.dupli_object, is_hair=True)
     else:
         part_data["dupli_object"] = None
@@ -3579,17 +3912,19 @@ def process_particle(particle):
     part_data["dupli_weights"] = []
     if particle.type == "HAIR" and particle.render_type == "GROUP":
         if particle.dupli_group is None:
-            raise ExportError("Particle system error", particle, \
-                    "Dupli group isn't specified")
+            err("Particle system error for particle " + particle.name +
+                    ". Dupli group isn't specified")
+            return False
 
         part_data["dupli_group"] = process_group(particle.dupli_group, for_particles=True)
 
         dg_uuid = part_data["dupli_group"]["uuid"]
         dg_data = _export_uuid_cache[dg_uuid]
         if not dg_data["objects"]:
-            raise ExportError("Particle system error", particle,
-                    "The \"" + dg_data["name"] + "\" dupli group contains no " +
-                    "valid object for export");
+            err("Particle system error for particle " + particle.name +
+                    ". The \"" + dg_data["name"] + "\" dupli group contains no " +
+                    "valid object for export")
+            return False
 
         part_data["use_group_pick_random"] = particle.use_group_pick_random
         use_group_count = particle.use_group_count;
@@ -3604,6 +3939,7 @@ def process_particle(particle):
     _export_data["particles"].append(part_data)
     _export_uuid_cache[part_data["uuid"]] = part_data
     _bpy_uuid_cache[part_data["uuid"]] = particle
+    return True
 
 def process_world(world):
     if "export_done" in world and world["export_done"]:
@@ -3629,11 +3965,19 @@ def process_world(world):
     world_data["b4w_use_default_animation"] = world.b4w_use_default_animation
     world_data["b4w_anim_behavior"] = world.b4w_anim_behavior
 
+    world_data["use_nodes"] = world.use_nodes
+    world_data["uv_vc_key"] = ""
+
     process_world_light_settings(world_data, world)
     process_world_sky_settings(world_data, world)
     process_world_mist_settings(world_data, world)
 
     process_animation_data(world_data, world, bpy.data.actions)
+
+    if world_data["use_nodes"]:
+        process_node_tree(world_data, world, False)
+    else:
+        world_data["node_tree"] = None
 
     _export_data["worlds"].append(world_data)
     _export_uuid_cache[world_data["uuid"]] = world_data
@@ -3781,13 +4125,13 @@ def process_modifier(modifier_data, mod, current_obj):
         modifier_data["use_constant_offset"] = mod.use_constant_offset
 
         cod = mod.constant_offset_displace
-        cod = round_iterable([cod[0], cod[2], -cod[1]], 5)
+        cod = round_iterable([cod[0], cod[1], cod[2]], 5)
         modifier_data["constant_offset_displace"] = cod
 
         modifier_data["use_relative_offset"] = mod.use_relative_offset
 
         rod = mod.relative_offset_displace
-        rod = round_iterable([rod[0], rod[2], -rod[1]], 5)
+        rod = round_iterable([rod[0], rod[1], rod[2]], 5)
         modifier_data["relative_offset_displace"] = rod
 
         modifier_data["use_object_offset"] = mod.use_object_offset
@@ -3816,97 +4160,139 @@ def process_modifier(modifier_data, mod, current_obj):
 
     return True
 
-def process_constraints(constraints, const_holder_name):
+def process_constraints(obj, do_err):
     """export constraints (target attribute can have link to other objects)"""
-
+    constraints = obj.constraints
     constraints_data = []
     for cons in constraints:
         cons_data = OrderedDict()
         cons_data["name"] = cons.name
-
-        if process_constraint(cons_data, cons, const_holder_name):
+        if process_constraint(cons_data, cons) and (not cons.mute or
+                    cons.type == "LOCKED_TRACK" and cons.name == "REFLECTION PLANE"):
             cons_data["mute"] = cons.mute
             cons_data["type"] = cons.type
-
-            constraints_data.append(cons_data)
+            if check_constr_validation(obj):
+                if cons.is_valid or cons.type == "LOCKED_TRACK" and cons.name == "REFLECTION PLANE":
+                    constraints_data.append(cons_data)
+                elif do_err:
+                    err("Object:\"" + _curr_stack["object"][-1].name + "\" > " +
+                            "Constraint:\"" + cons.name + "\". Check constraint settings.")
+            else:
+                err("Object:\"" + _curr_stack["object"][-1].name
+                        + "\". Constraint recursion is forbidden.")
+        # else:
+        #     err("Object:\"" + _curr_stack["object"][-1].name + "\" > " +
+        #             "Constraint:\"" + cons.name + "\". Unsupported constraint type: " +
+        #             "\"" + cons.type + "\".")
 
     return constraints_data
 
-def process_constraint(cons_data, cons, const_holder_name):
+def check_constr_validation(obj):
+    visited = []
+    processed = [obj]
+    return check_constr_rec_validation(obj, visited, processed)
+
+def check_constr_rec_validation(obj, visited, processed):
+    valid = True
+    for constr in obj.constraints:
+        target = constr.target
+        if constr.is_valid and target:
+            if target in processed:
+                return False
+            else:
+                processed.append(target)
+                valid = valid and check_constr_rec_validation(target, visited, processed)
+                processed.remove(target)
+                visited.append(target)
+    return valid
+
+
+def process_constraint(cons_data, cons):
     if cons.type == "COPY_TRANSFORMS":
 
-        cons_data["target"] = obj_cons_target(cons, const_holder_name)
+        cons_data["target"] = obj_cons_target(cons)
         cons_data["subtarget"] = cons.subtarget
+        cons_data["influence"] = cons.influence
+
+        return True
 
     elif (cons.type == "COPY_LOCATION" or cons.type == "COPY_ROTATION" or
             cons.type == "COPY_SCALE"):
 
-        cons_data["target"] = obj_cons_target(cons, const_holder_name)
+        cons_data["target"] = obj_cons_target(cons)
         cons_data["subtarget"] = cons.subtarget
-        cons_data["use_x"] = cons.use_x
-        # z <-> y
-        cons_data["use_y"] = cons.use_z
-        cons_data["use_z"] = cons.use_y
+        cons_data["use_offset"] = cons.use_offset
+        cons_data["influence"] = cons.influence
+        if cons.type != "COPY_SCALE":
+            x = -1 if cons.invert_x else 1
+            x = x if cons.use_x else 0
+            y = -1 if cons.invert_y else 1
+            y = y if cons.use_y else 0
+            z = -1 if cons.invert_z else 1
+            z = z if cons.use_z else 0
+            cons_data["axes"] = [x, y, z]
+        else:
+            cons_data["axes"] = [1, 1, 1]
+
+        return True
+
+    elif cons.type == "TRACK_TO":
+        cons_data["target"] = obj_cons_target(cons)
+        cons_data["track_axis"] = cons.track_axis
+        cons_data["up_axis"] = cons.up_axis
+        cons_data["use_target_z"] = cons.use_target_z
+        cons_data["influence"] = cons.influence
+
+        return True
 
     elif cons.type == "LOCKED_TRACK" and cons.name == "REFLECTION PLANE":
-        if not cons.target:
-            return False
-        cons_data["target"] = obj_cons_target(cons, const_holder_name)
+        cons_data["target"] = obj_cons_target(cons)
 
-    elif cons.type == "SHRINKWRAP":
-        cons_data["target"] = obj_cons_target(cons, const_holder_name)
-        cons_data["shrinkwrap_type"] = cons.shrinkwrap_type
-        cons_data["use_x"] = cons.use_x
-        # z <-> y
-        cons_data["use_y"] = cons.use_z
-        cons_data["use_z"] = cons.use_y
-        cons_data["influence"] = round_num(cons.influence, 3)
-        cons_data["distance"] = round_num(cons.distance, 3)
+        return True
 
     elif cons.type == "RIGID_BODY_JOINT":
-        cons_data["target"] = obj_cons_target(cons, const_holder_name)
+        cons_data["target"] = obj_cons_target(cons)
 
         cons_data["pivot_type"] = cons.pivot_type
 
-        # z -> y; y -> -z
         cons_data["pivot_x"] = round_num(cons.pivot_x, 3)
-        cons_data["pivot_y"] = round_num(cons.pivot_z, 3)
-        cons_data["pivot_z"] = round_num(-cons.pivot_y, 3)
+        cons_data["pivot_y"] = round_num(cons.pivot_y, 3)
+        cons_data["pivot_z"] = round_num(cons.pivot_z, 3)
 
         cons_data["axis_x"] = round_num(cons.axis_x, 4)
-        cons_data["axis_y"] = round_num(cons.axis_z, 4)
-        cons_data["axis_z"] = round_num(-cons.axis_y, 4)
+        cons_data["axis_y"] = round_num(cons.axis_y, 4)
+        cons_data["axis_z"] = round_num(cons.axis_z, 4)
 
         # limits
         cons_data["use_limit_x"] = cons.use_limit_x
-        cons_data["use_limit_y"] = cons.use_limit_z
-        cons_data["use_limit_z"] = cons.use_limit_y
+        cons_data["use_limit_y"] = cons.use_limit_y
+        cons_data["use_limit_z"] = cons.use_limit_z
 
         cons_data["use_angular_limit_x"] = cons.use_angular_limit_x
-        cons_data["use_angular_limit_y"] = cons.use_angular_limit_z
-        cons_data["use_angular_limit_z"] = cons.use_angular_limit_y
+        cons_data["use_angular_limit_y"] = cons.use_angular_limit_y
+        cons_data["use_angular_limit_z"] = cons.use_angular_limit_z
 
-        # z -> y; y -> -z; min y -> max z; max y -> min z
         cons_data["limit_max_x"] = round_num(cons.limit_max_x, 3)
-        cons_data["limit_max_y"] = round_num(cons.limit_max_z, 3)
-        cons_data["limit_max_z"] = round_num(-cons.limit_min_y, 3)
+        cons_data["limit_max_y"] = round_num(cons.limit_max_y, 3)
+        cons_data["limit_max_z"] = round_num(cons.limit_max_z, 3)
         cons_data["limit_min_x"] = round_num(cons.limit_min_x, 3)
-        cons_data["limit_min_y"] = round_num(cons.limit_min_z, 3)
-        cons_data["limit_min_z"] = round_num(-cons.limit_max_y, 3)
+        cons_data["limit_min_y"] = round_num(cons.limit_min_y, 3)
+        cons_data["limit_min_z"] = round_num(cons.limit_min_z, 3)
 
         cons_data["limit_angle_max_x"] = round_num(cons.limit_angle_max_x, 4)
-        cons_data["limit_angle_max_y"] = round_num(cons.limit_angle_max_z, 4)
-        cons_data["limit_angle_max_z"] = round_num(-cons.limit_angle_min_y, 4)
+        cons_data["limit_angle_max_y"] = round_num(cons.limit_angle_max_y, 4)
+        cons_data["limit_angle_max_z"] = round_num(cons.limit_angle_max_z, 4)
         cons_data["limit_angle_min_x"] = round_num(cons.limit_angle_min_x, 4)
-        cons_data["limit_angle_min_y"] = round_num(cons.limit_angle_min_z, 4)
-        cons_data["limit_angle_min_z"] = round_num(-cons.limit_angle_max_y, 4)
+        cons_data["limit_angle_min_y"] = round_num(cons.limit_angle_min_y, 4)
+        cons_data["limit_angle_min_z"] = round_num(cons.limit_angle_min_z, 4)
+        return True
 
-    return True
+    return False
 
 def process_object_lod_levels(obj):
     """export lods"""
 
-    if obj.type != "MESH":
+    if obj.type != "MESH" and obj.type != "EMPTY":
         return []
 
     lod_levels = obj.lod_levels
@@ -3928,7 +4314,7 @@ def process_object_lod_levels(obj):
         lods_data = OrderedDict()
         lods_data["distance"] = lod.distance
 
-        if lod.object:
+        if lod.object and do_export(lod.object) and object_is_valid(lod.object):
             lods_data["object"] = process_object(lod.object)
         else:
             lods_data["object"] = None
@@ -3943,10 +4329,9 @@ def process_object_lod_levels(obj):
 
     return lod_levels_data
 
-def obj_cons_target(cons, const_holder_name):
+def obj_cons_target(cons):
     if not cons.target:
-        raise ExportError("Object constraint has no target", cons,
-                          "Check " + const_holder_name)
+        return None
 
     if cons.target and object_is_valid(cons.target):
         target_uuid = process_object(cons.target)
@@ -3976,28 +4361,45 @@ def get_particle_system_scale(obj, obj_data, psys, vert_group_name):
     # current object in case of "to_mesh()" operation, which generates another mesh
     old_mesh = obj.data
     obj.data = obj_data
-
+    len_tessfaces = len(obj_data.tessfaces)
     for i in range(len(psys.particles)):
-        if psys.settings.emit_from != "VERT":
-            vert = obj_data.tessfaces[indices[i]].vertices
-            scale = 0
+        scale = 0
+        # Some already distributed particles have wrong mapping to face
+        # The cause is not known yet
+        # Check the number of faces to prevent overflow
+        if len_tessfaces > indices[i]:
+            if psys.settings.emit_from != "VERT":
+                obj_data.tessfaces[indices[i]].vertices
 
-            for j in range(0, len(vert)):
-                vert_index = vert[j]
-                weight = 0
-                for v_group in obj_data.vertices[vert_index].groups:
-                    if v_group.group == vg_index:
-                        weight = obj.vertex_groups[vert_group_name].weight(vert_index)
-                scale += weight * vertex_influence[i * 4 + j]
+                vert = obj_data.tessfaces[indices[i]].vertices
+
+                for j in range(0, len(vert)):
+                    vert_index = vert[j]
+
+                    weight = get_ver_weight_by_group_ind(psys, obj_data, vert_index, vg_index)
+                    scale += weight * vertex_influence[i * 4 + j]
+            else:
+                vert_gr_ind = obj.vertex_groups[vert_group_name].index
+                scale = get_ver_weight_by_group_ind(psys, old_mesh, indices[i], vert_gr_ind)
         else:
-            scale = obj.vertex_groups[vert_group_name].weight(indices[i])
+            warn("Wrong face number %s for particle %s in particle system '%s'" % (indices[i], i, psys.name))
 
         scale = max(min(scale, 1), 0)
         scales.append(scale)
-
     obj.data = old_mesh
 
     return scales
+
+def get_ver_weight_by_group_ind(psys, obj_data, vert_index, vg_index):
+    weight = 0
+    # NOTE: it's necessary for corrupted meshes
+    if vert_index < len(obj_data.vertices):
+        for v_group in obj_data.vertices[vert_index].groups:
+            if v_group.group == vg_index:
+                weight = v_group.weight
+        if psys.invert_vertex_group_length:
+            weight = 1.0 - weight
+    return weight
 
 def process_object_particle_systems(obj, obj_data):
     psystems_data = []
@@ -4013,6 +4415,7 @@ def process_object_particle_systems(obj, obj_data):
 
                 if not len(obj_data.tessfaces):
                     obj_data.calc_tessface()
+
                 # export particle transforms for hairs
                 # [x0,y0,z0,scale0,x1...]
                 if (psys.settings.type == "HAIR" and not
@@ -4028,7 +4431,6 @@ def process_object_particle_systems(obj, obj_data):
                     vert_group_name = psys.vertex_group_length
                     if vert_group_name:
                         scales = get_particle_system_scale(obj, obj_data, psys, vert_group_name)
-
                     for i in range(len(psys.particles)):
                         particle = psys.particles[i]
                         x,y,z = particle.hair_keys[0].co_object(obj, m, particle).xyz
@@ -4042,10 +4444,9 @@ def process_object_particle_systems(obj, obj_data):
                         if vert_group_name:
                             scale *= scales[i]
 
-                        # translate coords: x,z,-y
                         ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len, x)
-                        ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 1, z)
-                        ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 2, -y)
+                        ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 1, y)
+                        ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 2, z)
                         ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 3, scale)
 
                         if (not psys.settings.b4w_initial_rand_rotation
@@ -4057,8 +4458,8 @@ def process_object_particle_systems(obj, obj_data):
 
                             ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 4, quat_w)
                             ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 5, quat_x)
-                            ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 6, quat_z)
-                            ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 7, - quat_y)
+                            ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 6, quat_y)
+                            ptrans_ptr = b4w_bin.buffer_insert_float(ptrans_ptr, i * data_len + 7, quat_z)
 
                     ptrans = b4w_bin.get_buffer_float(ptrans_ptr, transforms_length)
 
@@ -4071,13 +4472,12 @@ def process_object_particle_systems(obj, obj_data):
                     psys_data["transforms"] = [0, 0]
 
                 psys_data["settings"] = gen_uuid_dict(psys.settings)
-                process_particle(psys.settings)
-
-                psystems_data.append(psys_data)
+                if process_particle(psys.settings):
+                    psystems_data.append(psys_data)
 
     return psystems_data
 
-def process_node_tree(data, tree_source):
+def process_node_tree(data, tree_source, is_group = False):
     node_tree = tree_source.node_tree
 
     if node_tree == None:
@@ -4086,7 +4486,7 @@ def process_node_tree(data, tree_source):
 
     dct = data["node_tree"] = OrderedDict()
     dct["nodes"] = []
-
+    cut_link_names = []
     # node tree nodes
     for node in node_tree.nodes:
         if not validate_node(node):
@@ -4098,11 +4498,10 @@ def process_node_tree(data, tree_source):
         node_data["name"] = node.name
         node_data["type"] = node.type
 
-        if (node.type == "OUTPUT_MATERIAL" or node.type == "OUTPUT_LAMP"):
-            continue
+        cut_inputs = False
 
-        process_node_sockets(node_data, "inputs", node.inputs)
-        process_node_sockets(node_data, "outputs", node.outputs)
+        if (node.type == "OUTPUT_LAMP"):
+            continue
 
         if node.type == "GEOMETRY":
             if node.outputs["UV"].is_linked:
@@ -4120,14 +4519,14 @@ def process_node_tree(data, tree_source):
                 node_data["color_layer"] = node.color_layer
             data["uv_vc_key"] += node.color_layer + node_data["color_layer"]
                 
-        if node.type == "UVMAP":
+        elif node.type == "UVMAP":
             if node.outputs["UV"].is_linked:
                 node_data["uv_layer"] = get_uv_layer(_curr_stack["data"][-1],  node.uv_map)
             else:
                 node_data["uv_layer"] =  node.uv_map
             data["uv_vc_key"] += node.uv_map + node_data["uv_layer"]
 
-        if node.type == "TEX_COORD":
+        elif node.type == "TEX_COORD":
             if node.outputs["UV"].is_linked:
                 node_data["uv_layer"] = get_uv_layer(_curr_stack["data"][-1],  "")
             else:
@@ -4136,7 +4535,7 @@ def process_node_tree(data, tree_source):
             if node.outputs["Generated"].is_linked:
                 data["use_orco_tex_coord"] = True
 
-        if node.type == "CURVE_VEC" or node.type == "CURVE_RGB":
+        elif node.type == "CURVE_VEC" or node.type == "CURVE_RGB":
             node_data["curve_mapping"] = OrderedDict()
             def extract_loc(point): return list(point.location.to_tuple())
             def extract_handle_type(point): return point.handle_type
@@ -4154,7 +4553,7 @@ def process_node_tree(data, tree_source):
             process_color_ramp(node_data, node.color_ramp)
             node_data["color_ramp"]["interpolation"] = node.color_ramp.interpolation
 
-        if node.type == "GROUP":
+        elif node.type == "GROUP":
             if node.node_tree.name == "B4W_REFRACTION" or node.node_tree.name == "REFRACTION":
                 # NOTE: don't rely on "b4w_render_refractions" scene property here
                 # because it may lead to rendering errors
@@ -4192,42 +4591,45 @@ def process_node_tree(data, tree_source):
             node_data["max"] = round_iterable(node.max, 4)
 
         elif node.type == "MATERIAL" or node.type == "MATERIAL_EXT":
-            if node.material:
-                material = node.material
 
-                node_data["material_name"] = material.name
-                node_data["specular_shader"] = material.specular_shader
-                node_data["specular_hardness"] \
-                        = round_num(material.specular_hardness, 4)
-                node_data["specular_slope"] \
-                        = round_num(material.specular_slope, 4)
-                node_data["specular_toon_size"] \
-                        = round_num(material.specular_toon_size, 4)
-                node_data["specular_toon_smooth"] \
-                        = round_num(material.specular_toon_smooth, 4)
-                node_data["specular_intensity"] \
-                        = round_num(material.specular_intensity, 4)
-                node_data["specular_ior"] \
-                        = round_num(material.specular_ior, 4)
+            material = node.material
 
-                node_data["diffuse_shader"] = material.diffuse_shader
-                node_data["use_shadeless"] = material.use_shadeless
-                node_data["specular_alpha"] = material.specular_alpha
-                node_data["alpha"] = material.alpha
-                node_data["diffuse_intensity"] = material.diffuse_intensity
-                node_data["roughness"] = round_num(material.roughness, 3)
-                node_data["diffuse_fresnel"] \
-                        = round_num(material.diffuse_fresnel, 3)
-                node_data["diffuse_fresnel_factor"] \
-                        = round_num(material.diffuse_fresnel_factor, 3)
-                node_data["darkness"] \
-                        = round_num(material.darkness, 3)
-                node_data["diffuse_toon_size"] \
-                        = round_num(material.diffuse_toon_size, 3)
-                node_data["diffuse_toon_smooth"] \
-                        = round_num(material.diffuse_toon_smooth, 3)
-            else:
-                raise MaterialError("Empty material slot in node \"" + node.name + "\".")
+            node_data["material_name"] = material.name if material else ""
+            node_data["specular_shader"] = material.specular_shader if material else "COOKTORR"
+            node_data["specular_hardness"] \
+                    = round_num(material.specular_hardness, 4) if material else 50
+            node_data["specular_slope"] \
+                    = round_num(material.specular_slope, 4) if material else 0.1
+            node_data["specular_toon_size"] \
+                    = round_num(material.specular_toon_size, 4) if material else 0.5
+            node_data["specular_toon_smooth"] \
+                    = round_num(material.specular_toon_smooth, 4) if material else 0.1
+            node_data["specular_intensity"] \
+                    = round_num(material.specular_intensity, 4) if material else 0.5
+            node_data["specular_ior"] \
+                    = round_num(material.specular_ior, 4) if material else 4
+
+            node_data["diffuse_shader"] = material.diffuse_shader if material else "LAMBERT"
+            node_data["use_shadeless"] = material.use_shadeless if material else False
+            node_data["use_tangent_shading"] = material.use_tangent_shading if material else False
+            node_data["specular_alpha"] = material.specular_alpha if material else 1
+            node_data["alpha"] = material.alpha if material else 1
+            node_data["diffuse_intensity"] = material.diffuse_intensity if material else 1
+            node_data["roughness"] = round_num(material.roughness, 3) if material else 0.5
+            node_data["diffuse_fresnel"] \
+                    = round_num(material.diffuse_fresnel, 3) if material else 0.1
+            node_data["diffuse_fresnel_factor"] \
+                    = round_num(material.diffuse_fresnel_factor, 3) if material else 0.5
+            node_data["darkness"] \
+                    = round_num(material.darkness, 3) if material else 1
+            node_data["diffuse_toon_size"] \
+                    = round_num(material.diffuse_toon_size, 3) if material else 0.5
+            node_data["diffuse_toon_smooth"] \
+                    = round_num(material.diffuse_toon_smooth, 3) if material else 0.1
+            if not material:
+                cut_inputs = True
+                cut_link_names.append(node.name)
+                err("Empty material slot in node \"" + node.name + "\".")
 
             node_data["use_diffuse"] = node.use_diffuse
             node_data["use_specular"] = node.use_specular
@@ -4249,19 +4651,45 @@ def process_node_tree(data, tree_source):
             else:
                 node_data["texture"] = None
 
+        elif node.type == "TEX_IMAGE" or node.type == "TEX_ENVIRONMENT":
+            if node.image and do_export(node.image):
+                node_data["image"] = gen_uuid_dict(node.image)
+                process_image(node.image)
+            else:
+                node_data["image"] = None
+
+            node_data["color_space"] = node.color_space
+            node_data["interpolation"] = node.interpolation
+            node_data["projection"] = node.projection
+
+            if node.type == "TEX_IMAGE":
+                node_data["extension"] = node.extension
+
         elif node.type == "VECT_MATH":
             node_data["operation"] = node.operation
 
         elif node.type == "LAMP":
-            if node.lamp_object is None:
-                raise MaterialError("The \"" + node.name + "\" LAMP node has no lamp object.")
-            else:
+            if node.lamp_object is not None:
                 node_data["lamp"] = gen_uuid_dict(node.lamp_object)
 
         elif node.type == "VECT_TRANSFORM":
             node_data["vector_type"] = node.vector_type
             node_data["convert_from"] = node.convert_from
             node_data["convert_to"] = node.convert_to
+
+        elif node.type == "NORMAL_MAP":
+            node_data["space"] = node.space
+            if node.outputs["Normal"].is_linked:
+                node_data["uv_map"] = get_uv_layer(_curr_stack["data"][-1],  node.uv_map)
+            else:
+                node_data["uv_map"] =  node.uv_map
+            data["uv_vc_key"] += node.uv_map + node_data["uv_map"]
+
+        elif node.type == "BUMP":
+            node_data["invert"] = node.invert
+
+        process_node_sockets(node_data, "inputs", node.inputs, cut_inputs)
+        process_node_sockets(node_data, "outputs", node.outputs, False)
 
         dct["nodes"].append(node_data)
 
@@ -4271,7 +4699,7 @@ def process_node_tree(data, tree_source):
         if not link.is_valid:
             raise MaterialError("Invalid link found in node material.")
 
-        if link.to_node.type == "OUTPUT_MATERIAL" or link.to_node.type == "OUTPUT_LAMP":
+        if link.to_node.type == "OUTPUT_LAMP" or link.to_node.name in cut_link_names:
             continue
 
         link_data = OrderedDict()
@@ -4291,6 +4719,8 @@ def process_node_tree(data, tree_source):
     # node animation data
     process_animation_data(dct, node_tree, bpy.data.actions)
 
+    cleanup_node_tree_data(dct, is_group)
+
 def validate_node(node):
     if node.bl_idname == "ShaderNodeGroup":
 
@@ -4305,7 +4735,7 @@ def validate_node(node):
     else:
         return node.bl_idname in SUPPORTED_NODES
 
-def process_node_sockets(node_data, type_str, sockets):
+def process_node_sockets(node_data, type_str, sockets, cut):
     node_data[type_str] = []
 
     if len(sockets):
@@ -4316,7 +4746,7 @@ def process_node_sockets(node_data, type_str, sockets):
             sock_data = OrderedDict()
             sock_data["name"] = sock.name
             sock_data["identifier"] = sock.identifier
-            sock_data["is_linked"] = sock.is_linked
+            sock_data["is_linked"] = sock.is_linked and not cut
 
             if sock.type != "SHADER":
                 rna_ident = sock.rna_type.identifier
@@ -4341,7 +4771,7 @@ def process_node_group(data, node_group):
     ng_data["use_orco_tex_coord"] = False
     ng_data["uv_vc_key"] = ""
     ng_data["uuid"] = gen_uuid(node_group.node_tree)
-    process_node_tree(ng_data, node_group)
+    process_node_tree(ng_data, node_group, True)
 
     data["use_orco_tex_coord"] = data["use_orco_tex_coord"] or ng_data["use_orco_tex_coord"]
     data["uv_vc_key"] += ng_data["uv_vc_key"]
@@ -4350,9 +4780,111 @@ def process_node_group(data, node_group):
     _bpy_uuid_cache[ng_data["uuid"]] = node_group
     node_group.node_tree["export_done"] = True
 
+def cleanup_node_tree_data(node_tree_data, is_group = False):
+    nodes = node_tree_data["nodes"]
+    links = node_tree_data["links"]
+
+    main_output_conn_nodes = []
+    for node_data in nodes[::-1]:
+        if node_data["type"] == "OUTPUT" or node_data["type"] == "OUTPUT_MATERIAL" or node_data["type"] == "OUTPUT_WORLD":
+            main_output_conn_nodes = get_conn_nodes(node_tree_data, node_data["name"])
+            break
+
+    glow_output_conn_nodes = []
+    for node_data in nodes[::-1]:
+        if node_data["type"] == "GROUP" and node_data["node_tree_name"] == "B4W_GLOW_OUTPUT":
+            glow_output_conn_nodes = get_conn_nodes(node_tree_data, node_data["name"])
+            break
+
+    # union two sets of nodes
+    # NOT PYTHONIC WAY, SHOULD BE IMPORVED
+    new_nodes = main_output_conn_nodes
+    for glow_node_data in glow_output_conn_nodes:
+        found = False
+        for new_node_data in new_nodes:
+            if glow_node_data["name"] == new_node_data["name"]:
+                found = True
+                break
+        if not found:
+            new_nodes.append(glow_node_data)
+
+    if is_group:
+        group_output_conn_nodes = []
+        for node_data in nodes[::-1]:
+            if node_data["type"] == "GROUP_OUTPUT":
+                group_output_conn_nodes = get_conn_nodes(node_tree_data, node_data["name"])
+                break
+
+        for group_node_data in group_output_conn_nodes:
+            found = False
+            for new_node_data in new_nodes:
+                if group_node_data["name"] == new_node_data["name"]:
+                    found = True
+                    break
+            if not found:
+                new_nodes.append(group_node_data)
+
+    node_tree_data["nodes"] = new_nodes
+    # remove nodes not connected with outputs
+    cleanup_loose_links(node_tree_data)
+
+def get_conn_nodes(node_tree_data, node_name):
+    visit_state = {};
+    set_unvisited(node_tree_data, visit_state);
+
+    get_conn_nodes_iter(node_tree_data, node_name, visit_state);
+
+    new_nodes = [];
+    for key, value in visit_state.items():
+        if value:
+            new_nodes.append(find_node_by_name(node_tree_data, key))
+
+    return new_nodes
+
+def get_conn_nodes_iter(node_tree_data, node_name, visit_state):
+    links = node_tree_data["links"]
+
+    if not visit_state[node_name]:
+        visit_state[node_name] = True;
+        for in_link_data in get_in_links(node_tree_data, node_name):
+            get_conn_nodes_iter(node_tree_data, in_link_data["from_node"]["name"], visit_state);
+
+def cleanup_loose_links(node_tree_data):
+    nodes = node_tree_data["nodes"]
+    links = node_tree_data["links"]
+
+    # remove half-edges too
+    node_tree_data["links"] = [link_data for link_data in links \
+                                if find_node_by_name(node_tree_data, link_data["from_node"]["name"]) and \
+                                find_node_by_name(node_tree_data, link_data["to_node"]["name"])]
+
+def get_in_links(node_tree_data, node_name):
+    links = node_tree_data["links"]
+    in_links = []
+    for link_data in links:
+        if link_data["to_node"]["name"] == node_name:
+            in_links.append(link_data)
+
+    return in_links
+
+def find_node_by_name(node_tree_data, node_name):
+    nodes = node_tree_data["nodes"]
+
+    for node_data in nodes:
+        if node_data["name"] == node_name:
+            return node_data
+
+    return None
+
+def set_unvisited(node_tree_data, visit_state):
+    nodes = node_tree_data["nodes"]
+    for node_data in nodes:
+        visit_state[node_data["name"]] = False
+
 def process_world_texture_slots(world_data, world):
     slots = world.texture_slots
     world_data["texture_slots"] = []
+    world_data["use_orco_tex_coord"] = False
     for i in range(len(slots)):
         slot = slots[i]
         if slot:
@@ -4362,7 +4894,8 @@ def process_world_texture_slots(world_data, world):
                 if do_export(slot.texture):
                     if slot.texture.b4w_use_sky != "OFF":
                         if slot.texture.type != "ENVIRONMENT_MAP":
-                            raise ExportError(slot.texture.type + " texture type is not supported as World texture", world)
+                            raise MaterialError(slot.texture.type + " texture type is not supported"
+                                    + " for world \"" + world.name + "\".")
                         elif not slot.texture.image is None and slot.texture.image.source == "MOVIE":
                             raise MaterialError("Environment map in the \"" + world.name \
                                     + "\" world texture slot cannot be a movie.")
@@ -4411,8 +4944,8 @@ def process_material_texture_slots(mat_data, material):
                 raise MaterialError("No texture in the texture slot.")
             if do_export(slot.texture):
                 if slot.use_map_color_diffuse and slot.texture.type == "ENVIRONMENT_MAP":
-                    raise ExportError("Use of ENVIRONMENT_MAP as diffuse " \
-                        "color is not supported. Use as mirror instead", material)
+                    raise MaterialError("Use of ENVIRONMENT_MAP as diffuse " \
+                        "color is not supported. Use as mirror instead.")
                 slot_data = OrderedDict()
 
                 tc = slot.texture_coords
@@ -4459,8 +4992,8 @@ def process_particle_dupli_weights(dupli_weights_data, particle):
             weight = particle.dupli_weights[i]
             # when exporting via command line linked particles are exported wrong
             if weight.name == "No object":
-                raise InternalError("Missing particles dupli weights in particle system " \
-                        + particle.name)
+                raise ExportError("Missing particles dupli weights in particle system.",
+                        particle, "Exporting via command line linked particles are exported wrong")
 
             weight_data = OrderedDict()
 
@@ -4494,16 +5027,55 @@ def get_default_path(is_html=False):
             return bpy.path.abspath(scene.b4w_export_path_json)
         ext = ".json"
 
-    blend_path = os.path.splitext(bpy.data.filepath)[0]
-    if len(blend_path) == 0:
+    abs_blend_path = os.path.splitext(bpy.data.filepath)[0]
+    if len(abs_blend_path) == 0:
         return "untitled" + ext
+
+    # try to find .b4w_project and detect assets path
+    abs_blend_dir, blend_name = os.path.split(abs_blend_path)
+    curr_abs_dir = abs_blend_dir
+
+    sdk_path = addon_prefs.sdk_path()
+    if addon_prefs.has_valid_sdk_path() and sdk_path in abs_blend_dir:
+        while curr_abs_dir != sdk_path:
+            proj_cfg_path = os.path.join(curr_abs_dir, ".b4w_project")
+            if os.path.isfile(proj_cfg_path):
+                global _proj_util_module
+                if not _proj_util_module:
+                    scripts_path = os.path.join(sdk_path, "scripts", "lib")
+                    f, filename, description = imp.find_module('project_util', [scripts_path])
+                    _proj_util_module = imp.load_module('project_util', f, filename, description)
+
+                proj_cfg = _proj_util_module.get_proj_cfg(curr_abs_dir)
+                proj_blend_dirs = _proj_util_module.proj_cfg_value(proj_cfg,
+                        "paths", "blend_dirs", None) or [""]
+
+                curr_proj_blend_dir = ""
+                for proj_blend_dir in proj_blend_dirs:
+                    abs_proj_blend_dir = os.path.join(sdk_path, proj_blend_dir)
+                    if abs_proj_blend_dir in abs_blend_dir:
+                        curr_proj_blend_dir = os.path.relpath(abs_blend_dir, abs_proj_blend_dir);
+                        break
+
+                proj_assets_dirs = _proj_util_module.proj_cfg_value(proj_cfg,
+                        "paths", "assets_dirs", None) or [""]
+
+                # NOTE: take only first
+                abs_proj_assets_dir = os.path.join(sdk_path, proj_assets_dirs[0])
+                dest_assets_path = os.path.join(abs_proj_assets_dir, curr_proj_blend_dir)
+                while not os.path.isdir(dest_assets_path):
+                    dest_assets_path = os.path.dirname(dest_assets_path)
+
+                return os.path.join(dest_assets_path, blend_name) + ext
+            else:
+                curr_abs_dir = os.path.dirname(curr_abs_dir)
 
     # try to detect standard assets path 
     if addon_prefs.has_valid_sdk_path():
         sdk_blender_path = addon_prefs.sdk_path("blender")
 
         try:
-            rel_filepath = os.path.relpath(blend_path, sdk_blender_path)
+            rel_filepath = os.path.relpath(abs_blend_path, sdk_blender_path)
         except ValueError as exp:
             # different disk
             pass
@@ -4514,7 +5086,7 @@ def get_default_path(is_html=False):
                 if os.path.exists(os.path.dirname(assets_path)):
                     return assets_path + ext
 
-    return blend_path + ext
+    return abs_blend_path + ext
 
 def set_default_path(path, is_html=False):
     if bpy.data.filepath != "":
@@ -4641,14 +5213,17 @@ class B4W_ExportProcessor(bpy.types.Operator):
         global _bpy_bindata_int
         _bpy_bindata_int = bytearray();
 
+        global _bpy_bindata_float
+        _bpy_bindata_float = bytearray();
+
         global _bpy_bindata_short
         _bpy_bindata_short = bytearray();
 
         global _bpy_bindata_ushort
         _bpy_bindata_ushort = bytearray();
 
-        global _bpy_bindata_float
-        _bpy_bindata_float = bytearray();
+        global _bpy_bindata_uchar
+        _bpy_bindata_uchar = bytearray();
 
         global _export_filepath
         _export_filepath = export_filepath
@@ -4680,6 +5255,9 @@ class B4W_ExportProcessor(bpy.types.Operator):
         global _fallback_texture
         _fallback_texture = None
 
+        global _default_material
+        _default_material = None
+
         global _rendered_scenes
         _rendered_scenes = []
 
@@ -4707,11 +5285,14 @@ class B4W_ExportProcessor(bpy.types.Operator):
         global _vehicle_integrity
         _vehicle_integrity = {}
 
-        global _packed_files_data
-        _packed_files_data = {}
-
         global _dupli_group_ids
         _dupli_group_ids = {}
+
+        global _unique_packed_images
+        _unique_packed_images = {}
+
+        global _unique_packed_sounds
+        _unique_packed_sounds = {}
 
         global _dg_counter
         _dg_counter = 0
@@ -4773,7 +5354,8 @@ class B4W_ExportProcessor(bpy.types.Operator):
             _export_data["binaries"] = []
             binary_data = OrderedDict()
             if len(_bpy_bindata_int) + len(_bpy_bindata_float) \
-                     + len(_bpy_bindata_short) + len(_bpy_bindata_ushort):
+                     + len(_bpy_bindata_short) + len(_bpy_bindata_ushort) \
+                     + len(_bpy_bindata_uchar):
                 base = os.path.splitext(os.path.basename(export_filepath))[0]
                 binary_load_path = base + '.bin'
                 base = os.path.splitext(export_filepath)[0]
@@ -4786,6 +5368,7 @@ class B4W_ExportProcessor(bpy.types.Operator):
             binary_data["float"] = len(_bpy_bindata_int)
             binary_data["short"] = binary_data["float"] + len(_bpy_bindata_float)
             binary_data["ushort"] = binary_data["short"] + len(_bpy_bindata_short)
+            binary_data["uchar"] = binary_data["ushort"] + len(_bpy_bindata_ushort)
             _export_data["binaries"].append(binary_data)
 
             _export_data["b4w_export_warnings"] = _b4w_export_warnings
@@ -4799,7 +5382,8 @@ class B4W_ExportProcessor(bpy.types.Operator):
 
             if not _is_html_export:
                 # write packed files (images, sounds) for non-html export
-                for path in _packed_files_data:
+                packed_data = get_packed_data()
+                for path in packed_data:
                     abs_path = os.path.join(os.path.dirname(export_filepath), path)
                     try:
                         f = open(abs_path, "wb")
@@ -4807,7 +5391,7 @@ class B4W_ExportProcessor(bpy.types.Operator):
                         _file_error = exp
                         raise FileError("Permission denied")
                     else:
-                        f.write(_packed_files_data[path])
+                        f.write(packed_data[path])
                         f.close()
 
                 # write main binary and json files
@@ -4822,7 +5406,7 @@ class B4W_ExportProcessor(bpy.types.Operator):
                     f.write(_main_json_str)
                     f.close()
                         
-                    if self.save_export_path:
+                    if not _is_fast_preview and self.save_export_path:
                         set_default_path(export_filepath)
 
                     print("Scene saved to " + export_filepath)
@@ -4835,6 +5419,7 @@ class B4W_ExportProcessor(bpy.types.Operator):
                         fb.write(_bpy_bindata_float)
                         fb.write(_bpy_bindata_short)
                         fb.write(_bpy_bindata_ushort)
+                        fb.write(_bpy_bindata_uchar)
                         fb.close()
 
                     if self.run_in_viewer:
@@ -4879,48 +5464,42 @@ def check_vehicle_integrity():
                     ref_obj = _vehicle_integrity[name][prop]
                     break
             if ref_obj is not None:
-                raise ExportError("Incomplete vehicle", ref_obj,
+                err("Incomplete vehicle. " +
                         "The \"" + name + "\" vehicle doesn't have any chassis or hull")
-        elif _vehicle_integrity[name]["chassis"] is not None \
-                and _vehicle_integrity[name]["wheel"] is None:
-            raise ExportError("Incomplete vehicle",
-                    _vehicle_integrity[name]["chassis"],
+                disable_vehicle(_vehicle_integrity[name])
+        elif (_vehicle_integrity[name]["chassis"] is not None and
+                    _vehicle_integrity[name]["fl_wheel"] is None and
+                    _vehicle_integrity[name]["bl_wheel"] is None and
+                    _vehicle_integrity[name]["fr_wheel"] is None and
+                    _vehicle_integrity[name]["br_wheel"] is None):
+            err("Incomplete vehicle. " +
                     "The \"" + name + "\" vehicle requires at least one wheel")
+            disable_vehicle(_vehicle_integrity[name])
         elif _vehicle_integrity[name]["hull"] is not None \
                 and _vehicle_integrity[name]["bob"] is None:
-            raise ExportError("Incomplete vehicle",
-                    _vehicle_integrity[name]["hull"],
+            err("Incomplete vehicle. " +
                     "The \"" + name + "\" vehicle requires at least one bob")
+            disable_vehicle(_vehicle_integrity[name])
 
-def check_shared_data(export_data):
-    objects = export_data["objects"]
-    meshes = export_data["meshes"]
-    materials = export_data["materials"]
+def disable_vehicle(vehicle_settings):
+    vehicle_types = ["hull", "chassis", "bob", "other", "fl_wheel", "bl_wheel",
+            "fr_wheel", "br_wheel", "steering_wheel", "speedometer", "tachometer"]
+    for v_type in vehicle_types:
+        if vehicle_settings[v_type]:
+            vehicle_settings[v_type]["b4w_vehicle_settings"] = None
+            vehicle_settings[v_type]["b4w_vehicle"] = False
 
-    # check compatibility of objects with shared mesh
-    for mesh_data in meshes:
-        mesh_users = []
-        for obj_data in objects:
-            if obj_data["type"] == "MESH":
-                uuid = obj_data["data"]["uuid"]
-                if mesh_data == _export_uuid_cache[uuid]:
-                    mesh_users.append(obj_data)
-        check_objs_shared_mesh_compat(mesh_users)
-
-def check_objs_shared_mesh_compat(mesh_users):
-    if len(mesh_users) <= 1:
-        return
-
-    # objects with shared mesh, non-empty groups and no to_mesh() incompatible
-    for obj_data in mesh_users:
-        mesh_uuid = obj_data["data"]["uuid"]
-        mesh_data = _export_uuid_cache[mesh_uuid]
-
-        obj = _bpy_uuid_cache[obj_data["uuid"]]
-        if not obj_to_mesh_needed(obj) and mesh_data["vertex_groups"]:
-            raise ExportError("Incompatible objects with a shared mesh", obj,
-                    "The object " + obj_data["name"] +
-                    " has both vertex groups and shared mesh")
+# two objects with two different vert groups, but with one mesh
+def check_shared_data(scenes):
+    original_mesh_names = []
+    for scene in scenes:
+        for obj in scene.objects:
+            if len(obj.vertex_groups):
+                mesh = obj.data
+                if mesh.name in original_mesh_names:
+                    obj["force_to_mesh"] = True
+                else:
+                    original_mesh_names.append(mesh.name)
 
 def create_fallback_camera(scene_data):
     global _fallback_camera
@@ -4928,6 +5507,7 @@ def create_fallback_camera(scene_data):
     camera_data = bpy.data.cameras.new("FALLBACK_CAMERA")
     _fallback_camera = bpy.data.objects.new(name="FALLBACK_CAMERA",
             object_data=camera_data)
+    _fallback_camera["force_to_mesh"] = False
     view_3d_region = None
     screen_name = bpy.context.screen.name
     for area in bpy.data.screens[screen_name].areas:
@@ -4982,7 +5562,7 @@ def check_scene_data(scene_data, scene):
         warn("Missing world or wrong active world object in " +\
               scene.name + ".", M_PRIMARY)
 
-
+# NOTE: unused
 def get_exported_obj_first_rec(objects, obj_type = "ALL"):
     for obj in objects:
         obj_data = _export_uuid_cache[obj["uuid"]]
@@ -5107,23 +5687,22 @@ def check_vertex_color_empty(mesh, vc_name):
     return False
 
 def get_uv_layer(mesh, uv_layer_name):
-    # Allow special case for empty UV-layer name
-    if uv_layer_name != "":
-        index = mesh.uv_textures.find(uv_layer_name)
-        if index == 0 or index == 1:
-            return mesh.uv_textures[index].name
-    elif len(mesh.uv_textures) != 0:
-        return mesh.uv_textures[0].name
-    return ""
+    if uv_layer_name == "":
+        if mesh.uv_textures:
+            return mesh_get_active_uv(mesh).name
+        else:
+            return ""
+
+    return uv_layer_name
 
 def get_vertex_color(mesh, vc_name):
-    if vc_name != "":
-        index = mesh.vertex_colors.find(vc_name)
-        if index != -1:
-            return mesh.vertex_colors[index].name
-    elif len(mesh.vertex_colors) != 0:
-        return mesh.vertex_colors[0].name
-    return ""
+    if vc_name == "":
+        if mesh.vertex_colors:
+            return mesh_get_active_vc(mesh).name
+        else:
+            return ""
+
+    return vc_name
 
 def check_tex_slot(tex_slot):
     tex = tex_slot.texture
@@ -5139,6 +5718,7 @@ def clean_exported_data():
     global _fallback_world
     global _fallback_material
     global _fallback_texture
+    global _default_material
     global _performed_cleanup
     global _curr_stack
 
@@ -5160,6 +5740,9 @@ def clean_exported_data():
     if _fallback_texture:
         bpy.data.textures.remove(_fallback_texture)
         _fallback_texture = None
+    if _default_material:
+        bpy.data.materials.remove(_default_material)
+        _default_material = None
 
     _curr_stack = {
         "scenes"   : [],
@@ -5190,17 +5773,22 @@ def b4w_export_menu_func(self, context):
         text="Blend4Web (.json)").filepath = get_default_path()
 
 def check_binaries():
-    # NOTE: check if binaries is available
+    # NOTE: check if binary is available
     libname, path = binary_module_hook.get_binary_module_desc()
-    if "b4w_bin" not in globals():
-        try:
-            m = imp.load_dynamic(libname, path)
-        except:
-            m = None
-        if not m:
-            bpy.app.handlers.scene_update_pre.append(init_validation.bin_invalid_message)
-        else:
-            globals()["b4w_bin"] = m
+    try:
+        m = imp.load_dynamic(libname, path)
+    except BaseException as bin_err:
+        print("Can't load Blend4Web binary module, the cause "
+              "can be tmp directory, which doesn't allow execution. "
+              "Try to change it in 'Blender User Preferences' "
+              "('Temp' field on the 'File' tab.", file=sys.stderr)
+        print("B4W binary error: exception text: '%s'" % bin_err, file=sys.stderr)
+        m = None
+
+    if not m:
+        bpy.app.handlers.scene_update_pre.append(init_validation.bin_invalid_message)
+    else:
+        globals()["b4w_bin"] = m
 
 def check_version():
     if (bpy.app.version[0] != blend4web.bl_info["blender"][0]

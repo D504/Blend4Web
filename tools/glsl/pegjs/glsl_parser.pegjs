@@ -1,13 +1,59 @@
 /**
- * GLSL parser
- * Based on OpenGL ES Shading Language 1.0.17 Specification (May 12, 2009)
+ * GLSL parser.
+ * Based on OpenGL ES Shading Language 1.00.17 Specification (May 12, 2009)
  * http://www.khronos.org/registry/gles/specs/2.0/GLSL_ES_Specification_1.0.17.pdf
+ * and OpenGL ES Shading Language 3.00.3 Specification (July 11, 2012)
+ * https://www.khronos.org/registry/gles/specs/3.0/GLSL_ES_Specification_3.00.3.pdf
+ * with custom interjacent macros.
+ *
+ * The rules follow the GLSL ES 1.0 grammar except some additional changes to be 
+ * compatible with the GLSL ES 3.0 version.
  */
 
 { 
-  // Directives preprocessing
+
+  var _RESERVED = [
+    // use keywords from GLSL ES 1.0 only
+    "const", "uniform", "break", "continue", "do", "for", "while", "if", "else", 
+    "in", "out", "inout", "float", "int", "void", "bool", "lowp", "mediump", 
+    "highp", "precision", "invariant", "discard", "return", "mat2", "mat3", "mat4", 
+    "vec2", "vec3", "vec4", "ivec2", "ivec3", "ivec4", "bvec2", "bvec3", "bvec4", 
+    "sampler2D", "samplerCube", "struct", 
+
+    // additional custom or GLSL ES 3.0 keywords
+    "GLSL_IN", "GLSL_OUT",
+
+    // reserved for future use in (union of the GLSL ES 1.0 and GLSL ES 3.0 keywords)
+    "attribute", "varying", "coherent", "restrict", "readonly", "writeonly", "resource", 
+    "atomic_uint", "noperspective", "patch", "sample", "subroutine", "common", 
+    "partition", "active", "asm", "class", "union", "enum", "typedef", "template", 
+    "this", "packed", "goto", "switch", "default", "flat", "inline", "noinline", 
+    "volatile", "public", "static", "extern", "external", "interface", "long", 
+    "short", "double", "half", "fixed", "unsigned", "superp", "input", "output", 
+    "hvec2", "hvec3", "hvec4", "dvec2", "dvec3", "dvec4", "fvec2", "fvec3", "fvec4", 
+    "sampler3DRect", "filter", "image1D", "image2D", "image3D", "imageCube", 
+    "iimage1D", "iimage2D", "iimage3D", "iimageCube", "uimage1D", "uimage2D", 
+    "uimage3D", "uimageCube", "image1DArray", "image2DArray", "iimage1DArray", 
+    "iimage2DArray", "uimage1DArray", "uimage2DArray", "image1DShadow", 
+    "image2DShadow", "image1DArrayShadow", "image2DArrayShadow", "imageBuffer", 
+    "iimageBuffer", "uimageBuffer", "sampler1D", "sampler1DShadow", 
+    "sampler1DArray", "sampler1DArrayShadow", "isampler1D", "isampler1DArray", 
+    "usampler1D", "usampler1DArray", "sampler2DRect", "sampler2DRectShadow", 
+    "isampler2DRect", "usampler2DRect", "samplerBuffer", "isamplerBuffer", 
+    "usamplerBuffer", "sampler2DMS", "isampler2DMS", "usampler2DMS", 
+    "sampler2DMSArray", "isampler2DMSArray", "usampler2DMSArray", "sampler3D", 
+    "sampler2DShadow", "sizeof", "cast", "namespace", "using"
+  ];
+
+  function token_is_reserved(token) {
+    return (token.indexOf("__") > -1) || (_RESERVED.indexOf(token) > -1);
+  }
+
+  // NOTE: buggy for nontrivial usage of #define directives, e.g. cycle or 
+  // chain substitutions 
   function vardef_replace(units) {
-    var repl = {};
+    var repl_non_node = {};
+    var repl_all = {};
 
     for (var i = 0; i < units.length; i++) {
       var unit = units[i][0];
@@ -16,19 +62,29 @@
         switch(unit.type) {
           case "var":
           case "define":
-            repl[unit.repl.from] = unit.repl.to;
+            repl_non_node[unit.repl.from] = unit.repl.to;
+            repl_all[unit.repl.from] = unit.repl.to;
             break;
           case "undef":
-            delete repl[unit.identifier];
+            delete repl_non_node[unit.identifier];
+            delete repl_all[unit.identifier];
             break;
         }
-      }
-      else if (unit.node == "text")
+      } else if (unit.node == "node_directive") {
+        switch (unit.type) {
+          case "node_var":
+            repl_all[unit.repl.from] = unit.repl.to;
+            break;
+          case "endnode":
+            repl_all = JSON.parse(JSON.stringify(repl_non_node));
+            break;
+        }
+      } else if (unit.node == "text")
         for (var j = 0; j < unit.result.length; j++) {
           var token = unit.result[j];
-          for (var from in repl)
+          for (var from in repl_all)
             if (token == from) {
-              var to = vardef_recourse(repl[from], repl);
+              var to = vardef_recourse(repl_all[from], repl_all);
               units[i][0].result[j] = "/*%replace%from%" + from 
                   + "%to%" + to + "%*/" + to + "/*%replace_end%*/";
               break;
@@ -68,10 +124,6 @@
       else if (unit.node == "include")
         listing += "/*%" + unit.type + "%" + unit.name + "%*/\n";
 
-      // import/export tokens
-      else if (unit.node == "import" || unit.node == "export")
-        listing += build_import_export(unit.node, unit.tokens);
-
       // simple textlines
       else if (unit.node == "text")
         listing += build_textline(unit, nodes_collector);
@@ -85,10 +137,6 @@
   }
 
 
-
-  function build_import_export(type, tokens) {
-    return "/*%" + type + "%" + tokens.join() + "%*/";
-  }
 
   function build_textline(unit, nodes_collector) {
     var listing = "";
@@ -129,8 +177,9 @@
       case "node_param":
         nodes_collector.nodes_structure[nodes_collector.current_node].push(unit);
         break;
+      case "node_var":
       case "node_condition":
-        // do not move node_condition to nodes_main or nodes_global
+        // do not move node_var/node_condition into nodes_main or nodes_global
         listing += "/*%" + unit.type + "%" + unit.source_str + "%" + 
             nodes_collector.current_node + "%" + unit.offset + "%*/\n";
         break;
@@ -232,18 +281,14 @@
     return listing;
   }
 
-  var _is_node_param = false;
-
   // GLSL parsing: read directives
   var _pp_node_with_node_condition = [];
   var _pp_vardef_identifiers = [];
-  var _pp_import_export = {};
   // {uid: node}
   var _uid_to_node = {};
 
   var _pp_insertions = {};
-
-  var CURR_INCLUDE = [null];
+  var _pp_insertions_array = [];
 
   function check_directive_comment(symbols) {
     // check directive comment insertion
@@ -254,7 +299,7 @@
     if (str.charAt(0) == "%") {
       check_directive(str) || check_replace(str) || check_node_insertion(str)
       || check_node_borders(str) || check_node_parameters(str) || check_node_condition(str)
-      || check_include(str) || check_import_export(str);
+      || check_node_var(str) || check_include(str);
     }
   }
 
@@ -272,7 +317,8 @@
     var expr = /^ *?# *?(define|var) *?([0-9a-z_]+)/i;
     var res = expr.exec(str);
     if (res) {
-      _pp_vardef_identifiers.push(res[2]);
+      if (_pp_vardef_identifiers.indexOf(res[2]) == -1)
+        _pp_vardef_identifiers.push(res[2]);
       return true;
     }
     return false;
@@ -314,13 +360,6 @@
 
     if (res) {
       _pp_insertions[offset()] = "\n/*" + str + "*/\n";
-
-      if (res[1] !== "node_textline")
-        if (res[2])
-          _is_node_param = false;
-        else
-          _is_node_param = true;
-
       return true;
     }
     return false; 
@@ -337,57 +376,29 @@
     return false; 
   }
 
+  function check_node_var(str) {
+    var expr = /^%node_var%#node_var *?([0-9a-z_]+)/i;
+    var res = expr.exec(str);
+    if (res) {
+      _pp_insertions[offset()] = "\n/*" + str + "*/\n";
+      if (_pp_vardef_identifiers.indexOf(res[1]) == -1)
+        _pp_vardef_identifiers.push(res[1]);
+      return true;
+    }
+    return false;
+  }
+
   function check_include(str) {
     var expr = /^%(include|include_end)%(.*?)%$/;
     var res = expr.exec(str);
     if (res) {
-      var type = res[1];
-      var name = res[2];
-
-      switch (type) {
-      case "include":
-        CURR_INCLUDE.push(name);
-        if (!(name in _pp_import_export))
-          _pp_import_export[name] = {
-            "import": {},
-            "export": {}
-          }
-        break;
-      case "include_end":
-        CURR_INCLUDE.pop();
-        break;
-      }
-
       _pp_insertions[offset()] = "\n/*" + str + "*/\n";
       return true;
     }
     return false;
   }
 
-  function check_import_export(str) {
-    var expr = /^%(import|export)%(.*?)%$/;
-    var res = expr.exec(str);
-    if (res) {
-      var incl_name = CURR_INCLUDE[CURR_INCLUDE.length - 1];
-      if (!(incl_name in _pp_import_export)) {
-        _pp_import_export[incl_name] = {
-          "import": {},
-          "export": {}
-        }
-      }
-
-      if (res[2] != "") {
-        var type = res[1];
-        var tokens = res[2].split(",");
-        for (var i = 0; i < tokens.length; i++)
-          _pp_import_export[incl_name][type][tokens[i]] = 0;
-      }
-      return true;
-    } 
-    return false;
-  }
-
-  
+ 
 
 
   // GLSL parsing: generate special nodes
@@ -511,6 +522,11 @@
       offset_to_nodes[node.offset].push(node.uid);
     }
 
+    // NOTE: _pp_insertions object is very slow in the following code, so using
+    // the array instead
+    for (var offset in _pp_insertions)
+      _pp_insertions_array.push([offset, _pp_insertions[offset]]);
+
     for (var i in offset_to_nodes) {
       for (var j in offset_to_nodes[i]) {
         var node_uid = offset_to_nodes[i][j];
@@ -518,19 +534,26 @@
           var node = _uid_to_node[node_uid];
           // HACK: don't add before_comments to statement_list
           if (node.node != "statement_list") {
-            for (var k in _pp_insertions) {
-              if (k < node.offset) {
-                node.before_comments.push(_pp_insertions[k]);
+            var splice_count = 0;
+            for (var k = 0; k < _pp_insertions_array.length; k++) {
+              var offset = _pp_insertions_array[k][0];
+              var insert_str = _pp_insertions_array[k][1];
+
+              if (offset < node.offset) {
+                node.before_comments.push(insert_str);
 
                 var expr = /\/\*%node_condition.*?%\*\//i;
-                var res = expr.exec(_pp_insertions[k]);
+                var res = expr.exec(insert_str);
                 if (res && 
                     (_pp_node_with_node_condition.indexOf(node_uid) == -1))
                   _pp_node_with_node_condition.push(node_uid);
-                delete _pp_insertions[k];
+                splice_count = k + 1;
               } else
                 break;
             }
+
+            _pp_insertions_array.splice(0, splice_count);
+
           }
         }
       }
@@ -550,7 +573,6 @@ start
     var data = {
       node_with_node_condition: _pp_node_with_node_condition,
       vardef_ids: _pp_vardef_identifiers,
-      import_export: _pp_import_export,
       uid_to_nodes: _uid_to_node,
     }
     
@@ -563,8 +585,8 @@ start
       after_comments: []
     }));
 
-    for (var i in _pp_insertions) 
-      data.ast.after_comments.push(_pp_insertions[i]);
+    for (var i = 0; i < _pp_insertions_array.length; i++) 
+      data.ast.after_comments.push(_pp_insertions_array[i][1]);
 
     return data;
   }
@@ -693,8 +715,7 @@ single_declaration
     var decl = {
       node: "single_declaration",
       subtype: "simple",
-      type: type,
-      is_node_inoutparam_decl: _is_node_param
+      type: type
     }
     if (id) {
       decl.identifier = id[1];
@@ -1576,8 +1597,8 @@ fully_specified_type
 
 // Keywords rules
 type_qualifier = value:(
-    CONST / ATTRIBUTE / VARYING / UNIFORM
-    / value:(INVARIANT MMS VARYING) { return [value[0], value[2]] }
+    CONST / GLSL_IN / GLSL_OUT / UNIFORM
+    / value:(INVARIANT MMS GLSL_OUT) { return [value[0], value[2]] }
   )
 { 
   return common_node({
@@ -1641,21 +1662,17 @@ constructor_identifier
                                   CUSTOM TOKEN RULES
 ============================================================================*/
 IDENTIFIER
-  = (!(RESERVED !(nondigit/digit))) id:(nondigit+ (nondigit / digit)*) 
+  = !RESERVED id:(nondigit+ (nondigit / digit)*)
   { 
     var chars = [];
     chars.push.apply(chars, id[0]);
     chars.push.apply(chars, id[1]);
     var name = chars.join("");
 
-    // "__" reserved
-    if (name.indexOf("__") > -1)
-      return null;
-    else
-      return common_node({
-        node: "identifier",
-        name: name
-      });
+    return common_node({
+      node: "identifier",
+      name: name
+    });
   }
 
 TYPE_NAME
@@ -1711,22 +1728,17 @@ FIELD_SELECTION
   }
 
 RESERVED
-  = value:(ATTRIBUTE / CONST / UNIFORM / VARYING / BREAK / CONTINUE / DO / FOR / WHILE 
-  / IF / ELSE / IN / OUT / INOUT / FLOAT / INT / VOID / BOOL / LOW_PRECISION 
-  / MEDIUM_PRECISION / HIGH_PRECISION / PRECISION / INVARIANT / DISCARD / RETURN 
-  / MAT2 / MAT3 / MAT4 / VEC2 / VEC3 / VEC4 / IVEC2 / IVEC3 / IVEC4 / BVEC2 
-  / BVEC3 / BVEC4 / SAMPLER2D / SAMPLERCUBE / STRUCT)
-  { return value.name }
-  // reserved for future use
-  / "asm" / "class" / "union" / "enum" / "typedef" / "template" / "this" 
-  / "packed" / "goto" / "switch" / "default" / "inline" / "noinline" 
-  / "volatile" / "public" / "static" / "extern" / "external" / "interface" 
-  / "flat" / "long" / "short" / "double" / "half" / "fixed" / "unsigned" 
-  / "superp" / "input" / "output" / "hvec2" / "hvec3" / "hvec4" / "dvec2" 
-  / "dvec3" / "dvec4" / "fvec2" / "fvec3" / "fvec4" / "sampler1D" / "sampler3D"
-  / "sampler1DShadow" / "sampler2DShadow" / "sampler2DRect" / "sampler3DRect" 
-  / "sampler2DRectShadow" / "sizeof" / "cast" / "namespace" / "using"
-
+  // NOTE: it's faster to check with a predicate(&) than to create additional rules 
+  // for every reserved string literal
+  = id:(nondigit+ (nondigit / digit)*)
+  &{ var name = id[0].concat(id[1]).join(""); return token_is_reserved(name); }
+  
+  { 
+    var chars = [];
+    chars.push.apply(chars, id[0]);
+    chars.push.apply(chars, id[1]);
+    return chars.join("");
+  }
 
 /*============================================================================
                                   OPERATION RULES
@@ -1758,7 +1770,8 @@ AND_OP = token:("&&") { return operation_node("and", token) }
 OR_OP = token:("||") { return operation_node("or", token) }
 XOR_OP = token:("^^") { return operation_node("xor", token) }
 
-// Reserved and illegal in this version symbols (not used in parsing)
+// Symbols that are reserved and illegal in GLSL ES 1.0 but legal in GLSL ES 3.0.
+// Anyway they aren't used in parsing.
 TILDE = token:("~") { return operation_node("tilde", token) }
 PERCENT = token:("%") { return operation_node("percent", token) }
 LEFT_OP = token:("<<") { return operation_node("left_shift", token) }
@@ -1782,10 +1795,8 @@ OR_ASSIGN = token:("|=") { return operation_node("or_assign", token) }
  */
 
 // Reserved keywords
-ATTRIBUTE = data:"attribute" { return keyword_node(data) }
 CONST = data:"const" { return keyword_node(data) }
 UNIFORM = data:"uniform" { return keyword_node(data) }
-VARYING = data:"varying" { return keyword_node(data) }
 
 BREAK = data:"break" { return keyword_node(data) }
 CONTINUE = data:"continue" { return keyword_node(data) }
@@ -1832,6 +1843,9 @@ SAMPLER2D = data:"sampler2D" { return keyword_node(data) }
 SAMPLERCUBE = data:"samplerCube" { return keyword_node(data) }
 
 STRUCT = data:"struct" { return keyword_node(data) }
+
+GLSL_IN = data:"GLSL_IN" { return keyword_node(data) }
+GLSL_OUT = data:"GLSL_OUT" { return keyword_node(data) }
 
 // Common symbols
 LEFT_PAREN = data:"(" { return punctuation_node("left_paren", data) }
@@ -1947,31 +1961,16 @@ EOF
   = !.
 
 /*============================================================================
-                              ADDITIONAL RULES
-============================================================================*/
-
-expression_statement_start
-  = __ exp:expression_statement
-  { 
-    return parenting_unit(exp);
-  }
-
-statement_no_new_scope_start
-  = stat: statement_no_new_scope
-  {
-    return parenting_unit(stat);
-  }
-
-
-/*============================================================================
                   PREPROCESSING "#VAR" AND OTHER DIRECTIVES PASS
 ============================================================================*/
 
 pp_start
   = __ units:(pp_unit __)*
   {
-    // process replacement for #var, #define
-    return build_listing(vardef_replace(units));
+    return {
+      units: units,
+      text: build_listing(vardef_replace(units))
+    }
   }
 
 pp_unit
@@ -1981,7 +1980,6 @@ pp_unit
   / pp_directives
   / pp_node_dir
   / include_dir_comment
-  / pp_import_export
   / tokens:(!("#" / "//" / "/*") (IDENTIFIER / RESERVED / . ))+
   {
     var result = [];
@@ -1999,10 +1997,10 @@ pp_unit
   }
 
 pp_replace
-  = dir_string:("#" _ ("var"/"define") MSS IDENTIFIER MSS till_string_end)
+  = dir_string:("#" _ ("var"/"define") MSS IDENTIFIER till_string_end)
   { 
     var source_str = "#" + dir_string[2] + " ";
-    source_str += dir_string[4].name + " " + dir_string[6];
+    source_str += dir_string[4].name + dir_string[5];
     source_str = source_str.trim();
 
     var result = {
@@ -2011,7 +2009,7 @@ pp_replace
       source_str: source_str,
       repl: {
         from: dir_string[4].name,
-        to: dir_string[6].trim()
+        to: dir_string[5].trim()
       }
     }
     return common_node(result);
@@ -2045,7 +2043,7 @@ pp_directives
   = dir:("#" _ 
       (
         "ifdef" / "ifndef" / "if" / "elif" / "else" / "endif"
-        / "error" / "line" / "pragma" / "warning" 
+        / "error" / "line" / "pragma" / "warning" / "version"
       ) 
       (
         line_terminator_sequence { return "" }
@@ -2057,6 +2055,7 @@ pp_directives
     return common_node({
       node: "directive",
       type: dir[2],
+      contents: dir[3],
       source_str: source_str
     });
   }
@@ -2067,6 +2066,7 @@ pp_node_dir
   / nodes_parameters
   / node
   / endnode
+  / node_var
 
 nodes_condition
   = dir:("#" _ 
@@ -2084,6 +2084,7 @@ nodes_condition
       node: "node_directive",
       type: "node_condition",
       subtype: dir[2],
+      contents: dir[3],
       source_str: source_str
     });
   }
@@ -2131,6 +2132,26 @@ nodes_parameters
     });
   }
 
+node_var
+  = dir_string:("#" _ "node_var" MSS IDENTIFIER till_string_end)
+  { 
+    var source_str = "#node_var ";
+    source_str += dir_string[4].name + dir_string[5];
+    source_str = source_str.trim();
+
+    var result = {
+      node: "node_directive",
+      type: "node_var",
+      source_str: source_str,
+      repl: {
+        from: dir_string[4].name,
+        to: dir_string[5].trim()
+      }
+    }
+    return common_node(result);
+  }
+
+
 include_dir_comment
   = _ "#" _ type:("include_end" / "include") "%" name_symbols:(!("%").)+ "%"
   {
@@ -2142,16 +2163,3 @@ include_dir_comment
     });
   }
 
-pp_import_export
-  = _ "#" _ node:("import" / "export") toks:(MSS IDENTIFIER)* till_string_end {
-    var tokens = [];
-
-    if (toks !== null)
-      for (var i = 0; i < toks.length; i++)
-        tokens.push(toks[i][1].name);
-
-    return common_node({
-      node: node,
-      tokens: tokens
-    });
-  }

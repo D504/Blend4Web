@@ -48,14 +48,14 @@
 
 1. "图像或影片"
 
-      In this case, the texture is defined by an image or a video
-      file. Following file formats are supported:
+      在这种情况下，纹理是由一个图像或视频文件中定义。下列文件格式支持
+      ：
 
          * ".PNG"
 
          * ".JPG"
 
-      It can be used for the following purposes:
+      它可用于以下目的：
 
       * 漫射贴图
 
@@ -106,13 +106,9 @@
    标限制到 [0，1] 段。默认值是 "重复".
 
 *贴图 > 坐标*
-   纹理坐标类型。支持的类型是 "UV``（使用 UV 映射），``法线" (直对相机
+   纹理坐标类型。支持的类型是 "UV" （使用 UV 映射），"法线" (直对相机
    ，只供的漫反射贴图，用于创造 **材质捕捉**, **matcap**) 和  "生成"
    。默认值是 "生成" 。
-
-   注解: Blend4Web engine currently supports no more than two UV
-     maps per material. If the material has more than two UV maps,
-     additional maps will be ignored during the export.
 
 *贴图 > 大小*
    沿着各自的轴缩放 UV 贴图。默认值是 1.0。
@@ -121,10 +117,8 @@
    不导出纹理。
 
 *导出选项 > 禁用压缩*
-   Disable texture compression (using "DDS" texture format) for this
-   texture. Used in cases when texture compression deteriorates the
-   image quality. For example it's recommended to disable compression
-   for mask textures used to mix different parts of materials.
+   禁用这个纹理的纹理压缩。在 纹理压缩 恶化图像质量情况下使用。例如用
+   于混合材质的不同部分建议禁用压缩遮罩纹理。
 
 *导出选项 > 海岸距离贴图*
    使用在  室外渲染.
@@ -159,8 +153,8 @@
 
 *影响 > 混合*
    与材质颜色相互作用的类型 ("材质 > 漫反射 > 颜色")，或与顶点颜色如果
-   启用了 "顶点颜色绘制" 选框。支持以下类型: "混合``（混合的颜色），``
-   相乘" （乘以颜色）。默认值是``混合`` 。
+   启用了 "顶点颜色绘制" 选框。支持以下类型: "混合" （混合的颜色），"
+   相乘" （乘以颜色）。默认值是 "混合" 。
 
 
 高光贴图
@@ -182,8 +176,8 @@
    对反射光颜色纹理的影响。默认值是 1.0。
 
 *影响 > 混合*
-   反射光的颜色与材质的交互作用的类型 ("材质 > 镜面 > 颜色")。"混合``
-   （用颜色混合） 是唯一受支持的类型。默认值是 ``混合" 。
+   反射光的颜色与材质的交互作用的类型 ("材质 > 镜面 > 颜色")。"混合"
+   （用颜色混合） 是唯一受支持的类型。默认值是 "混合" 。
 
 出于优化的目的高光贴图可以打包到的漫射纹理的 alpha 通道中。在这种情况
 下是纹理同时启用  "漫射 > 颜色"  和 "镜面 > 颜色" 复选框。颜色范围被限
@@ -199,6 +193,8 @@
 
 激活
 ----
+
+设置 "图像>彩色空间" 参数到 "非Color" 。
 
 启用 "纹理 > 影响" 面板上的 "几何 > 法线" 复选框
 
@@ -355,7 +351,7 @@ FPS 值是不同的值。视频播放率是按比例增加到场景的 FPS 和�
 [图片]
 
 注解: 当视频纹理与 NLA 一起使用时，视频播放可以不对应与Blender设置。
-  即，可 能观察到5 6 帧延迟是由于 <video>HTML 元素的开始/暂停的延迟。
+  即，可 能观察到5 6 帧延迟是由于 <video> HTML 元素的开始/暂停的延迟。
 
 
 移动设备的细节
@@ -512,33 +508,37 @@ Blender有烘焙场景到环境映射选项。要此操作 ︰
 [图片]
 
 
-3D场景
-------
+渲染到纹理
+----------
 
-A 3D scene's real-time rendered image can be used as a texture by an
-object from another scene ("main" scene). This technique is known as
-*render-to-texture* (RTT) and can be activated by following these
-steps:
+三维场景实时渲染的图像可以用作其他场景（"主" 场景）的物体纹理。这种技
+术被称为渲染到纹理 (RTT)，可以通过以下步骤激活︰
 
-1. 创建一个附加源场景。
+1. 创建将被渲染到纹理的附加场景。
 
-2. 为了方便重命名它。
+2. 为方便起见，给这一场景的唯一名称。
 
-3. 创建一个 "世界" 。
+3. 场景中设置摄像机和光源
 
-4. 添加您需要的物体。
+4. 在3D场景添加你需要的物体：
 
-5. 设置相机视图。
+5. 场景中设置摄像机并设置
 
-6. 在主场景中创建目标物体的 UV 贴图。
+6. 然后，切换到主场景。
 
-7. 设置目标物体的纹理为 "无" 类型。
+7. 选择目标物体，并为它创建一个UV贴图。
 
-8. 在 "导出选项 > 源类型" 菜单中选择 "场景" 类型。
+8. 创建一个纹理将作为渲染目标。
 
-9. 在 "导出选项 > 源 ID" 字段中指定源场景的名称。
+9. 设置纹理类型为 "None"
 
-10. 在 "导出选项 > 源大小" 字段 （以像素为单位） 设置纹理的大小。
+10. 对于 "Mapping" 选项卡下的 "Coordinates" 参数设置 "UV" 值。
+
+11. 在 "导出选项 > 源类型" 菜单中选择 "场景" 类型。
+
+12. 在 "导出选项 > 源 ID" 字段中指定源场景的名称。
+
+13. 在 "导出选项 > 源大小" 字段 （以像素为单位） 设置纹理的大小。
 
 [图片]
 
@@ -549,8 +549,8 @@ steps:
    注解: 项目应包含至少一个场景，不由任何其他场景渲染完成。
 
 
-画布
-----
+画布纹理
+--------
 
 一个 <canvas>HTML 元素可以用作纹理。它可以通过 API 修改。
 
@@ -570,8 +570,7 @@ steps:
    m_tex.update_canvas_ctx(obj, "TEXTURE_NAME");
 
 使用 "get_canvas_texture_context()"  来获取上下文-此方法需要的
-"canvas_id" 标识符应在Blender中定义。当 *与上下文操作
-<http://www.w3.org/TR/2014/CR-2dcontext-20140821/>* _,
+"canvas_id" 标识符应在Blender中定义。当 与上下文操作,
 "update_canvas_ctx()"  功能被调用，渲染  "canvas_id" 元素的修改。
 
    注解: 如果在Blender中画布类型材质分配给了几个不同的物体，待引擎加

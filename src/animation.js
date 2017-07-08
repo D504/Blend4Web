@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -25,25 +24,26 @@
  */
 b4w.module["__animation"] = function(exports, require) {
 
+var m_armat     = require("__armature");
 var m_cfg       = require("__config");
+var m_lights    = require("__lights");
 var m_obj_util  = require("__obj_util");
 var m_particles = require("__particles");
 var m_phy       = require("__physics");
 var m_print     = require("__print");
 var m_quat      = require("__quat");
 var m_reformer  = require("__reformer");
+var m_scs       = require("__scenes");
 var m_sfx       = require("__sfx");
+var m_subs      = require("__subscene");
 var m_time      = require("__time");
 var m_trans     = require("__transform");
 var m_tsr       = require("__tsr");
 var m_util      = require("__util");
 var m_vec3      = require("__vec3");
-var m_armat     = require("__armature");
-var m_lights    = require("__lights");
-var m_scs       = require("__scenes");
 
 var cfg_ani = m_cfg.animation;
-var cfg_def = m_cfg.defaults;
+var cfg_lim = m_cfg.context_limits;
 
 var LAST_FRAME_EPSILON = 0.000001;
 
@@ -118,18 +118,23 @@ var AEM_FOG_COLOR       = 7;
 var _frame_info_tmp = new Array(3);
 var _vec3_tmp = new Float32Array(3);
 var _vec3_tmp2 = new Float32Array(3);
+var _vec4_tmp = new Float32Array(4);
+var _vec4_tmp2 = new Float32Array(4);
+var _vec4_tmp3 = new Float32Array(4);
+var _vec4_tmp4 = new Float32Array(4);
 var _quat4_tmp = new Float32Array(4);
 var _quat4_tmp2 = new Float32Array(4);
 var _quat4_tmp3 = new Float32Array(4);
+var _quat4_tmp4 = new Float32Array(4);
 var _tsr_tmp = m_tsr.create();
-var _mat4_tmp = new Float32Array(16);
+var _tsr_tmp2 = m_tsr.create();
 
 // populated after init_anim()
 var _anim_objs_cache = [];
 var _actions = [];
 
 exports.get_max_bones = function() {
-    return m_util.trunc((cfg_def.max_vertex_uniform_vectors - VECTORS_RESERVED) / 4);
+    return m_util.trunc((cfg_lim.max_vertex_uniform_vectors - VECTORS_RESERVED) / 4);
 }
 
 exports.frame_to_sec = function(frame) {
@@ -266,6 +271,9 @@ function init_anim(obj, slot_num) {
 
         quats: null,
         trans: null,
+
+        bone_space_quats: null,
+        bone_space_trans: null,
 
         skinning_data: [],
 
@@ -438,7 +446,7 @@ function get_actions(obj) {
 
         if (act_render.type == OBJ_ANIM_TYPE_OBJECT)
             act_list.push(action);
-        else if (action._render.type == OBJ_ANIM_TYPE_MATERIAL && obj.type == "MESH")
+        else if (action._render.type == OBJ_ANIM_TYPE_MATERIAL && (obj.type == "MESH" || obj.type == "WORLD"))
             act_list.push(action);
         else if (act_render.type == OBJ_ANIM_TYPE_ARMATURE && obj.type == "ARMATURE")
             act_list.push(action);
@@ -456,8 +464,6 @@ function get_actions(obj) {
  *  obj.animation_data.action
  *  spkobj.data.animation_data
  *  obj.data.materials.node_tree.animation_data
- * @param {Object3D} obj Object 3D
- * @returns Default action or null
  */
 function get_default_actions(obj) {
     return obj.def_action_slots.slice();
@@ -475,6 +481,18 @@ function get_bpy_material_actions(bpy_obj) {
         if (node_tree)
             get_node_tree_actions_r(node_tree, act_list, [mat["name"]]);
     }
+    return act_list;
+}
+
+exports.get_bpy_world_material_actions = get_bpy_world_material_actions;
+function get_bpy_world_material_actions(bpy_obj) {
+    var act_list = [];
+
+    var node_tree = bpy_obj["node_tree"];
+
+    if (node_tree)
+        get_node_tree_actions_r(node_tree, act_list, [bpy_obj["name"]]);
+
     return act_list;
 }
 
@@ -711,40 +729,35 @@ exports.obj_is_animatable = function(obj) {
     return false;
 }
 
-exports.bpy_obj_is_animatable = function(bpy_obj, obj) {
-
-    if (obj.type == "ARMATURE")
-        return true;
+exports.bpy_mesh_empty_is_animatable = function(bpy_obj) {
 
     var armobj = get_bpy_armobj(bpy_obj);
     if (armobj)
         return true;
 
-    if (obj.type == "WORLD")
+    if (bpy_obj._def_action_slots)
+        for (var i = 0; i < bpy_obj._def_action_slots.length; i++) {
+            var act_slot = bpy_obj._def_action_slots[i];
+            var action = act_slot.action;
+            var act_type = action._render.type;
+
+            if (act_type == OBJ_ANIM_TYPE_OBJECT || 
+                    act_type == OBJ_ANIM_TYPE_MATERIAL && bpy_obj["type"] == "MESH")
+                return true;
+        }
+
+    if (m_particles.bpy_obj_has_particles(bpy_obj) 
+            && m_particles.bpy_obj_has_anim_particles(bpy_obj))
         return true;
 
-    for (var i = 0; i < obj.def_action_slots.length; i++) {
-        var act_slot = obj.def_action_slots[i];
-        var action = act_slot.action;
-        var act_type = action._render.type;
-
-        if (act_type == OBJ_ANIM_TYPE_OBJECT || act_type == OBJ_ANIM_TYPE_ARMATURE
-                || act_type == OBJ_ANIM_TYPE_SOUND && obj.type == "SPEAKER"
-                || act_type == OBJ_ANIM_TYPE_MATERIAL && obj.type == "MESH")
-            return true;
-    }
-
-    if (m_particles.bpy_obj_has_particles(bpy_obj) && m_particles.bpy_obj_has_anim_particles(bpy_obj))
-        return true;
-
-    if (obj.type == "MESH" && bpy_obj["data"]["b4w_vertex_anim"].length)
+    if (bpy_obj["type"] == "MESH" && bpy_obj["data"]["b4w_vertex_anim"].length)
         return true;
 
     return false;
 }
 
 exports.is_animated = is_animated;
-function is_animated (obj) {
+function is_animated(obj) {
     return Boolean(obj.anim_slots.length);
 }
 
@@ -777,8 +790,6 @@ function apply_action(obj, name_list, action, slot_num) {
     anim_slot.length = frame_range[1] - frame_range[0];
     anim_slot.current_frame_float = frame_range[0];
 
-    var bones = act_render.bones;
-
     switch (act_render.type) {
     case OBJ_ANIM_TYPE_ARMATURE:
         if (m_obj_util.is_armature(obj)) {
@@ -786,13 +797,15 @@ function apply_action(obj, name_list, action, slot_num) {
 
             var pose_data_frames = get_cached_anim_data(obj, name_list, action);
             if (!pose_data_frames) {
-                var pose_data_frames = calc_pose_data_frames(action,
+                pose_data_frames = calc_pose_data_frames(action,
                                                     obj.render.bone_pointers);
                 cache_anim_data(obj, name_list, action, pose_data_frames);
             }
 
             anim_slot.trans = pose_data_frames.trans;
             anim_slot.quats = pose_data_frames.quats;
+            anim_slot.bone_space_quats = pose_data_frames.bone_space_quats;
+            anim_slot.bone_space_trans = pose_data_frames.bone_space_trans;
 
             init_skinned_objs_data(obj, slot_num, action, pose_data_frames);
         }
@@ -815,12 +828,14 @@ function apply_action(obj, name_list, action, slot_num) {
         break;
 
     case OBJ_ANIM_TYPE_MATERIAL:
-        if (obj.type == "MESH") {
+        if (obj.type == "MESH" || obj.type == "WORLD") {
             anim_slot.type = OBJ_ANIM_TYPE_MATERIAL;
+
+            var is_world_action = m_obj_util.is_world(obj);
 
             var nodemat_anim_data = get_cached_anim_data(obj, name_list, action);
             if (!nodemat_anim_data) {
-                nodemat_anim_data = calc_nodemat_anim_data(obj, name_list, action);
+                nodemat_anim_data = calc_nodemat_anim_data(obj, name_list, action, is_world_action);
                 cache_anim_data(obj, name_list, action, nodemat_anim_data);
             }
 
@@ -896,6 +911,23 @@ function get_cached_anim_data(obj, name_list, action) {
     return null;
 }
 
+exports.delete_cached_anim_data_by_mat = delete_cached_anim_data_by_mat;
+function delete_cached_anim_data_by_mat(obj, mat_name) {
+    var cache = obj.action_anim_cache;
+    var cache_filtered = [];
+
+    for (var i = 0; i < cache.length; i += 3) {
+
+        if (cache[i]._render.type == OBJ_ANIM_TYPE_MATERIAL)
+            if (cache[i + 1] === null || cache[i + 1].split("%join%")[0] == mat_name)
+                continue;
+
+        cache_filtered.push(cache[i], cache[i + 1], cache[i + 2]);
+    }
+    
+    obj.action_anim_cache = cache_filtered;
+}
+
 function cache_anim_data(obj, name_list, action, data) {
     var cache = obj.action_anim_cache;
     if (name_list)
@@ -928,7 +960,7 @@ function init_skinned_objs_data(armobj, slot_num, action,
         anim_slot.skinning_data = skinning_data_cache;
 
     if (render.anim_mixing) {
-        var skeletal_slots = render.two_last_skeletal_slots;
+        var skeletal_slots = render.blend_skel_slots;
         if (slot_num > skeletal_slots[1]) {
             var tmp = skeletal_slots[1];
             skeletal_slots[1] = slot_num;
@@ -957,7 +989,7 @@ function cache_skinning_data(render, action, skinning_data) {
 
 function sync_skeletal_animations(armobj) {
 
-    var skeletal_slots = armobj.render.two_last_skeletal_slots;
+    var skeletal_slots = armobj.render.blend_skel_slots;
 
     // one or none skeletal animation applied
     if (skeletal_slots[0] == -1 || skeletal_slots[1] == -1)
@@ -975,15 +1007,15 @@ function sync_skeletal_animations(armobj) {
 
     var prev_skel_slot = skeletal_slots[0];
     var prev_skel_anim = anim_slots[prev_skel_slot];
-    var cff = prev_skel_anim.current_frame_float;
-    var cff_int = Math.floor(cff);
+    cff = prev_skel_anim.current_frame_float;
+    cff_int = Math.floor(cff);
 
     prev_skel_anim.current_frame_float = cff_int + frame_factor;
 }
 
 function recalculate_armature_anim_slots(obj, overriden_slot) {
 
-    var skeletal_slots = obj.render.two_last_skeletal_slots;
+    var skeletal_slots = obj.render.blend_skel_slots;
 
     var last_skel_slot = skeletal_slots[1];
 
@@ -1045,7 +1077,7 @@ function node_name_from_param_name(param_name, name_list) {
     return full_name;
 }
 
-function calc_nodemat_anim_data(obj, name_list, action) {
+function calc_nodemat_anim_data(obj, name_list, action, is_world_action) {
 
     var val_inds = [];
     var values = [];
@@ -1064,8 +1096,9 @@ function calc_nodemat_anim_data(obj, name_list, action) {
                 var batch = batches[j];
 
                 // if mat name is not specified, process all suitable materials
-                if (mat_name && batch.material_names.indexOf(mat_name) == -1)
-                    continue;
+                if (!is_world_action)
+                    if (mat_name && batch.material_names.indexOf(mat_name) == -1)
+                        continue;
 
                 var val_ind_pairs = batch.node_value_inds;
                 var rgb_ind_pairs = batch.node_rgb_inds;
@@ -1121,18 +1154,6 @@ function calc_obj_anim_data(obj, action, tsr) {
         anim_quats.push(tsr.subarray(i*8 + 4, i*8 + 8));
     }
     return {trans: anim_trans, quats: anim_quats};
-}
-
-function is_material_action(action) {
-
-    var act_render = action._render;
-
-    for (var param in act_render.params)
-        if (param.indexOf("nodes") != -1) {
-            return true;
-        }
-
-    return false;
 }
 
 function animate(obj, elapsed, slot_num, force_update) {
@@ -1218,8 +1239,8 @@ function animate(obj, elapsed, slot_num, force_update) {
             var tsr = _tsr_tmp;
             m_tsr.set_sep(trans, scale, quat, tsr);
             m_tsr.multiply(obj.pinverse_tsr, tsr, tsr);
-            m_tsr.get_trans_value(tsr, trans);
-            m_tsr.get_quat_value(tsr, quat);
+            m_tsr.get_trans(tsr, trans);
+            m_tsr.get_quat(tsr, quat);
             scale = m_tsr.get_scale(tsr);
         }
 
@@ -1317,6 +1338,11 @@ function animate(obj, elapsed, slot_num, force_update) {
                 node_batches[j].node_rgbs[3 * ind + 2] = curr[2];
             }
         }
+
+        // force sky redrawing
+        if (m_obj_util.is_world(obj))
+            m_scs.update_sky_texture(obj);
+
         break;
 
     case OBJ_ANIM_TYPE_LIGHT:
@@ -1357,7 +1383,7 @@ function animate(obj, elapsed, slot_num, force_update) {
 
         var scenes_data = obj.scenes_data;
 
-        var subs = m_scs.get_subs(scenes_data[0].scene, "MAIN_OPAQUE");
+        var subs = m_scs.get_subs(scenes_data[0].scene, m_subs.MAIN_OPAQUE);
 
         var energy = anim_slot.energy;
         if (mask[AEM_ENERGY]) {
@@ -1536,10 +1562,9 @@ function animate_skinned_objs(render, anim_slot, frame, frame_next) {
  */
 function mix_skeletal_animation(obj, elapsed) {
     var render = obj.render;
-
     var mix_factor = render.anim_mix_factor;
 
-    var skeletal_slots = render.two_last_skeletal_slots;
+    var skeletal_slots = render.blend_skel_slots;
 
     var ind_0 = skeletal_slots[0];
     var ind_1 = skeletal_slots[1];
@@ -1552,7 +1577,7 @@ function mix_skeletal_animation(obj, elapsed) {
         // penult anim
         var skeletal_slot_0 = obj.anim_slots[ind_0];
 
-        if (skeletal_slot_0.play || elapsed == 0) {
+        if (skeletal_slot_0.play || elapsed == 0 || render.mix_with_current) {
 
             var finfo_0 = action_anim_finfo(skeletal_slot_0);
 
@@ -1572,7 +1597,7 @@ function mix_skeletal_animation(obj, elapsed) {
     // last anim
     var skeletal_slot_1 = obj.anim_slots[ind_1];
 
-    if (skeletal_slot_1.play || elapsed == 0) {
+    if (skeletal_slot_1.play || elapsed == 0 || render.mix_with_current) {
 
         var finfo_1 = action_anim_finfo(skeletal_slot_1);
 
@@ -1591,51 +1616,193 @@ function mix_skeletal_animation(obj, elapsed) {
     var quats_next_1 = skeletal_slot_1.quats[frame_next_1];
     var trans_prev_1 = skeletal_slot_1.trans[frame_1];
     var trans_next_1 = skeletal_slot_1.trans[frame_next_1];
-
-    if (mix_factor == 1) {
+    if (mix_factor == 1 && !render.mix_with_current) {
         render.quats_before.set(quats_prev_1);
         render.quats_after.set(quats_next_1);
         render.trans_before.set(trans_prev_1);
         render.trans_after.set(trans_next_1);
-    } else if (mix_factor == 0) {
+    } else if (mix_factor == 0 && !render.mix_with_current) {
         render.quats_before.set(quats_prev_0);
         render.quats_after.set(quats_next_0);
         render.trans_before.set(trans_prev_0);
         render.trans_after.set(trans_next_0);
     } else {
-        for (var i = 0; i < quats_prev_0.length; i+=4) {
-            var quat1 = _quat4_tmp;
-            var quat2 = _quat4_tmp2;
-
-            // init quats_before
-            for (var j = 0; j < 4; j++) {
-                quat1[j] = quats_prev_0[i + j];
-                quat2[j] = quats_prev_1[i + j];
+        var bone_pointers = render.bone_pointers;
+        if (render.mix_with_current && !render.trans_curr && !render.quats_curr) {
+            render.trans_curr = new Float32Array(render.trans_before.length);
+            render.quats_curr = new Float32Array(render.quats_before.length);
+            for (var bone_name in bone_pointers) {
+                var bone_pointer = bone_pointers[bone_name];
+                if (!bone_pointer.parent_bone_ptr)
+                    check_mix_with_current(render, bone_pointer);
             }
-
-            m_quat.slerp(quat1, quat2, mix_factor, quat1);
-            // write into buffer
-            for (var j = 0; j < 4; j++)
-                render.quats_before[i + j] = quat1[j];
-
-            // init quats_after
-            for (var j = 0; j < 4; j++) {
-                quat1[j] = quats_next_0[i + j];
-                quat2[j] = quats_next_1[i + j];
-            }
-
-            m_quat.slerp(quat1, quat2, mix_factor, quat1);
-            // write into buffer
-            for (var j = 0; j < 4; j++)
-                render.quats_after[i + j] = quat1[j];
         }
-        m_util.blend_arrays(trans_prev_0, trans_prev_1, mix_factor,
-                            render.trans_before);
-        m_util.blend_arrays(trans_next_0, trans_next_1, mix_factor,
-                            render.trans_after);
+        for (var bone_name in bone_pointers) {
+            var bone_pointer = bone_pointers[bone_name];
+            if (!bone_pointer.parent_bone_ptr)
+                blend_two_anim(render, bone_pointer, skeletal_slot_0, skeletal_slot_1,
+                        frame_0, frame_next_0, frame_1, frame_next_1);
+        }
     }
     m_trans.update_transform(obj);
     m_armat.update_skinned_renders(obj);
+}
+
+function blend_two_anim(render, bone_pointer, slot_0, slot_1, frame_0, frame_next_0,
+        frame_1, frame_next_1) {
+    var parent_bone_ptr = bone_pointer.parent_bone_ptr;
+    var mix_factor = render.anim_mix_factor;
+
+    var quat1_frame = _quat4_tmp;
+    var quat2_frame = _quat4_tmp2;
+
+    var trans1_frame = _vec4_tmp;
+    var trans2_frame = _vec4_tmp2;
+
+    var quat1_frame_n = _quat4_tmp3;
+    var quat2_frame_n = _quat4_tmp4;
+
+    var trans1_frame_n = _vec4_tmp3;
+    var trans2_frame_n = _vec4_tmp4;
+
+    var i = bone_pointer.bone_index * 4;
+
+    var b_sp_quats1_frame = slot_1.bone_space_quats[frame_1];
+    var b_sp_trans1_frame = slot_1.bone_space_trans[frame_1];
+
+    var b_sp_quats1_frame_n = slot_1.bone_space_quats[frame_next_1];
+    var b_sp_trans1_frame_n = slot_1.bone_space_trans[frame_next_1];
+
+    if (!render.mix_with_current) {
+        var b_sp_quats0_frame = slot_0.bone_space_quats[frame_0];    
+        var b_sp_trans0_frame = slot_0.bone_space_trans[frame_0];
+
+        var b_sp_quats0_frame_n = slot_0.bone_space_quats[frame_next_0];
+        var b_sp_trans0_frame_n = slot_0.bone_space_trans[frame_next_0];
+    }
+    // init quats_before and after
+    for (var j = 0; j < 4; j++) {
+        quat2_frame[j] = b_sp_quats1_frame[i + j];
+        trans2_frame[j] = b_sp_trans1_frame[i + j];
+
+        quat2_frame_n[j] = b_sp_quats1_frame_n[i + j];
+        trans2_frame_n[j] = b_sp_trans1_frame_n[i + j];
+
+        if (render.mix_with_current) {
+            quat1_frame[j] = render.quats_curr[i + j];
+            trans1_frame[j] = render.trans_curr[i + j];
+
+            quat1_frame_n[j] = render.quats_curr[i + j];
+            trans1_frame_n[j] = render.trans_curr[i + j];
+        } else {
+            quat1_frame[j] = b_sp_quats0_frame[i + j];
+            trans1_frame[j] = b_sp_trans0_frame[i + j];
+
+            quat1_frame_n[j] = b_sp_quats0_frame_n[i + j];
+            trans1_frame_n[j] = b_sp_trans0_frame_n[i + j];
+        }
+    }
+    // before
+    m_quat.slerp(quat1_frame, quat2_frame, mix_factor, quat1_frame);
+    m_util.blend_arrays(trans1_frame, trans2_frame, mix_factor, trans1_frame);
+
+    m_tsr.set_transcale(trans1_frame, _tsr_tmp);
+    m_tsr.set_quat(quat1_frame, _tsr_tmp);
+    if (parent_bone_ptr)
+        m_tsr.multiply(parent_bone_ptr.tsr_local_pose_b, _tsr_tmp, _tsr_tmp);
+    m_tsr.copy(_tsr_tmp, bone_pointer.tsr_local_pose_b);
+    m_tsr.multiply(_tsr_tmp, bone_pointer.tsr_local_rest_i, _tsr_tmp);
+
+    m_tsr.get_transcale(_tsr_tmp, trans1_frame);
+    m_tsr.get_quat(_tsr_tmp, quat1_frame);
+
+
+    // after
+    m_quat.slerp(quat1_frame_n, quat2_frame_n, mix_factor, quat1_frame_n);
+    m_util.blend_arrays(trans1_frame_n, trans2_frame_n, mix_factor, trans1_frame_n);
+
+    m_tsr.set_transcale(trans1_frame_n, _tsr_tmp);
+    m_tsr.set_quat(quat1_frame_n, _tsr_tmp);
+    if (parent_bone_ptr)
+        m_tsr.multiply(parent_bone_ptr.tsr_local_pose_a, _tsr_tmp, _tsr_tmp);
+    m_tsr.copy(_tsr_tmp, bone_pointer.tsr_local_pose_a);
+    m_tsr.multiply(_tsr_tmp, bone_pointer.tsr_local_rest_i, _tsr_tmp);
+
+    m_tsr.get_transcale(_tsr_tmp, trans1_frame_n);
+    m_tsr.get_quat(_tsr_tmp, quat1_frame_n);
+
+    for (var j = 0; j < 4; j++) {
+        render.quats_before[i + j] = quat1_frame[j];
+        render.trans_before[i + j] = trans1_frame[j];
+        render.quats_after[i + j] = quat1_frame_n[j];
+        render.trans_after[i + j] = trans1_frame_n[j];
+    }
+
+    var descend_bones_ptrs = bone_pointer.descend_bones_ptrs;
+    for (var j = 0; j < descend_bones_ptrs.length; j++) {
+        var child_bone_pointer = descend_bones_ptrs[j];
+        blend_two_anim(render, child_bone_pointer, slot_0, slot_1, frame_0, frame_next_0,
+            frame_1, frame_next_1)
+    }
+}
+
+function check_mix_with_current(render, bone_pointer) {
+    var i = bone_pointer.bone_index * 4;
+    var parent_bone_ptr = bone_pointer.parent_bone_ptr;
+    var mix_factor = render.anim_mix_factor;
+
+    var trans_frame_0 = _vec4_tmp;
+    var quat_frame_0 = _quat4_tmp;
+
+    var trans_frame_1 = _vec4_tmp2;
+    var quat_frame_1 = _quat4_tmp2;
+
+    for (var j = 0; j < 4; j++) {
+        trans_frame_0[j] = render.trans_before[i + j];
+        quat_frame_0[j] = render.quats_before[i + j];
+        trans_frame_1[j] = render.trans_after[i + j];
+        quat_frame_1[j] = render.quats_after[i + j];
+    }
+    // before
+    m_tsr.set_transcale(trans_frame_0, _tsr_tmp);
+    m_tsr.set_quat(quat_frame_0, _tsr_tmp);
+
+    m_tsr.multiply(_tsr_tmp, bone_pointer.tsr_local_rest, _tsr_tmp);
+    m_tsr.copy(_tsr_tmp, bone_pointer.tsr_local_pose_b);
+    if (parent_bone_ptr) {
+        m_tsr.invert(parent_bone_ptr.tsr_local_pose_b, _tsr_tmp2);
+        m_tsr.multiply(_tsr_tmp2, _tsr_tmp, _tsr_tmp);
+    }
+    m_tsr.get_transcale(_tsr_tmp, trans_frame_0);
+    m_tsr.get_quat(_tsr_tmp, quat_frame_0);
+
+
+    // after
+    m_tsr.set_transcale(trans_frame_1, _tsr_tmp);
+    m_tsr.set_quat(quat_frame_1, _tsr_tmp);
+
+    m_tsr.multiply(_tsr_tmp, bone_pointer.tsr_local_rest, _tsr_tmp);
+    m_tsr.copy(_tsr_tmp, bone_pointer.tsr_local_pose_a);
+    if (parent_bone_ptr) {
+        m_tsr.invert(parent_bone_ptr.tsr_local_pose_a, _tsr_tmp2);
+        m_tsr.multiply(_tsr_tmp2, _tsr_tmp, _tsr_tmp);
+    }
+    m_tsr.get_transcale(_tsr_tmp, trans_frame_1);
+    m_tsr.get_quat(_tsr_tmp, quat_frame_1);
+
+    m_quat.slerp(quat_frame_0, quat_frame_1, mix_factor, quat_frame_0);
+    m_util.blend_arrays(trans_frame_0, trans_frame_1, mix_factor, trans_frame_0);
+
+    for (var j = 0; j < 4; j++) {
+        render.quats_curr[i + j] = quat_frame_0[j];
+        render.trans_curr[i + j] = trans_frame_0[j];
+
+    }
+    var descend_bones_ptrs = bone_pointer.descend_bones_ptrs;
+    for (var j = 0; j < descend_bones_ptrs.length; j++) {
+        var child_bone_pointer = descend_bones_ptrs[j];
+        check_mix_with_current(render, child_bone_pointer);
+    }
 }
 
 function process_mix_factor(obj, elapsed) {
@@ -1646,6 +1813,9 @@ function process_mix_factor(obj, elapsed) {
     var speed = render.anim_mix_factor_change_speed;
     if (speed == 0)
         return;
+
+    if (render.mix_with_current && !render.trans_curr && !render.quats_curr)
+        cur_mix_factor = render.anim_mix_factor = 0.0;
 
     var dest_mix_factor = render.anim_destination_mix_factor;
 
@@ -1658,6 +1828,15 @@ function process_mix_factor(obj, elapsed) {
     else {
         render.anim_mix_factor = render.anim_destination_mix_factor;
         render.anim_mix_factor_change_speed = 0;
+        if (render.anim_mix_cb) {
+            render.anim_mix_cb();
+            render.anim_mix_cb = null;
+        }
+        if (render.mix_with_current) {
+            render.trans_curr = null;
+            render.quats_curr = null;
+            render.mix_with_current = false;
+        }
     }
 }
 
@@ -1668,6 +1847,8 @@ function process_mix_factor(obj, elapsed) {
 function calc_pose_data_frames(action, bone_pointers) {
     var trans_frames = [];
     var quats_frames = [];
+    var bone_space_trans_frames = [];
+    var bone_space_quats_frames = [];
 
     // for every pierced frame setup pose and calc pose data
     var num_pierced = action._render.num_pierced;
@@ -1693,9 +1874,12 @@ function calc_pose_data_frames(action, bone_pointers) {
 
         trans_frames.push(pose_data.trans);
         quats_frames.push(pose_data.quats);
+        bone_space_trans_frames.push(pose_data.bone_space_trans);
+        bone_space_quats_frames.push(pose_data.bone_space_quats);
     }
 
-    return {trans: trans_frames, quats: quats_frames};
+    return {trans: trans_frames, quats: quats_frames,
+        bone_space_trans:bone_space_trans_frames, bone_space_quats:bone_space_quats_frames};
 }
 
 exports.calc_pose_data = calc_pose_data;
@@ -1706,6 +1890,8 @@ function calc_pose_data(bone_pointers) {
 
     var trans = [];
     var quats = [];
+    var bone_space_trans = [];
+    var bone_space_quats = [];
 
     var t = new Float32Array(4);
     var q = new Float32Array(4);
@@ -1714,16 +1900,21 @@ function calc_pose_data(bone_pointers) {
         var bpointer = bone_pointers[bone_name];
 
         calc_pose_bone(bpointer, t, q);
-
         var bone_index = bpointer.bone_index;
+
+        m_tsr.multiply(bpointer.tsr_bone_rest, bpointer.tsr_basis, _tsr_tmp);
+
         for (var i = 0; i < 4; i++) {
             /* quat, tran vec4 */
             var comp_index = 4 * bone_index + i;
             trans[comp_index] = t[i];
             quats[comp_index] = q[i];
+            bone_space_trans[comp_index] = _tsr_tmp[i];
+            bone_space_quats[comp_index] = _tsr_tmp[i + 4];
         }
     }
-    return {trans: trans, quats: quats};
+    return {trans: trans, quats: quats,
+        bone_space_trans: bone_space_trans, bone_space_quats: bone_space_quats};
 }
 
 /**
@@ -1740,7 +1931,6 @@ function calc_skinned_pose_data_frames(armobj_pose_data_frames,
     var armobj_quats_frames = armobj_pose_data_frames.quats;
 
     for (var i = 0; i < armobj_trans_frames.length; i++) {
-        var armobj_pose_data = armobj_pose_data_frames[i];
         var pose_data = extract_skinned_pose_data(armobj_trans_frames[i],
                                                   armobj_quats_frames[i],
                                                   bone_skinning_info);
@@ -1757,9 +1947,6 @@ exports.extract_skinned_pose_data = extract_skinned_pose_data;
 function extract_skinned_pose_data(arm_trans, arm_quats, bone_skinning_info) {
     var trans = [];
     var quats = [];
-
-    var t = new Float32Array(4);
-    var q = new Float32Array(4);
 
     for (var bone_name in bone_skinning_info) {
         var skininfo = bone_skinning_info[bone_name];
@@ -2081,7 +2268,6 @@ function is_object_action(action) {
 function set_tsr_act_channels_mask(fcurves, mask) {
     mask[0] = mask[1] = mask[2] = 0;
     for (var data_path in fcurves) {
-        var channels = fcurves[data_path];
         if (data_path == "location")
             mask[0] = 1;
         else if (data_path == "rotation_quaternion")
@@ -2094,7 +2280,6 @@ function set_tsr_act_channels_mask(fcurves, mask) {
 function set_lamp_act_channels_mask(fcurves, mask) {
     mask[0] = mask[1] = 0;
     for (var data_path in fcurves) {
-        var channels = fcurves[data_path];
         if (data_path == "energy")
             mask[0] = 1;
         else if (data_path == "color")
@@ -2107,7 +2292,6 @@ function set_environment_act_channels_mask(fcurves, mask) {
     mask[AEM_FOG_INTENSITY] = mask[AEM_FOG_DEPTH] = mask[AEM_FOG_START] = 0;
     mask[AEM_FOG_HEIGHT] = mask[AEM_FOG_COLOR] = 0;
     for (var data_path in fcurves) {
-        var channels = fcurves[data_path];
         if (data_path == "light_settings.environment_energy")
             mask[AEM_ENERGY] = 1;
         else if (data_path == "horizon_color")
@@ -2144,8 +2328,6 @@ exports.approximate_curve = function(fcurve, fcurve_bin_data, points, bflags,
     var v2 = new Float32Array(2);
     var v3 = new Float32Array(2);
     var v4 = new Float32Array(2);
-
-    var step = 1 / cfg_ani.frame_steps;
 
     var first_frame = fcurve_bin_data[1];
     var first_frame_value = fcurve_bin_data[2];
@@ -2291,36 +2473,36 @@ function correct_bezpart(v1, v2, v3, v4) {
     var h2 = [];
     var len1, len2, len, fac;
 
-	// calc handle deltas
-	h1[0] = v1[0] - v2[0];
-	h1[1] = v1[1] - v2[1];
+    // calc handle deltas
+    h1[0] = v1[0] - v2[0];
+    h1[1] = v1[1] - v2[1];
 
-	h2[0] = v4[0] - v3[0];
-	h2[1] = v4[1] - v3[1];
+    h2[0] = v4[0] - v3[0];
+    h2[1] = v4[1] - v3[1];
 
-	// calculate distances:
-	// len- span of time between keyframes
-	// len1	- length of handle of start key
-	// len2	- length of handle of end key
-	len = v4[0]- v1[0];
-	len1 = Math.abs(h1[0]);
-	len2 = Math.abs(h2[0]);
+    // calculate distances:
+    // len- span of time between keyframes
+    // len1    - length of handle of start key
+    // len2    - length of handle of end key
+    len = v4[0]- v1[0];
+    len1 = Math.abs(h1[0]);
+    len2 = Math.abs(h2[0]);
 
-	// if the handles have no length, no need to do any corrections
-	if ((len1 + len2) == 0)
-		return;
+    // if the handles have no length, no need to do any corrections
+    if ((len1 + len2) == 0)
+        return;
 
-	// the two handles cross over each other, so force them
-	// apart using the proportion they overlap
-	if (len1 + len2 > len) {
-		fac = len / (len1 + len2);
+    // the two handles cross over each other, so force them
+    // apart using the proportion they overlap
+    if (len1 + len2 > len) {
+        fac = len / (len1 + len2);
 
-		v2[0] = v1[0] - fac * h1[0];
-		v2[1] = v1[1] - fac * h1[1];
+        v2[0] = v1[0] - fac * h1[0];
+        v2[1] = v1[1] - fac * h1[1];
 
-		v3[0] = v4[0] - fac * h2[0];
-		v3[1] = v4[1] - fac * h2[1];
-	}
+        v3[0] = v4[0] - fac * h2[0];
+        v3[1] = v4[1] - fac * h2[1];
+    }
 }
 
 function bezier(x, v1, v2, v3, v4) {
@@ -2544,14 +2726,14 @@ exports.remove_actions = function(data_id) {
 
 exports.apply_to_first_empty_slot = function(obj, name) {
     if (!obj.anim_slots.length) {
-        if (apply(obj, name, SLOT_0))
+        if (apply(obj, null, name, SLOT_0))
             return SLOT_0;
         else
             return -1;
     }
     for (var i = 0; i < obj.anim_slots.length; i++) {
         if (!obj.anim_slots[i]) {
-            if (apply(obj, name, i))
+            if (apply(obj, null, name, i))
                 return i;
             else
                 return -1;
@@ -2559,12 +2741,33 @@ exports.apply_to_first_empty_slot = function(obj, name) {
     }
 }
 
-exports.set_skel_mix_factor = function(obj, factor, time) {
-    var cur_mix_factor = obj.render.anim_mix_factor;
+exports.set_skel_mix_factor = function(obj, factor, time, mix_cb) {
+    var render = obj.render;
+    var cur_mix_factor = render.anim_mix_factor;
     var speed = (factor - cur_mix_factor) / time;
 
-    obj.render.anim_mix_factor_change_speed = speed;
-    obj.render.anim_destination_mix_factor = factor;
+    render.anim_mix_factor_change_speed = speed;
+    render.anim_destination_mix_factor = factor;
+    if (render.anim_mix_cb)
+        render.anim_mix_cb();
+    render.anim_mix_cb = mix_cb;
+}
+
+exports.mix_from_cur_pos = function(obj, slot, time, mix_cb) {
+    var render = obj.render;
+    render.blend_skel_slots[1] = slot;
+
+    var speed = 1.0 / time;
+    render.anim_mix_factor_change_speed = speed;
+    render.anim_destination_mix_factor = 1.0;
+
+    if (render.anim_mix_cb)
+        render.anim_mix_cb();
+    render.anim_mix_cb = mix_cb;
+
+    render.trans_curr = null;
+    render.quats_curr = null;
+    render.mix_with_current = true;
 }
 
 exports.set_speed = function(obj, speed, slot_num) {
@@ -2687,7 +2890,7 @@ function slot_by_anim_type(obj, anim_name) {
         if (get_vertex_anim_by_name(obj, anim_name))
             anim_type = OBJ_ANIM_TYPE_VERTEX;
         else {
-            var pdata = get_particles_data_by_name(obj, name);
+            var pdata = get_particles_data_by_name(obj, anim_name);
             if (pdata && pdata.p_type == "EMITTER")
                 anim_type = OBJ_ANIM_TYPE_PARTICLES;
         }

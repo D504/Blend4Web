@@ -26,7 +26,7 @@
 
   * 显卡和驱动程序
 
-* Engine Features
+* 引擎功能
 
 * 安装和更新
 
@@ -36,27 +36,25 @@
 
 * 工作流程
 
-  * 创作场景
+  * 创建一个新项目
+
+  * 创建场景
+
+  * 准备一个在Blend4Web中使用的场景
 
   * 导出场景
 
-  * 在浏览器显示场景
-
   * 应用程序开发
 
-* 项目管理器
+  * 构建项目
+
+  * 项目部署
+
+* 项目管理
 
   * 项目管理器
 
-  * 项目创建向导
-
-  * Creating a Web Player Application
-
-  * 项目信息
-
-  * 项目导入
-
-  * 项目导出
+  * 高级项目管理
 
 * 场景预览器
 
@@ -82,9 +80,9 @@
 
 * 插件
 
-  * Local Development Server
+  * 本地开发服务器
 
-  * Running Viewer and Demos
+  * 运行浏览器和演示
 
   * 输出格式
 
@@ -118,63 +116,71 @@
 
   * 设置
 
-  * 设置
+  * Object Constraints
+
+  * 锚设置
 
   * 物体变换API
 
-  * Get Object API
+  * 获取物体API
 
-  * Object Selection
+  * 物体选择
 
-  * Copying Objects (Instancing)
+  * 复制物体（实例化）
 
   * 四元数
 
-  * Blender和Blend4Web的坐标系之间的差异
-
   * 通过TSR矢量移动
+
+  * 线渲染
+
+  * 层次细节
 
 * 网格
 
-  * Static and Dynamic Meshes
+  * 静态和动态网格
 
   * 设置
 
   * 变形
 
-* Normal Editor
+* 法线编辑器
 
-  * Main Features of the Normal Editor
+  * 法线编辑器主要功能
 
-  * Interface of the Vertex Normal Editor
+  * 界面
 
-  * Activate
+  * 启用
 
-  * Show Normals
+  * 显示法线
 
-  * Rotation
+  * Rotate
 
-  * Split Normals
+  * Scale
 
-  * Average Split
+  * 绝对和偏移模式
 
-  * Restore
+  * 分割法线
 
-  * Tree, Foliage and Face
+  * 平均
 
-  * Copy/Paste
+  * 恢复
 
-  * Copy From Mesh
+  * 3D Cursor, Axis and Face
 
-* Camera
+  * Copy（复制）/Paste（粘贴）
 
-  * Move Styles and General Settings
+  * 从网格复制
 
-  * Limiting the Camera Movement
+* 相机
 
-  * Viewport Alignment
+  * 移动方式和一般设置
 
-  * Camera Controls API
+  * 限制摄像机的运动
+
+  * 视口对齐
+
+  * 相机控制API
 
 * 材质
 
@@ -192,13 +198,17 @@
 
   * 光晕材质
 
-* Material Library
+  * 材质API
 
-  * Library Structure
+  * 材质继承
 
-  * Material Structure
+* 材质库
 
-  * Adding Material to a Scene
+  * 库结构
+
+  * 材质结构
+
+  * 添加材质到一个场景
 
 * 节点材质
 
@@ -206,43 +216,47 @@
 
   * 游戏引擎特定节点
 
-* Logic Editor
+  * Cycles 节点
 
-  * Basics
+  * Limitations
 
-  * Control Flow
+* 逻辑编辑器
 
-  * Animation
+  * 基础
 
-  * Camera
+  * 控制流
 
-  * Object
+  * 动画
 
-  * Operations
+  * 相机（Camera）
 
-  * Sound
+  * 物体
 
-  * Network
+  * 操作
 
-  * Debug
+  * 声音
 
-  * Deprecated
+  * 网络
 
-  * Layout
+  * 调试
 
-  * Debugging
+  * 已过时
 
-* Lighting, Shadows and Background
+  * 布局
 
-  * Shading Types
+  * 调试中
 
-  * Lighting with Light Sources
+* 照明、 阴影和背景
 
-  * Environment Lighting (Ambient)
+  * 着色类型
 
-  * Shadows
+  * 用光源照明
 
-  * Background
+  * 环境照明（环境）
+
+  * 阴影
+
+  * 背景
 
 * 后期处理效果
 
@@ -268,7 +282,7 @@
 
   * 附加设置
 
-  * HMD Settings
+  * HMD设置
 
 * 纹理
 
@@ -296,21 +310,21 @@
 
   * 特殊的纹理类型
 
-* Particle System. Fluids
+* 粒子系统,流体
 
-  * Usage
+  * 用法
 
-  * Setup
+  * 设置
 
-  * Textures in Particle Systems
+  * 粒子系统中的纹理
 
-* Particle System. Instancing
+* 粒子系统.实例化
 
-  * Particle System Setup
+  * 粒子系统设置
 
-  * Grass
+  * 草地
 
-  * Tree Leaves
+  * 树叶
 
 * 动画
 
@@ -330,15 +344,15 @@
 
   * 值和 RGB 节点的动画
 
-* Outdoor Effects
+* 室外效果
 
-  * Water
+  * 水
 
-  * Atmosphere
+  * 大气
 
-  * Lens Flare
+  * 镜头光晕
 
-  * Wind
+  * 风
 
 * 色彩管理
 
@@ -358,67 +372,75 @@
 
   * 音源设置
 
+  * 调音台
+
   * 处理和解码
 
-* Physics
+* 物理
 
-  * Preparing for Use
+  * 使用准备
 
-  * Static Physics Type
+  * 静态物理类型
 
-  * Dynamic Physics Type
+  * 动态物理类型
 
-  * Constraints
+  * 约束
 
-  * Wheeled Vehicles
+  * 轮式的车辆
 
-  * Floating Objects
+  * 浮动物体
 
-  * Floating Vehicles aka Watercrafts
+  * 浮动交通工具或叫船舶
 
-  * Character Objects
+  * 角色
 
-  * Use in Applications
+  * 导航网格
 
-* For Application Developers
+  * 在应用程序中的使用
 
-  * Project Management
+* 对应用程序开发人员
 
-  * Advanced Project Management
+  * 应用程序开发
 
-  * Application Programming
+  * 背景透明
 
-  * Resource Conversion
+  * 资源转换
 
-  * Code Examples
+  * GZIP压缩
 
-  * Event-Driven Model
+  * 示例代码
 
-  * SDK File Structure
+  * 加载应用程序资产
 
-  * Loading Local Resources
+  * 事件驱动模型
 
-  * Quality Profiles
+  * SDK文件结构
 
-  * Non-FullScreen Web Apps
+  * 加载本地资源
 
-* For Engine Developers
+  * 品质配置
 
-  * Coding Style
+  * 非标准画布位置和方向
 
-  * Building the Engine
+  * 移动 Web 应用程序
 
-  * Building the Addon
+* 对于引擎开发者
 
-  * Dependencies
+  * 代码样式
 
-  * Naming Functions and Variables
+  * 构建引擎
 
-  * Debugging
+  * 构建插件
 
-  * Shader Compilation
+  * 依赖
 
-  * Updating Add-on Translations
+  * 命名函数和变量
+
+  * 调试中
+
+  * 着色器编译
+
+  * 更新插件翻译
 
 * 团队工作。使用 Git
 
@@ -446,17 +468,33 @@
 
 * 存在的问题及解决方案
 
-  * WebGL Support
+  * WebGL的支持
 
   * 启动时的问题
 
   * WebGL的无法初始化
 
-  * More In-Depth Troubleshooting
+  * 更深入的故障排除
 
   * 已知问题
 
-* Release Notes
+* 发布说明
+
+  * v17.06
+
+  * v17.04
+
+  * v17.02
+
+  * v16.12
+
+  * v16.11
+
+  * v16.10
+
+  * v16.09
+
+  * v16.08
 
   * v16.07
 

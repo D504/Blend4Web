@@ -6,7 +6,8 @@ from os.path import join, normpath
 from html.parser import HTMLParser
 
 ROOT_DIR = normpath(join(os.path.abspath(os.path.dirname(__file__)), ".."))
-DEPLOY_DIR = join(ROOT_DIR, "deploy")
+ASSETS_DIR = join(ROOT_DIR, "deploy", "assets")
+
 BLENDER_CLI_DIR = join(ROOT_DIR, "scripts", "blender")
 
 REEXPORTER = join(BLENDER_CLI_DIR, "cli_exporter.py")
@@ -112,7 +113,7 @@ def print_report(type, preamble, *messages):
 
 def process_json(path):
     try:
-        json_data = open(path)
+        json_data = open(path, encoding="utf-8")
 
         try:
             data = json.load(json_data)
@@ -183,7 +184,7 @@ def report_blender_warnings(output, blend):
             report("WARN", "[ERROR]", blend, line.split("Error: ")[-1])
 
 def process_html(path):
-    html_file = open(path)
+    html_file = open(path, encoding="utf-8")
     html_data  = html_file.read()
 
     html_parser = FindMeta()
@@ -213,7 +214,7 @@ def process_html(path):
     if _operation == "report":
         report_blender_warnings(output, blend)
 
-    saved_path = normpath(output.split("B4W Export HTML Path = ")[1].split("\n")[0])
+    saved_path = normpath(output.split("B4W Export HTML Path = ")[1].split("\n")[0].strip("\r"))
 
     if not saved_path == os.path.abspath(path):
         report("ERROR", "[WRONG PATH]", path, blend)
@@ -341,7 +342,7 @@ if __name__ == "__main__":
 
     start = time.time()
 
-    process_files("blender", DEPLOY_DIR, ROOT_DIR)
+    process_files("blender", ASSETS_DIR, ASSETS_DIR)
 
     print("Finished after:", round(time.time() - start), "seconds")
 

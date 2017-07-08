@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -28,18 +27,21 @@ b4w.module["__textures"] = function(exports, require) {
 
 var m_compat    = require("__compat");
 var m_cfg       = require("__config");
-var m_dds       = require("__dds");
+var m_texcomp   = require("__texcomp");
 var m_debug     = require("__debug");
 var m_ext       = require("__extensions");
 var m_print     = require("__print");
 var m_time      = require("__time");
 var m_util      = require("__util");
 var m_ren       = require("__renderer");
+var m_objs      = require("__objects");
 var m_obj_util  = require("__obj_util");
 var m_curve     = require("__curve");
 var m_vec3      = require("__vec3");
+var m_scs       = require("__scenes");
 
 var cfg_def = m_cfg.defaults;
+var cfg_lim = m_cfg.context_limits;
 var cfg_sfx = m_cfg.sfx;
 
 var _tmpcanvas = null;
@@ -73,6 +75,7 @@ exports.CURVE_NODES_TEXT_SIZE = 128;
 exports.COLORRAMP_TEXT_SIZE = 128;
 exports.PART_COLORRAMP_TEXT_SIZE = 128;
 
+var _img_textures_cache = [];
 var _canvas_textures_cache = {};
 var _video_textures_cache = {};
 
@@ -84,9 +87,28 @@ var _gl = null;
 var LEVELS;
 var BEZIER_ROOT_PRECISION = 0.001;
 var FLT_EPSILON = 0.00000001;
+
+var CUBE_MAP_TARGETS = [
+    "TEXTURE_CUBE_MAP_POSITIVE_X",
+    "TEXTURE_CUBE_MAP_NEGATIVE_X",
+    "TEXTURE_CUBE_MAP_POSITIVE_Y",
+    "TEXTURE_CUBE_MAP_NEGATIVE_Y",
+    "TEXTURE_CUBE_MAP_POSITIVE_Z",
+    "TEXTURE_CUBE_MAP_NEGATIVE_Z"
+];
+
+/* offsets for Blender-packed Environment map
+ ----------------
+ | -X | -Y | +X |
+ ----------------
+ | -Z | +Z | +Y |
+ ----------------
+*/
+var CUBE_MAP_OFFSETS = [[2, 0], [0, 0], [2, 1],
+                        [1, 0], [1, 1], [0, 1]];
+
 /**
  * Setup WebGL context
- * @param gl WebGL context
  */
 exports.setup_context = function(gl) {
     LEVELS = [
@@ -122,9 +144,20 @@ exports.update_canvas_context = function(id, data_id) {
         return false;
 }
 
+function get_framebuffer_tmp() {
+    if (!_w_framebuffer_tmp)
+        _w_framebuffer_tmp = _gl.createFramebuffer();
+    return _w_framebuffer_tmp;
+}
+
+function get_wtex_tmp() {
+    if (!_w_texture_tmp)
+        _w_texture_tmp = _gl.createTexture();
+    return _w_texture_tmp;
+}
+
 function init_texture() {
-    return {
-        name: "",
+    var texture = {
         type: 0,
 
         source: "",
@@ -132,7 +165,7 @@ function init_texture() {
         width: 0,
         height: 0,
         compress_ratio: 1,
-        allow_node_dds: true,
+        anisotropic_filtering: 0,
 
         source_size: 1024,
         enable_canvas_mipmapping: false,
@@ -148,6 +181,7 @@ function init_texture() {
         vtex_data_id: -1,
 
         video_file: null,
+        video_tex_name: "",
         movie_length: 0,
         fps: 0,
         frame_start: 0,
@@ -155,6 +189,9 @@ function init_texture() {
         frame_duration: 0,
         need_resize: false,
         scale_fac: 1.0,
+
+        use_mipmap: false,
+        mipmap_count: 0.0,
 
         seq_video: null,
         seq_movie_length: 0,
@@ -171,22 +208,138 @@ function init_texture() {
 
         repeat: true,
 
-        cleanup_gl_data_on_unload: true
+        img_full_filepath: "",
+
+        img_filepath: "",
+        img_uuid: "",
+        img_source: "",
+        img_name: "",
+        img_comp_method: "",
     };
+
+    return texture;
+}
+
+// NOTE: this operation puts texture into the image texture cache
+exports.append_img_info = append_img_info;
+function append_img_info(texture, image, dir_path) {
+    texture.img_uuid = image["uuid"];
+    texture.img_filepath = image["filepath"];
+    texture.img_source = image["source"];
+    texture.img_name = image["name"];
+    texture.img_full_filepath = m_util.normpath_preserve_protocol(
+                                            dir_path + image["filepath"]);
+    texture.img_comp_method = image._comp_method;
+
+    if (_img_textures_cache.indexOf(texture) == -1)
+        _img_textures_cache.push(texture);
+}
+
+function clone_texture(texture) {
+    var texture_new = init_texture();
+
+    texture_new.type = texture.type;
+    texture_new.anisotropic_filtering = texture.anisotropic_filtering;
+
+    texture_new.source = texture.source;
+    texture_new.source_id = texture.source_id;
+    texture_new.width = texture.width;
+    texture_new.height = texture.height;
+    texture_new.compress_ratio = texture.compress_ratio;
+
+    texture_new.source_size = texture.source_size;
+    texture_new.enable_canvas_mipmapping = texture.enable_canvas_mipmapping;
+    texture_new.canvas_context = texture.canvas_context;
+
+    texture_new.w_target = texture.w_target;
+    texture_new.w_texture = texture.w_texture;
+    texture_new.w_renderbuffer = texture.w_renderbuffer;
+
+    // movie properties
+    texture_new.is_movie = texture.is_movie;
+
+    texture_new.vtex_data_id = texture.vtex_data_id;
+
+    texture_new.video_file = texture.video_file;
+    texture_new.video_tex_name = texture.video_tex_name;
+    texture_new.movie_length = texture.movie_length;
+    texture_new.fps = texture.fps;
+    texture_new.frame_start = texture.frame_start;
+    texture_new.frame_offset = texture.frame_offset;
+    texture_new.frame_duration = texture.frame_duration;
+    texture_new.need_resize = texture.need_resize;
+    texture_new.scale_fac = texture.scale_fac;
+
+    texture_new.seq_video = texture.seq_video;
+    texture_new.seq_movie_length = texture.seq_movie_length;
+    texture_new.seq_fps = texture.seq_fps;
+    texture_new.seq_cur_frame = texture.seq_cur_frame;
+    texture_new.seq_video_played = texture.seq_video_played;
+    texture_new.seq_last_discrete_mark = texture.seq_last_discrete_mark;
+
+    texture_new.video_was_stopped = texture.video_was_stopped;
+
+    texture_new.use_auto_refresh = texture.use_auto_refresh;
+    texture_new.use_cyclic = texture.use_cyclic;
+    texture_new.use_nla = texture.use_nla;
+
+    texture_new.repeat = texture.repeat;
+
+    texture_new.img_filepath = texture.img_filepath;
+    texture_new.img_full_filepath = texture.img_full_filepath;
+    texture_new.img_uuid = texture.img_uuid;
+    texture_new.img_source = texture.img_source;
+    texture_new.img_name = texture.img_name;
+    texture_new.img_comp_method = texture.img_comp_method;
+
+    return texture_new;
+}
+
+function set_params_by_img_path(texture, path, full_path) {
+    var is_dds = path.indexOf(".dds") > -1;
+    var is_pvr = path.indexOf(".pvr") > -1;
+
+    if (is_dds)
+        texture.img_comp_method = "dds";
+    else if (is_pvr)
+        texture.img_comp_method = "pvr";
+    else
+        texture.img_comp_method = "";
+
+    texture.img_filepath = path;
+    texture.img_full_filepath = full_path;
+    texture.img_uuid = m_util.gen_uuid();
+    _img_textures_cache.push(texture);
+}
+
+function clone_w_texture(texture, texture_new) {
+    // NOTE: transfer parameters only
+    _gl.bindTexture(texture.w_target, texture.w_texture);
+    var texture_mag_filter = _gl.getTexParameter(texture.w_target, _gl.TEXTURE_MAG_FILTER);
+    var texture_min_filter = _gl.getTexParameter(texture.w_target, _gl.TEXTURE_MIN_FILTER);
+    var texture_wrap_s = _gl.getTexParameter(texture.w_target, _gl.TEXTURE_WRAP_S);
+    var texture_wrap_t = _gl.getTexParameter(texture.w_target, _gl.TEXTURE_WRAP_T);
+
+    texture_new.w_texture = _gl.createTexture();
+    _gl.bindTexture(texture_new.w_target, texture_new.w_texture);
+    _gl.texParameteri(texture_new.w_target, _gl.TEXTURE_MAG_FILTER, texture_mag_filter);
+    _gl.texParameteri(texture_new.w_target, _gl.TEXTURE_MIN_FILTER, texture_min_filter);
+    _gl.texParameteri(texture_new.w_target, _gl.TEXTURE_WRAP_S, texture_wrap_s);
+    _gl.texParameteri(texture_new.w_target, _gl.TEXTURE_WRAP_T, texture_wrap_t);
+
+    _gl.bindTexture(texture_new.w_target, null);
 }
 
 /**
  * Create empty b4w texture.
- * same format as bpy_texture._render
- * @param {String} name Texture name
- * @param type Texture type
  */
-exports.create_texture = function(name, type) {
+exports.create_texture = create_texture;
+function create_texture(type, use_comparison, use_mipmap) {
 
     var texture = init_texture();
-    texture.name = name;
     texture.type = type;
     texture.source = "NONE";
+    texture.use_mipmap = use_mipmap;
 
     if (    type == exports.TT_RB_RGBA ||
             type == exports.TT_RB_DEPTH ||
@@ -201,9 +354,26 @@ exports.create_texture = function(name, type) {
 
         // NOTE: standard params suitable for POT and NPOT textures
         _gl.texParameteri(w_target, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
-        _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
+        if (use_mipmap)
+            _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, LEVELS[cfg_def.texture_min_filter]);
+        else
+            _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
         _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
         _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
+
+        var format = get_image2d_format(texture);
+        var iformat = get_image2d_iformat(texture);
+        var tex_type = get_image2d_type(texture);
+        if (type == exports.TT_DEPTH)
+            var image_data = null;
+        else
+            var image_data = new Uint8Array([0.8*255, 0.8*255, 0.8*255, 1*255]);
+
+        _gl.texImage2D(w_target, 0, iformat, 1, 1, 0, format, tex_type, image_data);
+
+        if (cfg_def.compared_mode_depth && use_comparison)
+            _gl.texParameterf(w_target, _gl.TEXTURE_COMPARE_MODE,
+                    _gl.COMPARE_REF_TO_TEXTURE);
 
         _gl.bindTexture(w_target, null);
 
@@ -216,10 +386,8 @@ exports.create_texture = function(name, type) {
 
 /**
  * Create cubemap b4w texture.
- * @param {String} name Texture name
- * @param {Number} size Size of texture
  */
-exports.create_cubemap_texture = function(name, size) {
+exports.create_cubemap_texture = function(size, use_mipmap) {
 
     var w_texture = _gl.createTexture();
 
@@ -229,21 +397,15 @@ exports.create_cubemap_texture = function(name, size) {
 
     // NOTE: standard params suitable for POT and NPOT textures
     _gl.texParameteri(w_target, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
-    _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
+    if (use_mipmap)
+        _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, LEVELS[cfg_def.texture_min_filter]);
+    else
+        _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
     _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
     _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
 
-    var infos = [
-        "TEXTURE_CUBE_MAP_POSITIVE_X",
-        "TEXTURE_CUBE_MAP_NEGATIVE_X",
-        "TEXTURE_CUBE_MAP_POSITIVE_Y",
-        "TEXTURE_CUBE_MAP_NEGATIVE_Y",
-        "TEXTURE_CUBE_MAP_POSITIVE_Z",
-        "TEXTURE_CUBE_MAP_NEGATIVE_Z"
-    ];
-
     for (var i = 0; i < 6; i++) {
-        var info = infos[i];
+        var info = CUBE_MAP_TARGETS[i];
         _gl.texImage2D(_gl[info], 0, _gl.RGBA,
             size, size, 0, _gl.RGBA, _gl.UNSIGNED_BYTE, null);
     }
@@ -252,25 +414,46 @@ exports.create_cubemap_texture = function(name, size) {
 
     var texture = init_texture();
 
-    texture.name = name;
     texture.type = exports.TT_RGBA_INT;
     texture.source = "NONE";
     texture.width = 3*size;
     texture.height = 2*size;
     texture.compress_ratio = 1;
+    texture.use_mipmap = use_mipmap;
 
     texture.w_texture = w_texture;
     texture.w_target = _gl.TEXTURE_CUBE_MAP;
 
     return texture;
 }
+
+
+/**
+ * Set cubemap dimensions.
+ */
+exports.set_cubemap_tex_size = function(cube_texture, size) {
+
+    var w_texture = cube_texture.w_texture;
+
+    var w_target = cube_texture.w_target;
+
+    _gl.bindTexture(w_target, w_texture);
+    for (var i = 0; i < 6; i++) {
+        var info = CUBE_MAP_TARGETS[i];
+        _gl.texImage2D(_gl[info], 0, _gl.RGBA,
+            size, size, 0, _gl.RGBA, _gl.UNSIGNED_BYTE, null);
+    }
+
+    _gl.bindTexture(w_target, null);
+
+    cube_texture.width = 3*size;
+    cube_texture.height = 2*size;
+}
+
 /**
  * Set texture MIN/MAG filters (TF_*)
  */
 exports.set_filters = function(texture, min_filter, mag_filter) {
-
-    if (is_renderbuffer(texture))
-        return;
 
     var w_target = texture.w_target;
     var w_texture = texture.w_texture;
@@ -286,37 +469,9 @@ exports.set_filters = function(texture, min_filter, mag_filter) {
     _gl.bindTexture(w_target, null);
 }
 
-/**
- * Get texture MIN/MAG filters (TF_*)
- */
-exports.get_filters = function(texture) {
-
-    // consider that renderbuffer has NEAREST filtering
-    if (is_renderbuffer(texture))
-        return {
-            min: exports.TF_NEAREST,
-            mag: exports.TF_NEAREST
-        }
-
-    var w_target = texture.w_target;
-    var w_texture = texture.w_texture;
-
-    _gl.bindTexture(w_target, w_texture);
-
-    var min = _gl.getTexParameter(w_target, _gl.TEXTURE_MIN_FILTER);
-    var mag = _gl.getTexParameter(w_target, _gl.TEXTURE_MAG_FILTER);
-
-    _gl.bindTexture(w_target, null);
-
-    return {
-        min: min,
-        mag: mag
-    }
-}
-
 exports.resize = function(texture, width, height) {
-    var width = Math.max(width, cfg_def.edge_min_tex_size_hack? 2: 1);
-    var height = Math.max(height, cfg_def.edge_min_tex_size_hack? 2: 1);
+    width = Math.max(width, 1);
+    height = Math.max(height, 1);
 
     if (texture.width == width && texture.height == height)
         return;
@@ -331,8 +486,7 @@ exports.resize = function(texture, width, height) {
         break;
     case exports.TT_RB_DEPTH:
         _gl.bindRenderbuffer(_gl.RENDERBUFFER, texture.w_renderbuffer);
-        // NOTE: maximum internal format in WebGL 1
-        _gl.renderbufferStorage(_gl.RENDERBUFFER, _gl.DEPTH_COMPONENT16,
+        _gl.renderbufferStorage(_gl.RENDERBUFFER, get_depth_format(cfg_lim.depth_bits),
                 width, height);
         _gl.bindRenderbuffer(_gl.RENDERBUFFER, null);
         break;
@@ -347,7 +501,7 @@ exports.resize = function(texture, width, height) {
     case exports.TT_RB_DEPTH_MS:
         _gl.bindRenderbuffer(_gl.RENDERBUFFER, texture.w_renderbuffer);
         _gl.renderbufferStorageMultisample(_gl.RENDERBUFFER,
-                cfg_def.msaa_samples, _gl.DEPTH_COMPONENT24,
+                cfg_def.msaa_samples, get_depth_format(cfg_lim.depth_bits),
                 width, height);
         _gl.bindRenderbuffer(_gl.RENDERBUFFER, null);
         break;
@@ -359,6 +513,16 @@ exports.resize = function(texture, width, height) {
         var format = get_image2d_format(texture);
         var iformat = get_image2d_iformat(texture);
         var type = get_image2d_type(texture);
+
+        if (texture.use_mipmap) {
+            if (!cfg_def.webgl2) {
+                var size = Math.max(width, height);
+                width = calc_pot_size(size);
+                height = calc_pot_size(size);
+            }
+            texture.mipmap_count = Math.round(Math.log(Math.max(width, height)) / Math.log(2.0) + 0.5);
+        }
+
         _gl.texImage2D(w_target, 0, iformat, width, height, 0, format, type, null);
 
         _gl.bindTexture(w_target, null);
@@ -366,10 +530,10 @@ exports.resize = function(texture, width, height) {
     }
 
     if (check_texture_size(width, height)) {
-        m_print.error("Slink texture \"" + texture.name
+        m_util.panic("Slink texture \"" + texture.type
                 + "\" has unsupported size: " + width + "x" + height
-                + ". Max available: " + cfg_def.max_texture_size + "x"
-                + cfg_def.max_texture_size + ".");
+                + ". Max available: " + cfg_lim.max_texture_size + "x"
+                + cfg_lim.max_texture_size + ".");
         return;
     }
 
@@ -379,64 +543,85 @@ exports.resize = function(texture, width, height) {
 
 /**
  * Create b4w texture object with 1-pixel image as placeholder
- * @param bpy_texture b4w texture object
  */
-exports.create_texture_bpy = create_texture_bpy;
-function create_texture_bpy(bpy_texture, global_af, bpy_scenes, thread_id) {
+exports.create_texture_bpy =
+function (bpy_texture, global_af, bpy_scenes, thread_id, dir_path) {
+
     var tex_type = bpy_texture["type"];
-    var image_data = new Uint8Array([0.8*255, 0.8*255, 0.8*255, 1*255]);
+
+    if (tex_type == "BLEND")
+        return null;
+
+    var image = bpy_texture["image"];
+
     var texture = init_texture();
 
+    texture.type = exports.TT_RGBA_INT;
+    texture.width = 1;
+    texture.height = 1;
+
+    setup_anisotropic_filtering(texture, bpy_texture, global_af);
+    setup_texture_repeat(texture, bpy_texture);
+
+    if (image) {
+        // NOTE: check cache after all texture params are computed
+        if (tex_type == "IMAGE" && image["source"] == "MOVIE")
+            setup_tex_movie_props(texture, bpy_texture);
+
+        texture.source = tex_type;
+
+        var norm_path = m_util.normpath_preserve_protocol(dir_path + image["filepath"]);
+        var cached_tex = find_similar_tex(norm_path, texture);
+        if (cached_tex)
+            return cached_tex;
+
+        append_img_info(texture, image, dir_path);
+    }
+
+    var image_data = new Uint8Array([0.8*255, 0.8*255, 0.8*255, 1*255]);
+
     switch (tex_type) {
-    case "DATA_TEX2D":
     case "IMAGE":
         var w_texture = _gl.createTexture();
         var w_target = _gl.TEXTURE_2D;
         _gl.bindTexture(w_target, w_texture);
         _gl.texImage2D(w_target, 0, _gl.RGBA, 1, 1, 0, _gl.RGBA, _gl.UNSIGNED_BYTE, image_data);
-
-        if (bpy_texture["image"] && bpy_texture["image"]["source"] == "MOVIE") {
-            texture.is_movie = true;
-            texture.frame_start = bpy_texture["frame_start"];
-            texture.frame_offset = bpy_texture["frame_offset"];
-            texture.frame_duration = bpy_texture["frame_duration"];
-            texture.use_auto_refresh = bpy_texture["use_auto_refresh"];
-            texture.use_cyclic = bpy_texture["use_cyclic"];
-            texture.movie_length = bpy_texture["movie_length"];
-            texture.use_nla = bpy_texture["b4w_nla_video"]
-
-            if (texture.frame_offset != 0)
-                m_print.warn("Frame offset for texture \"" + bpy_texture["name"] +
-                        "\" has a nonzero value. Can lead to undefined behaviour" +
-                        " for mobile devices.");
-        }
         break;
-    case "NONE":
-        // check if texture can be used for offscreen rendering
-        var w_texture = _gl.createTexture();
-        var w_target = _gl.TEXTURE_2D;
-        _gl.bindTexture(w_target, w_texture);
 
+    case "NONE":
+        // check if this texture can be used for offscreen rendering
         if (bpy_texture["b4w_source_type"] == "NONE")
             return null;
 
-        else if (bpy_texture["b4w_source_type"] == "SCENE") {
+        var w_texture = _gl.createTexture();
+        var w_target = _gl.TEXTURE_2D;
 
+        texture.source = bpy_texture["b4w_source_type"];
+
+        if (texture.source == "SCENE") {
             if (!bpy_texture["b4w_source_id"])
                 return null;
 
             var name = bpy_texture["b4w_source_id"];
             var scene = m_util.keysearch("name", name, bpy_scenes);
 
-            if (scene) {
-                texture.source_size = bpy_texture["b4w_source_size"];
-                scene._render_to_textures = scene._render_to_textures || [];
-                scene._render_to_textures.push(bpy_texture);
-                _gl.texImage2D(w_target, 0, _gl.RGBA, 1, 1, 0, _gl.RGBA, _gl.UNSIGNED_BYTE, image_data);
-            } else
+            if (!scene)
                 return null;
+
+            texture.source_id = bpy_texture["b4w_source_id"];
+            texture.source_size = bpy_texture["b4w_source_size"];
+            scene._render_to_textures = scene._render_to_textures || [];
+            scene._render_to_textures.push(texture);
+            _gl.bindTexture(w_target, w_texture);
+            _gl.texImage2D(w_target, 0, _gl.RGBA, 1, 1, 0, _gl.RGBA,
+                           _gl.UNSIGNED_BYTE, image_data);
+
+        } else if (texture.source == "CANVAS") {
+            setup_tex_canvas(texture, bpy_texture, thread_id);
+            _gl.bindTexture(w_target, w_texture);
         }
         break;
+
     case "ENVIRONMENT_MAP":
         var w_texture = _gl.createTexture();
         var w_target = _gl.TEXTURE_CUBE_MAP;
@@ -451,106 +636,96 @@ function create_texture_bpy(bpy_texture, global_af, bpy_scenes, thread_id) {
                     1, 1, 0, _gl.RGBA, _gl.UNSIGNED_BYTE, image_data);
         break;
 
-    case "BLEND":
-        return null;
-    case "NODE_TEX":
-        var w_texture = _gl.createTexture();
-        var w_target = _gl.TEXTURE_2D;
-        _gl.bindTexture(w_target, w_texture);
-        _gl.texImage2D(w_target, 0, _gl.RGBA, 1, 1, 0, _gl.RGBA, _gl.UNSIGNED_BYTE, image_data);
-        break;
-
     default:
         m_print.error("texture \"" + bpy_texture["name"] +
             "\" has unsupported type \"" + tex_type + "\"");
         return null;
     }
 
-    if (tex_type == "NONE" && !(bpy_texture["b4w_enable_canvas_mipmapping"] &&
-            bpy_texture["b4w_source_type"] == "CANVAS") || tex_type == "DATA_TEX2D"
-            || tex_type == "IMAGE" && bpy_texture["image"]["source"] == "MOVIE"
-            || tex_type == "NODE_TEX")
-        _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
-    else
-        _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, LEVELS[cfg_def.texture_min_filter]);
-
-    _gl.texParameteri(w_target, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
-
-    setup_anisotropic_filtering(bpy_texture, global_af, w_target);
-
-    var tex_extension = bpy_texture["extension"];
-    if (tex_extension == "REPEAT" && !bpy_texture["b4w_shore_dist_map"]) {
-        _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_S, _gl.REPEAT);
-        _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_T, _gl.REPEAT);
-    } else {
-        texture.repeat = false;
-        _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
-        _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
-    }
-
-    texture.type = exports.TT_RGBA_INT;
-    texture.width = 1;
-    texture.height = 1;
-
     texture.w_texture = w_texture;
     texture.w_target = w_target;
 
-    if (bpy_texture["b4w_source_type"] == "CANVAS" && tex_type == "NONE") {
-        var id = bpy_texture["b4w_source_id"];
-        var size = bpy_texture["b4w_source_size"];
+    if (tex_type == "NONE") {
+        // canvas texture is not updated with update_texture so set the props now
+        if (!texture.enable_canvas_mipmapping)
+            _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
+        else
+            _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, LEVELS[cfg_def.texture_min_filter]);
+        if (texture.anisotropic_filtering)
+            _gl.texParameterf(w_target, m_ext.get_aniso().TEXTURE_MAX_ANISOTROPY_EXT,
+                              texture.anisotropic_filtering);
 
-        texture.enable_canvas_mipmapping = bpy_texture["b4w_enable_canvas_mipmapping"];
-        texture.source_id = id;
-        texture.source = "CANVAS";
-
-        update_canvas_props(id, size, texture);
-
-        if (!(thread_id in _canvas_textures_cache))
-            _canvas_textures_cache[thread_id] = {};
-        _canvas_textures_cache[thread_id][id] = texture;
-        update_texture_canvas(texture);
-    } else if (bpy_texture["b4w_source_type"] == "SCENE" && tex_type == "NONE") {
-        texture.source_id = bpy_texture["b4w_source_id"];
-        texture.source = "SCENE";
+        if (texture.source == "CANVAS")
+            update_texture_canvas(texture);
     } else {
-        texture.source = tex_type;
         _gl.generateMipmap(w_target);
         _gl.bindTexture(w_target, null);
     }
-    texture.name = bpy_texture["name"];
-    bpy_texture._render = texture;
+
     return texture;
 }
 
-function setup_anisotropic_filtering(bpy_texture, global_af, w_target) {
+function setup_anisotropic_filtering(texture, bpy_texture, global_af) {
 
-    // anisotropic filtering is one of these string params: DEFAULT, OFF, 2x, 4x, 8x, 16x
-    var af = bpy_texture["b4w_anisotropic_filtering"];
+    if (cfg_def.anisotropic_available) {
 
-    // individual textures override global AF value when b4w_anisotropic_filtering is not DEFAULT
-    if (af === "DEFAULT")
-        af = global_af;
+        // possible values: DEFAULT, OFF, 2x, 4x, 8x, 16x
+        var af = bpy_texture["b4w_anisotropic_filtering"];
 
-    if (af !== "OFF" && cfg_def.anisotropic_filtering) {
-        var ext_aniso = m_ext.get_aniso();
-        if (ext_aniso) {
-            af = parseFloat(af.split("x")[0]);
-            _gl.texParameterf(w_target, ext_aniso.TEXTURE_MAX_ANISOTROPY_EXT, af);
+        // individual textures override global AF value when b4w_anisotropic_filtering is not DEFAULT
+        if (af === "DEFAULT")
+            af = global_af;
+
+        if (af !== "OFF" && cfg_def.anisotropic_filtering) {
+            var af_value = parseFloat(af.split("x")[0]);
+            texture.anisotropic_filtering = af_value;
         }
     }
 }
 
-function update_canvas_props(name, size, texture) {
+function setup_texture_repeat(texture, bpy_texture) {
+    var tex_extension = bpy_texture["extension"];
+    if (tex_extension != "REPEAT" || bpy_texture["b4w_shore_dist_map"])
+        texture.repeat = false;
+}
+
+function setup_tex_movie_props(texture, bpy_texture) {
+    texture.is_movie = true;
+    texture.video_tex_name = bpy_texture["name"];
+    texture.frame_start = bpy_texture["frame_start"];
+    texture.frame_offset = bpy_texture["frame_offset"];
+    texture.frame_duration = bpy_texture["frame_duration"];
+    texture.use_auto_refresh = bpy_texture["use_auto_refresh"];
+    texture.use_cyclic = bpy_texture["use_cyclic"];
+    texture.movie_length = bpy_texture["movie_length"];
+    texture.use_nla = bpy_texture["b4w_nla_video"];
+
+    if (texture.frame_offset != 0)
+        m_print.warn("Frame offset for texture \"" + bpy_texture["name"] +
+                "\" has a nonzero value. Can lead to undefined behaviour" +
+                " for mobile devices.");
+}
+
+function setup_tex_canvas(texture, bpy_texture, thread_id) {
+
+    var id = bpy_texture["b4w_source_id"];
+    var size = bpy_texture["b4w_source_size"];
+
+    texture.source_id = id;
+    texture.enable_canvas_mipmapping = bpy_texture["b4w_enable_canvas_mipmapping"];
+
     var canvas = document.createElement("canvas");
     canvas.width  = size;
     canvas.height = size;
     texture.canvas_context = canvas.getContext("2d");
+
+    if (!(thread_id in _canvas_textures_cache))
+        _canvas_textures_cache[thread_id] = {};
+    _canvas_textures_cache[thread_id][id] = texture;
 }
 
+exports.update_texture_canvas = update_texture_canvas;
 function update_texture_canvas(texture) {
-
-    if (texture.source != "CANVAS")
-        m_util.panic("Wrong texture");
 
     var w_texture = texture.w_texture;
     var w_target = texture.w_target;
@@ -627,8 +802,10 @@ function draw_resized_image(texture, image_data, width, height, is_dds) {
         _gl.texImage2D(_gl.TEXTURE_2D, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, image_data);
     }
     _gl.bindTexture(_gl.TEXTURE_2D, null);
-    m_ren.draw_resized_texture(texture, width, height, _w_framebuffer_tmp,
-            _w_texture_tmp, "NONE");
+    
+    var fbuf_tmp = get_framebuffer_tmp();
+    var wtex_tmp = get_wtex_tmp();
+    m_ren.draw_resized_texture(texture, width, height, fbuf_tmp, wtex_tmp, "NONE");
 }
 
 function resize_cube_map(texture, image_data, pot_dim, img_dim) {
@@ -642,12 +819,13 @@ function resize_cube_map(texture, image_data, pot_dim, img_dim) {
                 _gl.RGBA, _gl.UNSIGNED_BYTE, null);
 
     _gl.bindTexture(texture.w_target, null);
+    var fbuf_tmp = get_framebuffer_tmp();
+    _gl.bindFramebuffer(_gl.FRAMEBUFFER, fbuf_tmp);
 
-    _gl.bindFramebuffer(_gl.FRAMEBUFFER, _w_framebuffer_tmp);
-
+    var wtex_tmp = get_wtex_tmp();
     for (var i = 0; i < 6; i++) {
-        m_ren.draw_resized_cubemap_texture(texture, _gl["TEXTURE_CUBE_MAP_POSITIVE_X"] + i, pot_dim,
-                img_dim, _w_texture_tmp, i);
+        m_ren.draw_resized_cubemap_texture(texture, _gl[CUBE_MAP_TARGETS[i]], pot_dim,
+                img_dim, wtex_tmp, i);
     }
     _gl.bindFramebuffer(_gl.FRAMEBUFFER, null);
 
@@ -657,65 +835,88 @@ function resize_cube_map(texture, image_data, pot_dim, img_dim) {
     _gl.texParameteri(texture.w_target, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
 }
 
-function resize_cube_map_canvas(texture, image_data, img_dim, pot_dim, infos) {
+function resize_cube_map_canvas(texture, image_data, img_dim, pot_dim) {
     for (var i = 0; i < 6; i++) {
-        var info = infos[i];
+        var target = CUBE_MAP_TARGETS[i];
+        var offset = CUBE_MAP_OFFSETS[i];
         var tmpcanvas = get_tmp_canvas();
         tmpcanvas.width = pot_dim;
         tmpcanvas.height = pot_dim;
         var ctx = tmpcanvas.getContext("2d");
+        ctx.translate(pot_dim / 2, pot_dim / 2);
 
-        // OpenGL ES 2.0 Spec, 3.7.5 Cube Map Texture Selection
-        // vertical flip for Y, horizontal flip for X and Z
-        if (info[0] == "POSITIVE_Y" || info[0] == "NEGATIVE_Y") {
-            ctx.translate(0, pot_dim);
+        if (target == "TEXTURE_CUBE_MAP_POSITIVE_X") {
+            ctx.rotate(Math.PI/2);
             ctx.scale(1, -1);
-        } else {
-            ctx.translate(pot_dim, 0);
+        } else if (target == "TEXTURE_CUBE_MAP_NEGATIVE_X") {
+            ctx.rotate(Math.PI/2);
+            ctx.scale(-1, 1);
+        } else if (target == "TEXTURE_CUBE_MAP_POSITIVE_Y" ||
+                target == "TEXTURE_CUBE_MAP_POSITIVE_Z") {
+            ctx.scale(1, -1);
+        } else if (target == "TEXTURE_CUBE_MAP_NEGATIVE_Y" ||
+                target == "TEXTURE_CUBE_MAP_NEGATIVE_Z") {
             ctx.scale(-1, 1);
         }
 
-        ctx.drawImage(image_data, info[1] * img_dim, info[2] * img_dim,
-                      img_dim, img_dim, 0, 0, pot_dim, pot_dim);
+        ctx.drawImage(image_data, offset[0] * img_dim, offset[1] * img_dim,
+                      img_dim, img_dim, -pot_dim/2, -pot_dim/2, pot_dim, pot_dim);
 
-        _gl.texImage2D(_gl["TEXTURE_CUBE_MAP_" + info[0]], 0, _gl.RGBA,
-            _gl.RGBA, _gl.UNSIGNED_BYTE, tmpcanvas);
-
+        if (cfg_def.d3d9_canvas_resizing_hack)
+            _gl.texImage2D(_gl[target], 0, _gl.RGBA, pot_dim, pot_dim, 0, 
+                    _gl.RGBA, _gl.UNSIGNED_BYTE, new Uint8Array(ctx.getImageData(
+                    0, 0, pot_dim, pot_dim).data.buffer));
+        else
+            _gl.texImage2D(_gl[target], 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE,
+                    tmpcanvas);
     }
 }
 
 function setup_resized_tex_data(w_target) {
-    if (!_w_framebuffer_tmp)
-        _w_framebuffer_tmp = _gl.createFramebuffer();
-
     _gl.bindTexture(w_target, null);
 
-    if (!_w_texture_tmp)
-        _w_texture_tmp = _gl.createTexture();
-    _gl.bindTexture(w_target, _w_texture_tmp);
+    var wtex_tmp = get_wtex_tmp();
+    _gl.bindTexture(w_target, wtex_tmp);
     prepare_npot_texture(w_target);
 }
 
 /**
  * Load image data into texture object
- * @param texture texture object
- * @param {vec4|HTMLImageElement} image_data Color or image element to load into
  * texture object
  */
 exports.update_texture = update_texture;
-function update_texture(texture, image_data, is_dds, filepath, thread_id) {
+function update_texture(texture, image_data, thread_id) {
     var tex_type = texture.source;
     var w_texture = texture.w_texture;
     var w_target = texture.w_target;
+    var comp_method = texture.img_comp_method;
+    var filepath = texture.img_filepath;
 
     var width = 1;
     var height = 1;
 
     _gl.bindTexture(w_target, w_texture);
 
+    if (texture.repeat) {
+        _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_S, _gl.REPEAT);
+        _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_T, _gl.REPEAT);
+    } else {
+        _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
+        _gl.texParameteri(w_target, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
+    }
+
+    if (texture.is_movie || tex_type == "NODE_TEX")
+        _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
+    else
+        _gl.texParameteri(w_target, _gl.TEXTURE_MIN_FILTER, LEVELS[cfg_def.texture_min_filter]);
+
+    if (texture.anisotropic_filtering)
+        _gl.texParameterf(w_target, m_ext.get_aniso().TEXTURE_MAX_ANISOTROPY_EXT,
+                          texture.anisotropic_filtering);
+
     if (image_data.length == 4) {
         var update_color = true;
-        var image_data = new Uint8Array([
+        image_data = new Uint8Array([
             image_data[0] * 255,
             image_data[1] * 255,
             image_data[2] * 255,
@@ -729,32 +930,34 @@ function update_texture(texture, image_data, is_dds, filepath, thread_id) {
                     image_data);
             texture.width = 1;
             texture.height = 1;
-        } else if (is_dds) {
-            var dds_wh = m_dds.get_width_height(image_data);
-            var is_npot = m_util.check_npot(dds_wh.width)
-                    || m_util.check_npot(dds_wh.height);
+        } else if (comp_method) {
+            var comp_img_wh = m_texcomp.get_width_height(image_data, comp_method);
+            var is_npot = m_util.check_npot(comp_img_wh.width)
+                    || m_util.check_npot(comp_img_wh.height);
 
-            if(check_texture_size(dds_wh.width, dds_wh.height)) {
-                m_print.error("Texture \"" + filepath
-                        + "\" has unsupported size: " + dds_wh.width + "x"
-                        + dds_wh.height + ". Max available: "
-                        + cfg_def.max_texture_size + "x"
-                        + cfg_def.max_texture_size + ".")
+            if (check_texture_size(comp_img_wh.width, comp_img_wh.height)) {
+                m_print.error("Image \"" + filepath
+                        + "\" has unsupported size: " + comp_img_wh.width + "x"
+                        + comp_img_wh.height + ". Max available: "
+                        + cfg_lim.max_texture_size + "x"
+                        + cfg_lim.max_texture_size + ".")
                 return;
             }
 
-            var width = dds_wh.width;
-            var height = dds_wh.height;
+            width = comp_img_wh.width;
+            height = comp_img_wh.height;
 
-            if (is_npot) {
+            if (is_npot || comp_method == "pvr") {
                 texture.need_resize = true;
                 setup_resized_tex_data(w_target);
                 width = calc_pot_size(width * texture.scale_fac);
                 height = calc_pot_size(height * texture.scale_fac);
             }
 
-            m_dds.upload_dds_levels(_gl, m_ext.get_s3tc(), image_data,
-                    true);
+            if (comp_method == "dds")
+                m_texcomp.upload_dds_levels(_gl, m_ext.get_s3tc(), image_data, true);
+            else if (comp_method == "pvr")
+                m_texcomp.upload_pvr_levels(_gl, m_ext.get_pvr(), image_data, true);
 
             if (texture.need_resize) {
                 draw_resized_image(texture, null, width, height, true);
@@ -764,10 +967,9 @@ function update_texture(texture, image_data, is_dds, filepath, thread_id) {
 
             texture.width = width;
             texture.height = height;
-            texture.compress_ratio = m_dds.get_compress_ratio(image_data);
+            texture.compress_ratio = m_texcomp.get_compress_ratio(image_data, comp_method);
         } else {
             _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, true);
-            //_gl.pixelStorei(_gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
             if (texture.is_movie) {
                 if (cfg_def.seq_video_fallback) {
                     width = image_data[0].width;
@@ -784,24 +986,25 @@ function update_texture(texture, image_data, is_dds, filepath, thread_id) {
             texture.width = width;
             texture.height = height;
 
-            if (check_texture_size(width, width)) {
-                m_print.warn("Texture \"" + filepath
+            if (check_texture_size(width, height)) {
+                m_print.warn("Image \"" + filepath
                         + "\" has unsupported size: " + width + "x"
                         + height + ". Max available: "
-                        + cfg_def.max_texture_size + "x"
-                        + cfg_def.max_texture_size +
+                        + cfg_lim.max_texture_size + "x"
+                        + cfg_lim.max_texture_size +
                         ". Reduced image size will be used.");
-                texture.scale_fac = Math.min(cfg_def.max_texture_size / width,
-                        cfg_def.max_texture_size / height);
+                texture.scale_fac = Math.min(cfg_lim.max_texture_size / width,
+                        cfg_lim.max_texture_size / height);
                 texture.need_resize = true;
             }
 
             if (texture.is_movie) {
-                if (!cfg_def.seq_video_fallback) {
-                    if (!(thread_id in _video_textures_cache))
-                        _video_textures_cache[thread_id] = {};
-                    _video_textures_cache[thread_id][texture.name] = texture;
+                if (!(thread_id in _video_textures_cache))
+                    _video_textures_cache[thread_id] = {};
 
+                _video_textures_cache[thread_id][texture.video_tex_name] = texture;
+
+                if (!cfg_def.seq_video_fallback) {
                     texture.video_file = image_data;
                     // NOTE: looping needed to prevent a cycle video from
                     // stopping accidentally due to frame/timeline errors
@@ -820,9 +1023,6 @@ function update_texture(texture, image_data, is_dds, filepath, thread_id) {
                     var draw_data = image_data;
                     create_oncanplay_handler(texture);
                 } else {
-                    if (!(thread_id in _video_textures_cache))
-                        _video_textures_cache[thread_id] = {};
-                    _video_textures_cache[thread_id][texture.name] = texture;
 
                     texture.seq_video = image_data;
                     texture.seq_movie_length = image_data.length;
@@ -833,51 +1033,46 @@ function update_texture(texture, image_data, is_dds, filepath, thread_id) {
             } else
                 var draw_data = image_data;
 
-            var width = calc_pot_size(texture.width * texture.scale_fac);
-            var height = calc_pot_size(texture.height * texture.scale_fac);
-            if (!texture.need_resize)
-                if (m_util.check_npot(texture.width) || m_util.check_npot(texture.height)) {
-                    draw_resized_image(texture, draw_data, width, height, false);
-                    texture.need_resize = true;
-                } else
-                    _gl.texImage2D(w_target, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, draw_data);
-            else {
+            width = calc_pot_size(texture.width * texture.scale_fac);
+            height = calc_pot_size(texture.height * texture.scale_fac);
+
+            if (texture.need_resize || cfg_def.resize_texture_canvas_hack) {
                 var canvas = get_tmp_canvas();
                 var ctx = canvas.getContext("2d");
                 canvas.width = width;
                 canvas.height = height;
                 ctx.drawImage(draw_data, 0, 0, texture.width, texture.height,
                         0, 0, width, height);
-                _gl.texImage2D(w_target, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, canvas);
-            }
 
-            var w_texture = texture.w_texture;
-            _gl.bindTexture(w_target, w_texture);
-            if (!texture.is_movie) {
-                _gl.generateMipmap(w_target);
-            }
-            _gl.bindTexture(w_target, null);
+                if (cfg_def.d3d9_canvas_resizing_hack)
+                    _gl.texImage2D(w_target, 0, _gl.RGBA, width, height, 0, _gl.RGBA, _gl.UNSIGNED_BYTE,
+                            new Uint8Array(ctx.getImageData(0, 0, width, height).data.buffer));
+                else
+                    _gl.texImage2D(w_target, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, canvas);
+            
+            } else if (!cfg_def.webgl2 && (m_util.check_npot(texture.width) 
+                    || m_util.check_npot(texture.height))) {
+                draw_resized_image(texture, draw_data, width, height, false);
+                texture.need_resize = true;
+
+            } else
+                _gl.texImage2D(w_target, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, draw_data);
 
             texture.width = width;
             texture.height = height;
+
+            if (!texture.is_movie) {
+                _gl.bindTexture(w_target, w_texture);
+                _gl.generateMipmap(w_target);
+            }
         }
 
     } else if (tex_type == "ENVIRONMENT_MAP") {
 
-        // get six images from Blender-packed environment map
-        var infos = [
-            ["POSITIVE_X", 2, 0],
-            ["NEGATIVE_X", 0, 0],
-            ["POSITIVE_Y", 1, 1],
-            ["NEGATIVE_Y", 0, 1],
-            ["POSITIVE_Z", 1, 0],
-            ["NEGATIVE_Z", 2, 1]
-        ];
-
         if (update_color) {
             for (var i = 0; i < 6; i++) {
-                var info = infos[i];
-                _gl.texImage2D(_gl["TEXTURE_CUBE_MAP_" + info[0]], 0, _gl.RGBA,
+                var target = CUBE_MAP_TARGETS[i];
+                _gl.texImage2D(_gl["TEXTURE_CUBE_MAP_" + target], 0, _gl.RGBA,
                     1, 1, 0, _gl.RGBA, _gl.UNSIGNED_BYTE, image_data);
             }
 
@@ -888,7 +1083,7 @@ function update_texture(texture, image_data, is_dds, filepath, thread_id) {
             _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, false);
 
             if (image_data.width % 3 || image_data.height % 2) {
-                m_print.error("Cubemap texture \"" + filepath
+                m_print.error("Cubemap Image \"" + filepath
                         + "\" has unsupported size: " + image_data.width + "x"
                         + image_data.height + ". The width must be multiple" +
                         " of three and the height - multiple of two.");
@@ -898,23 +1093,22 @@ function update_texture(texture, image_data, is_dds, filepath, thread_id) {
             var img_dim = image_data.width / 3;
 
             if (check_cube_map_size(img_dim)) {
-                m_print.warn("Cubemap texture \"" + filepath
+                m_print.warn("Cubemap Image \"" + filepath
                         + "\" has unsupported size: " + image_data.width + "x"
                         + image_data.height + ". Max available: "
-                        + cfg_def.max_cube_map_size * 3 + "x"
-                        + cfg_def.max_cube_map_size * 2 + ". "
+                        + cfg_lim.max_cube_map_texture_size * 3 + "x"
+                        + cfg_lim.max_cube_map_texture_size * 2 + ". "
                         + "Reduced image size will be used.");
-                var scale_fac = cfg_def.max_cube_map_size / img_dim;
+                var scale_fac = cfg_lim.max_cube_map_texture_size / img_dim;
                 var tex_dim = calc_pot_size(img_dim * scale_fac);
                 texture.need_resize = true;
             } else {
                 var tex_dim = calc_pot_size(img_dim);
-                if (check_texture_size(3 * tex_dim, 2 * tex_dim))
+                if (!cfg_def.webgl2 && check_texture_size(3 * tex_dim, 2 * tex_dim))
                     texture.need_resize = true;
             }
-
             if (texture.need_resize || cfg_def.resize_cubemap_canvas_hack)
-                resize_cube_map_canvas(texture, image_data, img_dim, tex_dim, infos);
+                resize_cube_map_canvas(texture, image_data, img_dim, tex_dim);
             else
                 resize_cube_map(texture, image_data, tex_dim, img_dim);
 
@@ -924,14 +1118,15 @@ function update_texture(texture, image_data, is_dds, filepath, thread_id) {
                 // see: https://www.opengl.org/wiki/OpenGL_Error#Side_effects
                 m_print.warn("Firefox detected, setting max cubemap size to 256, use canvas for resizing.");
                 resize_cube_map_canvas(texture, image_data, img_dim, 
-                        m_compat.NVIDIA_OLD_GPU_CUBEMAP_MAX_SIZE, infos);
+                        m_compat.NVIDIA_OLD_GPU_CUBEMAP_MAX_SIZE);
             }
 
             texture.width = 3 * tex_dim;
             texture.height = 2 * tex_dim;
             _gl.generateMipmap(w_target);
         }
-    } else if (tex_type == "DATA_TEX2D" || tex_type == "NODE_TEX") {
+    } else if (tex_type == "NODE_TEX") {
+        _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, false);
         _gl.texImage2D(w_target, 0, _gl.RGBA, image_data.width, image_data.height, 0,
                        _gl.RGBA, _gl.UNSIGNED_BYTE, image_data.data);
         texture.width = image_data.width;
@@ -944,9 +1139,10 @@ function update_texture(texture, image_data, is_dds, filepath, thread_id) {
 function create_oncanplay_handler(tex) {
     tex.video_file.oncanplay = function() {
         // NOTE: setting new frame for an HTML5 video texture forces it
-        // to seek at this point which requires some time, so it can be
+        // to seek at that point which requires some time, so it can be
         // updated only on the next frame after this operation.
-        update_video_texture(tex);
+        if (video_update_is_available(tex))
+            update_video_texture(tex);
     }
 }
 
@@ -957,10 +1153,12 @@ function prepare_npot_texture(tex_target) {
     _gl.texParameteri(tex_target, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
 }
 
+exports.calc_pot_size = calc_pot_size;
 function calc_pot_size(num) {
     if (m_util.check_npot(num)) {
-        var size =  Math.pow(2, parseInt(num).toString(2).length);
-        return m_util.clamp(size, 2, cfg_def.max_texture_size);
+        // NOTE: force casting to int for non-integral numbers
+        var size =  Math.pow(2, (num | 0).toString(2).length);
+        return m_util.clamp(size, 2, cfg_lim.max_texture_size);
     }
     return num;
 }
@@ -1017,13 +1215,36 @@ function get_image2d_iformat(texture) {
         format = cfg_def.webgl2 ? _gl.RGB8 : _gl.RGB;
         break;
     case exports.TT_DEPTH:
-        format = cfg_def.webgl2 ? _gl.DEPTH_COMPONENT24 : _gl.DEPTH_COMPONENT;
+        format = cfg_def.webgl2 ? get_depth_format(cfg_lim.depth_bits) : _gl.DEPTH_COMPONENT;
         break;
     default:
         m_util.panic("Wrong texture type");
         break;
     }
 
+    return format;
+}
+
+function get_depth_format(depth_bits) {
+    var format;
+
+    switch (depth_bits) {
+    case 16:
+        format = _gl.DEPTH_COMPONENT16;
+        break;
+    case 24:
+        // WebGL2
+        format = _gl.DEPTH_COMPONENT24;
+        break;
+    case 32:
+        // WebGL2
+        format = _gl.DEPTH_COMPONENT32F;
+        break;
+    default:
+        // WebGL2
+        format = _gl.DEPTH_COMPONENT24;
+        break;
+    }
     return format;
 }
 
@@ -1048,7 +1269,6 @@ function get_image2d_type(texture) {
         type = _gl.FLOAT;
         break;
     case exports.TT_DEPTH:
-        //type = _gl.UNSIGNED_SHORT;
         type = _gl.UNSIGNED_INT;
         break;
     default:
@@ -1059,15 +1279,19 @@ function get_image2d_type(texture) {
     return type;
 }
 
-exports.delete_texture = function(texture) {
-    _gl.deleteTexture(texture);
+function delete_texture(tex) {
+    if (tex.w_texture)
+        _gl.deleteTexture(tex.w_texture);
+    var ind = _img_textures_cache.indexOf(tex);
+    if (ind != -1)
+        _img_textures_cache.splice(ind, 1)
 }
 
 /**
  * Check if object is a texture, renderbuffer is also a texture.
  */
 exports.is_texture = function(tex) {
-    if (tex && tex.name && (tex.w_texture || tex.w_renderbuffer))
+    if (tex && (tex.w_texture || tex.w_renderbuffer))
         return true;
     else
         return false;
@@ -1078,7 +1302,7 @@ exports.is_texture = function(tex) {
  */
 exports.is_renderbuffer = is_renderbuffer;
 function is_renderbuffer(tex) {
-    if (tex && tex.name && tex.w_renderbuffer)
+    if (tex && tex.w_renderbuffer)
         return true;
     else
         return false;
@@ -1125,41 +1349,11 @@ exports.get_texture_texel_size = function(tex) {
 }
 
 function check_texture_size(width, height) {
-    return (width > cfg_def.max_texture_size || height > cfg_def.max_texture_size);
+    return (width > cfg_lim.max_texture_size || height > cfg_lim.max_texture_size);
 }
 
 function check_cube_map_size(size) {
-    return size > cfg_def.max_cube_map_size;
-}
-
-exports.generate_texture = generate_texture;
-function generate_texture(type, subs, name) {
-    var texture = null;
-    switch (type) {
-    case "SSAO_TEXTURE":
-        texture = {
-            "name": "special_ssao_texture",
-            "type": "DATA_TEX2D",
-            "extension": "REPEAT",
-            "b4w_anisotropic_filtering": "OFF"
-        };
-        create_texture_bpy(texture, null, subs, 0);
-        texture["image"] = { "filepath": null };
-        break;
-    case "NODE_TEX":
-        texture = {
-            "name": name,
-            "type": "NODE_TEX",
-            "extension": "CLIP",
-            "b4w_anisotropic_filtering": "OFF"
-        };
-        create_texture_bpy(texture, null, subs, 0);
-        texture["image"] = { "filepath": null };
-        break;
-    default:
-        break;
-    }
-    return texture;
+    return size > cfg_lim.max_cube_map_texture_size;
 }
 
 exports.cleanup = function() {
@@ -1171,6 +1365,7 @@ exports.cleanup = function() {
                 _video_textures_cache[data_id][tex].video_file.load();
             }
 
+    _img_textures_cache.length = 0;
     _canvas_textures_cache = {};
     _video_textures_cache = {};
 }
@@ -1182,16 +1377,15 @@ exports.pause = function() {
             if (!video_is_played(vtex))
                 continue;
 
-            pause_video(vtex_name, data_id);
-            vtex.video_was_stopped = true;
+            pause_video(vtex);
         }
 }
 
 exports.reset = function() {
     for (var data_id in _video_textures_cache)
         for (var vtex_name in _video_textures_cache[data_id]) {
-            reset_video(vtex_name, data_id);
-            _video_textures_cache[data_id][vtex_name].video_was_stopped = false;
+            var vtex = _video_textures_cache[data_id][vtex_name];
+            reset_video(vtex);
         }
 }
 
@@ -1201,62 +1395,53 @@ exports.play = function(resume_stopped_only) {
             var vtex = _video_textures_cache[data_id][vtex_name];
             if (resume_stopped_only && !vtex.video_was_stopped)
                 continue;
-            play_video(vtex_name, data_id)
-            vtex.video_was_stopped = false;
+            play_video(vtex)
         }
 }
 
-exports.video_allow_nla = video_allow_nla;
-function video_allow_nla(vtex_name, data_id) {
-    if (data_id in _video_textures_cache && vtex_name in _video_textures_cache[data_id])
-        return _video_textures_cache[data_id][vtex_name].use_nla;
+exports.get_video_texture = get_video_texture;
+function get_video_texture(vtex_name, data_id) {
+    if (data_id in _video_textures_cache &&
+            vtex_name in _video_textures_cache[data_id])
+        return _video_textures_cache[data_id][vtex_name];
+    return null;
+}
 
-    return false;
+exports.video_allow_nla = video_allow_nla;
+function video_allow_nla(vtex) {
+    return vtex.use_nla;
 }
 
 exports.play_video = play_video;
-function play_video(vtex_name, data_id) {
-    if (data_id in _video_textures_cache && vtex_name in _video_textures_cache[data_id]) {
-        var vtex = _video_textures_cache[data_id][vtex_name];
-        if (vtex.video_file)
-            vtex.video_file.play();
-        else if (vtex.seq_video)
-            vtex.seq_video_played = true;
-        return true;
-    } else
-        return false;
+function play_video(vtex) {
+    if (vtex.video_file)
+        vtex.video_file.play();
+    else if (vtex.seq_video)
+        vtex.seq_video_played = true;
+    vtex.video_was_stopped = false;
 }
 
 exports.pause_video = pause_video;
-function pause_video(vtex_name, data_id) {
-    if (data_id in _video_textures_cache && vtex_name in _video_textures_cache[data_id]) {
-        var vtex = _video_textures_cache[data_id][vtex_name];
-        if (vtex.video_file)
-            vtex.video_file.pause();
-        else if (vtex.seq_video)
-            vtex.seq_video_played = false;
-        return true;
-    } else
-        return false;
+function pause_video(vtex) {
+    if (vtex.video_file)
+        vtex.video_file.pause();
+    else if (vtex.seq_video)
+        vtex.seq_video_played = false;
+    vtex.video_was_stopped = true;
 }
 
 /**
  * Reset video texture considering its frame offset.
  */
 exports.reset_video = reset_video;
-function reset_video(vtex_name, data_id) {
-    if (data_id in _video_textures_cache && vtex_name in _video_textures_cache[data_id]) {
-        var vtex = _video_textures_cache[data_id][vtex_name];
-        if (vtex.video_file) {
-            vtex.video_file.currentTime = vtex.frame_offset / vtex.fps;
-            // normal video will be updated through the oncanplay handler
-        } else if (vtex.seq_video) {
-            vtex.seq_cur_frame = video_frame_to_seq_frame(vtex, vtex.frame_offset);
-            update_seq_video_texture(vtex);
-        }
-        return true;
-    } else
-        return false;
+function reset_video(vtex) {
+    if (vtex.video_file) {
+        vtex.video_file.currentTime = vtex.frame_offset / vtex.fps;
+        // normal video will be updated through the oncanplay handler
+    } else if (vtex.seq_video) {
+        vtex.seq_cur_frame = video_frame_to_seq_frame(vtex, vtex.frame_offset);
+        update_seq_video_texture(vtex);
+    }
 }
 
 /**
@@ -1287,7 +1472,8 @@ function video_is_played(vtex) {
         return false;
 }
 
-exports.video_update_is_available = function(vtex) {
+exports.video_update_is_available = video_update_is_available;
+function video_update_is_available(vtex) {
     if (!vtex.video_file && !vtex.seq_video)
         return 0;
 
@@ -1357,24 +1543,15 @@ exports.get_canvas_context_by_object = function(object, texture_name) {
         return null;
 }
 
-exports.update_canvas_context_by_object = function(object, texture_name) {
-
-    var texture = get_texture_by_name(object, texture_name);
-    if (texture && texture.source == "CANVAS") {
-        update_texture_canvas(texture);
-        return true;
-    } else
-        return false;
-}
-
+exports.get_texture_by_name = get_texture_by_name;
 function get_texture_by_name(object, texture_name) {
 
     if (m_obj_util.is_dynamic(object))
-        return find_texture_by_name(object, texture_name);
+        return get_texture_by_name_obj(object, texture_name);
     else {
         var objects = object.meta_objects;
         for (var i = 0; i < objects.length; i++) {
-            var texture = find_texture_by_name(objects[i], texture_name);
+            var texture = get_texture_by_name_obj(objects[i], texture_name);
             if (texture)
                 return texture;
         }
@@ -1382,28 +1559,87 @@ function get_texture_by_name(object, texture_name) {
     return null;
 }
 
-function find_texture_by_name(obj, texture_name) {
-    var texture = null;
+exports.set_texture_by_name = set_texture_by_name;
+function set_texture_by_name(object, texture_name, new_texture) {
+    if (m_obj_util.is_dynamic(object))
+        set_texture_by_name_obj(object, texture_name, new_texture);
+    else {
+        var objects = object.meta_objects;
+        for (var i = 0; i < objects.length; i++)
+            set_texture_by_name_obj(objects[i], texture_name, new_texture);
+    }
+}
+
+exports.get_texture_names = function(object) {
+    var tex_names = [];
+    if (m_obj_util.is_dynamic(object))
+        find_texture_names(object, tex_names);
+    else {
+        var objects = object.meta_objects;
+        for (var i = 0; i < objects.length; i++)
+            find_texture_names(objects[i], tex_names);
+    }
+    return tex_names;
+}
+
+function get_texture_by_name_obj(obj, texture_name) {
     var scenes_data = obj.scenes_data;
-    for (var j = 0; j < scenes_data.length; j++) {
-        var scene_data = scenes_data[j];
+    if (scenes_data.length) {
+        var scene_data = scenes_data[0];
         var batches = scene_data.batches;
         for (var k = 0; k < batches.length; k++) {
             var batch = batches[k];
-            for (var p = 0; p < batch.textures.length; p++)
-                if (batch.textures[p].name == texture_name) {
-                    texture = batch.textures[p];
-                    break;
+            if (batch.type == "MAIN" || batch.type == "SKY")
+                for (var p = 0; p < batch.textures.length; p++)
+                    if (batch.bpy_tex_names[p] == texture_name)
+                        return batch.textures[p];
+        }
+    }
+    return null;
+}
+
+function set_texture_by_name_obj(obj, texture_name, new_texture) {
+    var scenes_data = obj.scenes_data;
+    if (scenes_data.length) {
+        var scene_data = scenes_data[0];
+        var batches = scene_data.batches;
+        for (var i = 0; i < batches.length; i++) {
+            var batch = batches[i];
+            if (batch.type == "MAIN") {
+                for (var j = 0; j < batch.textures.length; j++) {
+                    var tex_name = batch.bpy_tex_names[j];
+                    if (tex_name == texture_name) {
+                        var old_tex = batch.textures[j];
+                        batch.textures[j] = new_texture;
+                        cleanup_unused(old_tex);
+                    }
+                }
+            }
+        }
+    }
+}
+
+function find_texture_names(obj, names) {
+    var scenes_data = obj.scenes_data;
+    if (scenes_data.length) {
+        var scene_data = scenes_data[0];
+        var batches = scene_data.batches;
+        for (var k = 0; k < batches.length; k++) {
+            var batch = batches[k];
+            if (batch.type == "MAIN")
+                for (var p = 0; p < batch.textures.length; p++) {
+                    var tex = batch.textures[p];
+                    var tex_name = batch.bpy_tex_names[p];
+                    if (names.indexOf(tex_name) == -1 && tex.source != "NODE_TEX")
+                        names.push(tex_name);
                 }
         }
     }
-    return texture;
 }
 
 function copy_canvas_texture(texture) {
 
     var new_texture = init_texture();
-    new_texture.name = texture.name;
     new_texture.source = "CANVAS";
     new_texture.width = texture.width;
     new_texture.height = texture.height;
@@ -1440,19 +1676,24 @@ exports.share_batch_canvas_textures = function(batches) {
 
     for (var i = 0; i < batches.length; i++) {
         var textures = batches[i].textures;
+        var texture_names = batches[i].texture_names;
         var batch_textures = [];
+        var batch_texture_names = [];
+
         for (var j = 0; j < textures.length; j++) {
             var texture = textures[j];
+            var texture_name = texture_names[j];
             if (texture.source == "CANVAS") {
-                if (texture.name in canvas_textures) {
-                    texture = canvas_textures[texture.name];
-                }  else {
+                if (texture_name in canvas_textures)
+                    texture = canvas_textures[texture_name];
+                else {
                     texture = copy_canvas_texture(textures[j]);
                     draw_canvas_to_canvas(texture, textures[j]);
-                    canvas_textures[texture.name] = texture;
+                    canvas_textures[texture_name] = texture;
                 }
             }
             batch_textures.push(texture);
+            batch_texture_names.push(texture_name);
         }
         batches[i].textures = batch_textures;
     }
@@ -1467,7 +1708,7 @@ function draw_canvas_to_canvas(new_tex, old_tex) {
 
 }
 
-exports.create_color_ramp_texture = function(nodes, points_num) {
+exports.extract_col_ramps_data = function(nodes, points_num) {
 
     var texture = [];
 
@@ -1476,8 +1717,8 @@ exports.create_color_ramp_texture = function(nodes, points_num) {
         calc_color_ramp_data(bpy_node["color_ramp"], points_num, texture);
     }
 
-        return new Uint8Array(texture.map(function(val) {return m_util.clamp(val * 255,
-            0, 255)}));
+    return new Uint8Array(texture.map(function(val) {return m_util.clamp(val * 255,
+        0, 255)}));
 }
 
 exports.calc_color_ramp_data = calc_color_ramp_data;
@@ -1566,7 +1807,7 @@ function find_right_elem(elements, curr_pos, is_color_ramp) {
     return right_elem;
 }
 
-exports.create_vec_curve_texture = function(nodes, points_num) {
+exports.extract_vec_curves_data = function(nodes, points_num) {
 
     var _vec3_tmp = new Float32Array(3);
     var vec = new Float32Array(3);
@@ -1700,45 +1941,110 @@ exports.create_vec_curve_texture = function(nodes, points_num) {
     return new Uint8Array(tex);
 }
 
-exports.change_image = function(object, texture_name, image) {
-    var texture = get_texture_by_name(object, texture_name);
-    if (texture) {
-        update_texture(texture, image, false, image.src, 0);
-        return true;
-    } else
-        return false;
-}
-
-exports.get_batch_texture = get_batch_texture;
 /**
- * Extract b4w texture from slot and apply color
- * @param texture_slot Texture slot
- * @param {vec4} [color=null] Default texture color
+ * Combines several ramps one below another on a single texture
  */
-function get_batch_texture(texture_slot, color) {
-
-    var bpy_texture = texture_slot["texture"];
-
-    var render = bpy_texture._render;
-    var image = bpy_texture["image"];
-
-    if (render && color && image)
-        update_texture(render, color, image._is_dds,
-            image["filepath"]);
-
-    return render;
-}
-
-exports.generate_batch_texure =function (image_data, size) {
-    var texture = generate_texture("NODE_TEX", null);
-    var texture_slot = { "texture": texture };
+exports.create_color_ramp_texture = function(image_data, width) {
+    var tex = create_texture(exports.TT_RGBA_INT, false);
+    tex.source = "NODE_TEX";
+    tex.repeat = false;
     var tex_data = {
-        width: size,
-        height: image_data.length / (size * 4),
+        width: width,
+        height: image_data.length / (width * 4),
         data: image_data
     };
+    update_texture(tex, tex_data);
+    return tex;
+}
 
-    return get_batch_texture(texture_slot, tex_data);
+exports.change_image = function(object, texture, texture_name, image, path) {
+    var norm_path = m_util.normpath_preserve_protocol(path);
+    if (object.type != "WORLD") {
+        var cached_tex = find_similar_tex(norm_path, texture);
+        if (cached_tex)
+            var texture_new = cached_tex;
+        else {
+            var texture_new = clone_texture(texture);
+            clone_w_texture(texture, texture_new);
+            set_params_by_img_path(texture_new, path, norm_path);
+            update_texture(texture_new, image, 0);
+        }
+        set_texture_by_name(object, texture_name, texture_new);
+    } else {
+        var texture_new = texture;
+        set_params_by_img_path(texture_new, path, norm_path);
+        update_texture(texture_new, image, 0);
+        m_scs.update_cube_sky_dim(object, texture_new);
+        m_scs.update_sky_texture(object);
+    }
+}
+
+exports.cleanup_unused = cleanup_unused;
+function cleanup_unused(tex) {
+    // NOTE: temporary disabled texture cache cleanup
+    return;
+    // if (!check_users(tex))
+    //     delete_texture(tex);
+}
+
+function check_users(tex) {
+    var objs = m_objs.get_all_objects("ALL", m_objs.DATA_ID_ALL);
+
+    for (var i = 0; i < objs.length; i++) {
+        var obj = objs[i];
+        if (check_users_by_obj(obj, tex))
+            return true;
+        var meta_objs = obj.meta_objects;
+        for (var j = 0; j < meta_objs.length; j++) {
+            if (check_users_by_obj(meta_objs[j], tex))
+                return true;
+        }
+    }
+    return false;
+}
+
+function check_users_by_obj(obj, tex) {
+    for (var j = 0; j < obj.scenes_data.length; j++) {
+        var batches = obj.scenes_data[j].batches;
+        for (var k = 0; k < batches.length; k++) {
+            var batch = batches[k];
+            var textures = batch.textures;
+            for (var m = 0; m < textures.length; m++) {
+                if (textures[m] == tex)
+                    return true;
+            }
+        }
+    }
+}
+
+function find_similar_tex(img_path, texture) {
+    for (var i = 0; i < _img_textures_cache.length; i++) {
+        var tex = _img_textures_cache[i];
+        if (tex.img_full_filepath == img_path &&
+                tex.type == texture.type &&
+                tex.source == texture.source &&
+                tex.repeat == texture.repeat &&
+                tex.anisotropic_filtering == texture.anisotropic_filtering &&
+                tex.use_nla == texture.use_nla)
+            return tex;
+    }
+    return null;
+}
+
+/**
+ * Extract b4w texture from slot
+ */
+exports.get_batch_texture = function(texture_slot) {
+    var bpy_texture = texture_slot["texture"];
+    return bpy_texture._render;
+}
+
+exports.reset_mod = function() {
+    _gl = null;
+}
+
+exports.get_img_textures = function() {
+    return _img_textures_cache;
 }
 
 }

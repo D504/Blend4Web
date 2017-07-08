@@ -8,7 +8,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   
-  <title>Система частиц. Инстансинг &mdash; Руководство пользователя Blend4Web 16.07</title>
+  <title>Система частиц. Инстансинг &mdash; Руководство пользователя Blend4Web 17.06</title>
   
 
   
@@ -32,7 +32,7 @@
   
         <link rel="author" title="Об этих документах"
               href="about.html"/>
-    <link rel="top" title="Руководство пользователя Blend4Web 16.07" href="index.html"/>
+    <link rel="top" title="Руководство пользователя Blend4Web 17.06" href="index.html"/>
         <link rel="next" title="Анимация" href="animation.html"/>
         <link rel="prev" title="Система частиц. Флюиды" href="particles.html"/> 
 
@@ -61,7 +61,7 @@
           
           
             <div class="version">
-              v16.07
+              v17.06
             </div>
           
         
@@ -203,7 +203,7 @@
 </ul>
 <div class="section" id="particle-system-setup">
 <h2><a class="toc-backref" href="#id2">Настройки системы частиц</a><a class="headerlink" href="#particle-system-setup" title="Ссылка на этот заголовок">¶</a></h2>
-<a class="reference internal image-reference" href="_images/particles_settings_panel1.png"><img alt="_images/particles_settings_panel1.png" class="align-center" src="_images/particles_settings_panel1.png" style="width: 100%;" /></a>
+<a class="reference internal image-reference" href="_images/particles_settings_panel.png"><img alt="_images/particles_settings_panel.png" class="align-center" src="_images/particles_settings_panel.png" style="width: 100%;" /></a>
 <div class="section" id="activation">
 <h3><a class="toc-backref" href="#id3">Активация</a><a class="headerlink" href="#activation" title="Ссылка на этот заголовок">¶</a></h3>
 <ol class="arabic simple">
@@ -268,18 +268,18 @@
 </div></blockquote>
 <p><em>Render &gt; Billboard</em></p>
 <blockquote>
-<div><p>Включение биллбординга для частиц. По умолчанию выключено.</p>
+<div><p>Включение билбординга для частиц. По умолчанию выключено.</p>
 </div></blockquote>
 <p><em>Render &gt; Billboard Type</em></p>
 <blockquote>
-<div><p>Тип биллбординга (опция доступна при включении <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Billboard</span></code>). Доступны три типа:</p>
+<div><p>Тип билбординга (опция доступна при включении <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Billboard</span></code>). Доступны три типа:</p>
 <blockquote>
 <div><ul class="simple">
-<li><p class="first"><code class="docutils literal"><span class="pre">Basic</span></code> - простой односторонний биллбординг: частицы всегда будут повернуты лицевой стороной</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">Basic</span></code> - простой односторонний билбординг: частицы всегда будут повернуты лицевой стороной</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">Random</span></code> - случайный двусторонний биллбординг: частицы чаще всего будут повернуты лицевой, либо обратной стороной, реже - боком; присутствует небольшой случайный поворот; модель создана специально для инстансинга травы</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">Random</span></code> - случайный двусторонний билбординг: частицы чаще всего будут повернуты лицевой, либо обратной стороной, реже - боком; присутствует небольшой случайный поворот; модель создана специально для инстансинга травы</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">Jittered</span></code> - односторонний биллбординг с колебанием частиц в плоскости, обращенной к наблюдателю; модель создана специально для инстансинга листвы деревьев</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">Jittered</span></code> - односторонний билбординг с колебанием частиц в плоскости, обращенной к наблюдателю; модель создана специально для инстансинга листвы деревьев</p>
 </li>
 </ul>
 </div></blockquote>
@@ -295,12 +295,12 @@
 </div></blockquote>
 <p><em>Render &gt; Billboard Geometry</em></p>
 <blockquote>
-<div><p>Тип вращения биллбордов (опция доступна при включении <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Billboard</span></code>). Доступны два типа:</p>
+<div><p>Тип вращения билбордов (опция доступна при включении <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Billboard</span></code>). Доступны два типа:</p>
 <blockquote>
 <div><ul class="simple">
-<li><p class="first"><code class="docutils literal"><span class="pre">Spherical</span></code> - сферический биллбординг, полная ориентация частиц по отношению к наблюдателю, вращение ничем не ограничено;</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">Spherical</span></code> - сферический билбординг, полная ориентация частиц по отношению к наблюдателю, вращение ничем не ограничено;</p>
 </li>
-<li><p class="first"><code class="docutils literal"><span class="pre">Cylindrical</span></code> - цилиндрический биллбординг, вращение частиц только относительно оси Z</p>
+<li><p class="first"><code class="docutils literal"><span class="pre">Cylindrical</span></code> - цилиндрический билбординг, вращение частиц только относительно оси Z</p>
 </li>
 </ul>
 </div></blockquote>
@@ -430,10 +430,10 @@
 </ol>
 <p>Если включена опция <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Randomize</span> <span class="pre">Initial</span> <span class="pre">Rotation</span></code>, то рекомендуется выставить вертикальную ось случайного поворота - <code class="docutils literal"><span class="pre">Z</span> <span class="pre">axis</span></code> (опция <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Rotation</span> <span class="pre">Type</span></code>). Опция <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Rotation</span> <span class="pre">Strength</span></code> - на свое усмотрение.</p>
 <ol class="arabic simple" start="2">
-<li><p class="first"><em>Настройки биллбординга</em></p>
+<li><p class="first"><em>Настройки билбординга</em></p>
 </li>
 </ol>
-<p>Рекомендуется включить биллбординг, выставить тип <code class="docutils literal"><span class="pre">Jittered</span></code> (опция <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Billboard</span> <span class="pre">Type</span></code>) и сделать его сферическим - <code class="docutils literal"><span class="pre">Spherical</span></code> (опция <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Billboard</span> <span class="pre">Geometry</span></code>). Настройки <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Jitter</span> <span class="pre">Amplitude</span></code> и <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Jitter</span> <span class="pre">Frequency</span></code> - на свое усмотрение.</p>
+<p>Рекомендуется включить билбординг, выставить тип <code class="docutils literal"><span class="pre">Jittered</span></code> (опция <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Billboard</span> <span class="pre">Type</span></code>) и сделать его сферическим - <code class="docutils literal"><span class="pre">Spherical</span></code> (опция <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Billboard</span> <span class="pre">Geometry</span></code>). Настройки <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Jitter</span> <span class="pre">Amplitude</span></code> и <code class="docutils literal"><span class="pre">Render</span> <span class="pre">&gt;</span> <span class="pre">Jitter</span> <span class="pre">Frequency</span></code> - на свое усмотрение.</p>
 <ol class="arabic simple" start="3">
 <li><p class="first"><em>Настройки расположения частиц</em></p>
 </li>
@@ -479,8 +479,8 @@
 
   <div role="contentinfo">
     <p>
-        &copy; Copyright 2014-2016, Триумф.
-      Обновлено: 2016-07-26.
+        &copy; Copyright 2014-2017, Триумф.
+      Обновлено: 2017-06-30.
 
     </p>
   </div>
@@ -536,7 +536,7 @@
     <script type="text/javascript">
         var DOCUMENTATION_OPTIONS = {
             URL_ROOT:'./',
-            VERSION:'v16.07',
+            VERSION:'v17.06',
             COLLAPSE_INDEX:false,
             FILE_SUFFIX:'.html',
             HAS_SOURCE:  true

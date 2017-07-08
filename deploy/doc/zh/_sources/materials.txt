@@ -36,6 +36,18 @@
 
     * 附加设置
 
+  * 材质API
+
+    * 堆叠材质的方法
+
+    * 节点材质的方法
+
+    * Replacing Textures
+
+  * 材质继承
+
+    * 激活
+
 材质是描述物体表面对光的反应，还包含有关其透明度、 反射率、 物理参数等
 信息。
 
@@ -84,6 +96,12 @@
 *着色 > 无光影*
    当启用时，材质不会对光起反应。默认为禁用。
 
+*着色 > 切向着色*
+   当启用此参数时，引擎将使用材质的切向量（而不是普通的向量）计算物体
+   的颜色。这可以用于创建各向异性阴影效果。
+
+      [图片]**在左边：** 标准着色模型;  **右：** 切向着色模型。
+
 *着色 > 双面光照*
    启用双面照明模式。此选项是适用于非透明物体的单层网格。
 
@@ -105,6 +123,11 @@
    带渐变透明。引擎按三角与相机间的距离进行排序来正确渲染重叠的透明表
    面。此操作计算代价昂贵。建议将此功能用于封闭透明几何 （瓶、 汽车玻
    璃等）。
+
+*Alpha抗锯齿*
+   透明渐变。这个功能是在Alpha覆盖技术的帮助下实现的。仅当启用MSAA（仅
+   在支持WebGL2的设备上）时才可用。不执行三角形排序。建议该功能在可视
+   化遮罩纹理较小的细节（树叶，草）时使用。
 
 *Alpha 混合*
    带渐变透明。不执行三角形排序。建议在无封闭透明几何体 （水表面，贴花
@@ -161,9 +184,8 @@
 
 表面反射了他们当前的位置中的选定的物体。引擎支持平面和球面反射。
 
-注解: If you are using node materials, dynamic reflection will only
-  work if a "Material" or "Extended Material" node is present in the
-  node tree.
+注解: 如果您使用的是 节点材质, 如果 "Material" 或 "Extended
+  Material" 节点 出现在节点树，动态反射才有效。
 
 
 激活
@@ -176,9 +198,9 @@
    "Reflective" 选项。
 
    * 对平面的反射， "Object > Reflections > Type"  属性设置为
-     "Plane" 。然后，添加一个空物体用作反射平面，例如通过执行``Add >
-     Empty > Single Arrow``。为方便起见重命名，在反射物体 "Reflection
-     plane" 字段中指定其名称。
+     "Plane" 。然后，添加一个空物体用作反射平面，例如通过执行 "Add >
+     Empty > Single Arrow"。为方便起见重命名，在反射物体 "Reflection
+     plane" 字 段中指定其名称。
 
    * 用方块贴图反射， "Object > Reflections > Type" 属性设置为
      "Cube".
@@ -227,10 +249,11 @@
 
 菲涅耳效应可以设置静态和动态的反射。
 
-*材质 > Mirror > Fresnel* 反射的菲涅尔指数。 Schlick方程中的N指数。在
-blender中被限制在0到5的值。设置为零的时候菲涅尔效应无法被观察到，所有
-的反射都是正常的。大于零的时候，在角度这是接近正确的角度观看时表面材料
-是弱反射性的。参数值越大，可以看到菲涅尔效应的观察角度越大。
+*材质 > 镜面 > 菲尼尔*
+   反射的菲涅尔指数。 Schlick方程中的N指数。在blender中被限制在0到5的
+   值。设置为零的时候菲涅尔效应无法被观察到，所有的反射都是正常的。大
+   于零的时候，在角度这是接近正确的角度观看时表面材料是弱反射性的。参
+   数值越大，可以看到菲涅尔效应的观察角度越大。
 
 *材质 > 镜面 > 混合*
    菲涅耳反射系数。在Schlick公式中通过下面的表达式 R_0 = 1 - "Blend" /
@@ -257,11 +280,10 @@ blender中被限制在0到5的值。设置为零的时候菲涅尔效应无法�
 *材质 > 渲染选项 > 湿润*
    为材质激活水润湿效果。
 
-   参见: Water
+   参见: 水
 
-*Material > Rendering Options > Lens Flare*
-   Enabling this parameter activates Lens Flare effect for the
-   material.
+*材料>渲染选项>镜头光晕*
+   启用此参数可激活材质镜头光晕效果。
 
 *材质 > 渲染选项 > 渲染以上全部*
    材质被渲染在场景的所有物体的顶层。要求使用渐变透明度类型  ("Add",
@@ -275,7 +297,7 @@ blender中被限制在0到5的值。设置为零的时候菲涅尔效应无法�
    "Refraction Bump" 选项设置。默认值为 0.001。
 
    注解: 为了使用这种效果， "Render > Reflections and Refractions >
-     Refractions" 面板上选择``ON`` 或者 "AUTO" 。该物体必须具有 "Alpha
+     Refractions" 面板上选择 "ON" 或者 "AUTO" 。该物体必须具有 "Alpha
      Blend" 透明类型。
 
    参见: 透明
@@ -313,7 +335,7 @@ blender中被限制在0到5的值。设置为零的时候菲涅尔效应无法�
 *材质 > 碰撞*
    碰撞几何体的一种特殊材质。
 
-   参见: Physics
+   参见: 物理
 
 *材质 > 导出选项 > 不要导出*
    材质不导出。
@@ -328,8 +350,8 @@ blender中被限制在0到5的值。设置为零的时候菲涅尔效应无法�
 激活
 ----
 
-在``Materials`` 选项卡下选择 "光晕" 类型 。建议也选择使用渐变的透明度
-类型 ("Add", "Alpha Blend" 或者 "Alpha Sort").
+在 "Materials" 选项卡下选择 "光晕" 类型 。建议也选择使用渐变的透明度类
+型 ("Add", "Alpha Blend" 或者 "Alpha Sort").
 
 [图片]
 
@@ -367,3 +389,203 @@ blender中被限制在0到5的值。设置为零的时候菲涅尔效应无法�
 
 *光晕 > 最小高度*
    物体的局部坐标系中使星星可见的最小高度。
+
+
+材质API
+=======
+
+用于设置和场景的材质，包括堆叠和节点，的所有API方法，位于材质API模块中
+。该模块所提供的每个方法的完整说明都在 page API参考页 。
+
+注解: API方法只能在添加到动态物体的材质上工作。
+
+
+堆叠材质的方法
+--------------
+
+material API模块包括控制堆栈材质的每一个方面的方法。
+
+这里有材质API模块如何用来对一个物体的材质进行各种操作的几个示例：
+
+获取物体的漫反射颜色：
+
+   var m_scenes    = require("scenes");
+   var m_material  = require("material");
+
+   ...
+
+   var cube = m_scenes.get_object_by_name("Cube");
+
+   var diffuse_color = m_material.get_diffuse_color(cube, "MyMaterial");
+   var diffuse_color_factor = m_material.get_diffuse_color_factor(cube, "MyMaterial");
+   var diffuse_intensity = m_material.get_diffuse_intensity(cube, "MyMaterial");
+
+获取物体的高光颜色：
+
+   var m_scenes    = require("scenes");
+   var m_material  = require("material");
+
+   ...
+
+   var cube = m_scenes.get_object_by_name("Cube");
+
+   var specular_color = m_material.get_specular_color(cube, "MyMaterial");
+   var specular_color_factor = m_material.get_specular_color_factor(cube, "MyMaterial");
+   var specular_hardness = m_material.get_specular_hardness(cube, "MyMaterial");
+   var specular_intensity = m_material.get_specular_intensity(cube, "MyMaterial");
+
+获取其他参数：
+
+   var m_scenes    = require("scenes");
+   var m_material  = require("material");
+
+   ...
+
+   var cube = m_scenes.get_object_by_name("Cube");
+
+   var emit_factor = m_material.get_emit_factor(cube, "MyMaterial");
+   var alpha_factor = m_material.get_alpha_factor(cube, "MyMaterial");
+   var ambient_factor = m_material.get_ambient_factor(cube, "MyMaterial");
+
+   var extended_parameters = m_material.get_material_extended_params(cube, "MyMaterial");
+
+设置堆叠材质参数：
+
+   var m_scenes    = require("scenes");
+   var m_material  = require("material");
+   var m_rgba      = require("rgba");
+
+   ...
+
+   var cube = m_scenes.get_object_by_name("Cube");
+
+   m_material.set_diffuse_color(cube, "MyMaterial", m_rgba.from_values(1.0, 0.0, 0.0, 1.0));
+   m_material.set_diffuse_color_factor(cube, "MyMaterial", 0.05);
+   m_material.set_material_extended_params(cube, "MyMaterial", {fresnel: 0,
+                                                                fresnel_factor: 1.25,
+                                                                parallax_scale: 0,
+                                                                parallax_steps: "5.0",
+                                                                reflect_factor: 0});
+
+
+节点材质的方法
+--------------
+
+此时，API方法只能影响RGB节点和数值值节点。不支持任何其他类型。
+
+要改变一个特定的材质节点的值，您需要：
+
+* 到物体的链接，使用这种特殊的材质，
+
+* 该材质的名称，
+
+* 节点本身的名称
+
+* 和包含该节点（如果存在的话）的节点组的名称。
+
+最好也给节点唯一的名称，否则你将无法获得它们的链接。一个节点的名称可以
+在在节点编辑器窗口的右侧侧面板的上部查看和改变。
+
+注解: 在Node编辑器的主要窗口中的节点不显示节点的名称，只有它的类型。
+
+[图片]
+
+这两个例子说明了一个节点材质的参数如何通过API方法来调节。
+
+获取节点材质参数︰
+
+   var m_scenes    = require("scenes");
+   var m_material  = require("material");
+
+   ...
+
+   var cube = m_scene.get_object_by_name("Cube");
+
+   var rgb_node_1 = m_material.get_nodemat_rgb(cube, ["MyMaterial", "MyRGB"]);
+   var rgb_node_2 = m_material.get_nodemat_rgb(cube, ["MyMaterial", "MyRGB_2"]);
+   var value_node = m_material.get_nodemat_value(cube, ["MyMaterial", "MyValue"]);
+
+设置节点材质参数：
+
+   var m_scenes    = require("scenes");
+   var m_material  = require("material");
+
+   ...
+
+   var cube = m_scene.get_object_by_name("Cube");
+
+   m_material.set_nodemat_value(cube, ["MyMaterial", "MyValue"], 0.8);
+   m_material.set_nodemat_rgb(cube, ["MyMaterial", "MyRGB"], 0.7, 0.9, 0.3);
+
+Same methods can also be used to adjust the scene environment, if the
+"World" object in the scene uses "RGB" or "Value" nodes. However, in
+this case you won't have to use the name of the material. The other
+difference is that a link to a scene object has to be replaced with a
+link to the "World" object that can be retrieved with the
+get_world_by_name() method:
+
+   var m_scenes    = require("scenes");
+   var m_material  = require("material");
+
+   ...
+
+   var my_world = m_scene.get_world_by_name("World");
+
+   var world_rgb = m_material.get_nodemat_rgb(my_world, ["My_RGB_3"]);
+
+
+Replacing Textures
+------------------
+
+API methods also allow you to replace texture images. This can be done
+using the change_image() method from the textures module:
+
+   var m_scenes  = require("scenes");
+   var m_tex = require("textures");
+
+   ...
+
+   var my_cube = m_scenes.get_object_by_name("Cube");
+
+   m_tex.change_image(my_cube, "My_Texture", "./test.png");
+
+This method can be applied to replace textures used by the "World"
+object as well. However, in this case the name of the "Texture" node
+should be used instead of the name of a texture.
+
+
+材质继承
+========
+
+Blend4Web支持动态的材质切换。这个特性给用户一个机会可以配置模型外观非
+常对有用，诸如服装，一件家具，汽车或其他东西。继承材质特性可以在通过
+change_texture  方法来调整堆叠材质和节点材质不够用的时候使用。
+
+继承材质的优点是灵活，易于使用，这使得当你必须显着改变源材质的时候，它
+是一个更好的选择。它同时适用于API的脚本和逻辑节点，并且它可用于堆叠材
+质和节点材质。这个功能的缺点是，它可能无法像上面描述的其他方法一样快速
+工作，这在某些情况下可能是至关重要的。
+
+
+激活
+----
+
+要使用继承材质，你需要两个物体。其中第一个是，具有将被继承材质的源物体
+。第二个是其具有需要更换材质的目标物体。这两个物体应该具有启用了
+"Dynamic Geometry & Material"   选项（此选项可以在 "Object" 标签下可以
+找到，在 "Rendering Properties" 面板）。
+
+注解: 当一个材质被继承后，它看起来和在Blender中被简单地分配给目标物
+  体的完 全一样。这意味着，需要事先将继承的每一个材质的所有UV贴图和顶
+  点颜色层 进行手动准备。对于源物体，这是没有必要的。
+
+如果使用的是逻辑节点，继承材质可以用 "Object->Inherit Material" 节点执
+行。 如果你正在使用API， 可以使用 inherit_material 方法完成。
+
+[图片]
+
+如果应用程序需要许多不同的材质被改变，创建一个专用的容器物体可能是一个
+不错的办法。它可以是一个简单的平面网格，就像一个 "Plane" 物体，有你可
+能需要分配给它的每一个材质。这个物体可以隐藏在场景中，通过在
+"Object->Rendering Properties" 面板中设置  "Hidden" 或者 "Do Not
+Render"  的选项。

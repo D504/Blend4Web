@@ -9,8 +9,8 @@ start
 Group
   = parts:GroupParts? {
       return {
-        type: "group",
-        parts: parts !== null ? parts : []
+        TYPE: "grp",
+        PARTS: parts !== null ? parts : []
       };
     }
 
@@ -40,48 +40,48 @@ IfSection
         parts.push(elsegroup)
 
       return {
-        type: "condition",
-        parts:parts
+        TYPE: "cond",
+        PARTS:parts
       }
     }
 
 IfGroup
   = "#" _ "if" MSS expression:PPExpression _ LineTerminatorSequence __ group:Group {
       return {
-        type: "if",
-        expression: expression,
-        group: group
+        TYPE: "if",
+        EXPRESSION: expression,
+        GROUP: group
       };
     }
   / "#" _ "ifdef" MSS name:Identifier _ LineTerminatorSequence __ group:Group {
       return {
-        type: "ifdef",
-        name: name,
-        group: group
+        TYPE: "ifdef",
+        NAME: name,
+        GROUP: group
       };
     }
   / "#" _ "ifndef" MSS name:Identifier _ LineTerminatorSequence __ group:Group {
       return {
-        type: "ifndef",
-        name: name,
-        group: group
+        TYPE: "ifndef",
+        NAME: name,
+        GROUP: group
       };
     }
 
 ElIfGroup
   = "#" _ "elif" MSS expression:PPExpression _ LineTerminatorSequence __ group:Group __ {
       return {
-        type: "elif",
-        expression: expression,
-        group: group
+        TYPE: "elif",
+        EXPRESSION: expression,
+        GROUP: group
       };
     }
 
 ElseGroup
   = "#" _ "else" _ LineTerminatorSequence __ group:Group {
       return {
-        type: "else",
-        group: group
+        TYPE: "else",
+        GROUP: group
       };
     }
 
@@ -92,37 +92,35 @@ EndIfLine
 ControlLine
   = "#" _ "include" _ file:HeaderFile _ LineTerminatorSequenceEOF {
       return {
-        type: "include",
-        file: file
+        TYPE: "include",
+        FILE: file
       };
-    }
-  / "#" _ type:("import" / "export") (MSS Tokens)? _ LineTerminatorSequenceEOF {
-      return {
-        type: type
-      }
     }
   / "#" _ type:("define" / "var") MSS name:Identifier toks:(MSS Tokens)? _ LineTerminatorSequenceEOF {
       var tokens = [];
 
-      if (toks !== null)
+      if (toks === null) 
+        tokens.push("");
+      else
         for (var i = 0; i < toks[1].length; i++)
           tokens.push(toks[1][i]);
 
       return {
-        type: type,
-        name: name,
-        tokens: tokens
+        TYPE: type,
+        NAME: name,
+        TOKENS: tokens
       };
     }
-  / "#" _ "define" MSS name:Identifier "(" _ params:DefineParamList? _ ")" _
+  /* NOTE: isn't properly supported
+    / "#" _ "define" MSS name:Identifier "(" _ params:DefineParamList? _ ")" _
         tokens:Tokens? _ LineTerminatorSequenceEOF {
       return {
-        type: "define",
-        name: name,
-        params: params !== null ? params : [],
-        tokens: tokens !== null ? tokens : []
+        TYPE: "define",
+        NAME: name,
+        PARAMS: params !== null ? params : [],
+        TOKENS: tokens !== null ? tokens : []
       };
-    }
+    }*/
   / "#" _ "error" toks:(MSS Tokens)? _ LineTerminatorSequenceEOF {
       var tokens = [];
 
@@ -131,27 +129,27 @@ ControlLine
           tokens.push(toks[1][i]);
 
       return {
-        type: "error",
-        tokens: tokens
+        TYPE: "error",
+        TOKENS: tokens
       };
     }
   / "#" _ "line" MSS tokens:Tokens _ LineTerminatorSequenceEOF {
       return {
-        type: "line",
-        tokens: tokens
+        TYPE: "line",
+        TOKENS: tokens
       };
     }
   / "#" _ "pragma" MSS name:Identifier MSS tokens:Tokens _ LineTerminatorSequenceEOF {
       return {
-        type: "pragma",
-        name: name,
-        tokens: tokens
+        TYPE: "pragma",
+        NAME: name,
+        TOKENS: tokens
       };
     }
   / "#" _ "undef" MSS name:Identifier _ LineTerminatorSequenceEOF {
       return {
-        type: "undef",
-        name: name
+        TYPE: "undef",
+        NAME: name
       };
     }
   / "#" _ "warning" toks:(MSS Tokens)? _ LineTerminatorSequenceEOF {
@@ -162,8 +160,8 @@ ControlLine
           tokens.push(toks[1][i]);
 
       return {
-        type: "warning",
-        tokens: tokens
+        TYPE: "warning",
+        TOKENS: tokens
       };
     }
 
@@ -175,15 +173,24 @@ ControlLine
           tokens.push(toks[1][i]);
 
     return {
-      type: "extension",
-      tokens: tokens
+      TYPE: "extension",
+      TOKENS: tokens
     }
   }
 
+  / "#" _ "version" MSS version:Token _ LineTerminatorSequenceEOF {
+      var tokens = [];
+      if (version !== null)
+        tokens.push(version);
+    return {
+      TYPE: "version",
+      TOKENS: tokens
+    }
+  }
 
   / "#" _ LineTerminatorSequenceEOF {
       return {
-        type: "#"
+        TYPE: "#"
       };
     }
 
@@ -197,7 +204,15 @@ Nodes
   / NodesMainLine
 
 NodeGroup
-  = "#" _ "node" MSS name:Identifier _ LineTerminatorSequence __ decl:(NodeDeclarationLine __)* stat:(NodeStatement __)* {
+  = "#" _ "node" MSS name:Identifier _ LineTerminatorSequence __ 
+    vars:(NodeVar __)* 
+    decl:(NodeDeclarationLine __)* 
+    stat:(NodeStatement __)* {
+
+      var node_vars = [];
+      for (var i = 0; i < vars.length; i++)
+        node_vars.push(vars[i][0]);
+
       var declarations = [];
       for (var i = 0; i < decl.length; i++)
         declarations.push(decl[i][0]);
@@ -207,16 +222,34 @@ NodeGroup
         statements.push(stat[i][0]);
 
       return {
-        type: "node",
-        name: name,
-        declarations: declarations,
-        statements: statements
+        TYPE: "node",
+        NAME: name,
+        NODE_VARS: node_vars,
+        DECLARATIONS: declarations,
+        STATEMENTS: statements
       };
     }
 
 EndNodeLine
-  // conserning ? sign see EndIfLine
+  // concerning ? sign see EndIfLine
   = "#" _ "endnode" _ LineTerminatorSequenceEOF?
+
+NodeVar
+  = "#" _ "node_var" MSS name:Identifier toks:(MSS Tokens)? _ LineTerminatorSequence {
+      var tokens = [];
+
+      if (toks === null) 
+        tokens.push("");
+      else
+        for (var i = 0; i < toks[1].length; i++)
+          tokens.push(toks[1][i]);
+
+      return {
+        TYPE: "node_var",
+        NAME: name,
+        TOKENS: tokens
+      };
+    }
 
 NodeDeclarationLine
   = NodeInLine
@@ -238,8 +271,8 @@ NodeIfSection
         parts.push(elsegroup)
 
       return {
-        type: "node_condition",
-        parts: parts
+        TYPE: "node_cond",
+        PARTS: parts
       }
     }
 
@@ -250,9 +283,9 @@ NodeIfGroup
         statements.push(stat[i][0]);
 
       return {
-        type: "node_if",
-        expression: expression,
-        statements: statements
+        TYPE: "node_if",
+        EXPRESSION: expression,
+        STATEMENTS: statements
       };
     }
   / "#" _ "node_ifdef" MSS name:Identifier _ LineTerminatorSequence __ stat:(NodeStatement __)* {
@@ -261,9 +294,9 @@ NodeIfGroup
         statements.push(stat[i][0]);
 
       return {
-        type: "node_ifdef",
-        name: name,
-        statements: statements
+        TYPE: "node_ifdef",
+        NAME: name,
+        STATEMENTS: statements
       };
     }
   / "#" _ "node_ifndef" MSS name:Identifier _ LineTerminatorSequence __ stat:(NodeStatement __)* {
@@ -272,9 +305,9 @@ NodeIfGroup
         statements.push(stat[i][0]);
 
       return {
-        type: "node_ifndef",
-        name: name,
-        statements: statements
+        TYPE: "node_ifndef",
+        NAME: name,
+        STATEMENTS: statements
       };
     }
 
@@ -285,9 +318,9 @@ NodeElIfGroup
         statements.push(stat[i][0]);
 
       return {
-        type: "node_elif",
-        expression: expression,
-        statements: statements
+        TYPE: "node_elif",
+        EXPRESSION: expression,
+        STATEMENTS: statements
       };
     }
 
@@ -298,8 +331,8 @@ NodeElseGroup
         statements.push(stat[i][0]);
 
       return {
-        type: "node_else",
-        statements: statements
+        TYPE: "node_else",
+        STATEMENTS: statements
       };
     }
 
@@ -317,10 +350,10 @@ NodeInLine
       var last = tokens.pop();
 
       return {
-        type: "node_in",
-        name: last,
-        qualifier:tokens,
-        is_optional: Boolean(opt)
+        TYPE: "node_in",
+        NAME: last,
+        QUALIFIER:tokens,
+        IS_OPTIONAL: Boolean(opt)
       };
     }
 
@@ -335,10 +368,10 @@ NodeOutLine
       var last = tokens.pop();
 
       return {
-        type: "node_out",
-        name: last,
-        qualifier:tokens,
-        is_optional: Boolean(opt)
+        TYPE: "node_out",
+        NAME: last,
+        QUALIFIER:tokens,
+        IS_OPTIONAL: Boolean(opt)
       };
     }
 
@@ -353,33 +386,33 @@ NodeParamLine
       var last = tokens.pop();
 
       return {
-        type: "node_param",
-        name: last,
-        qualifier: tokens,
-        is_optional: Boolean(opt)
+        TYPE: "node_param",
+        NAME: last,
+        QUALIFIER: tokens,
+        IS_OPTIONAL: Boolean(opt)
       };
     }
 
 NodesGlobalLine
   = "#" _ "nodes_global" _ LineTerminatorSequenceEOF {
       return {
-        type: "nodes_global"
+        TYPE: "nodes_global"
       }
     }
 
 NodesMainLine
   = "#" _ "nodes_main" _ LineTerminatorSequenceEOF {
       return {
-        type: "nodes_main"
+        TYPE: "nodes_main"
       }
     }
 
 TextLine
   = tokens:Tokens {
-       return {
-         type: "textline",
-         tokens: tokens
-       }
+      return {
+        TYPE: "txt",
+        TOKENS: tokens
+      }
     }
 
 Tokens
@@ -406,8 +439,8 @@ ConditionalExpression
     ":" _ falseExpression:PPExpression {
       var result = condition;
       var op = {
-        type: "conditional_expr",
-        places: 3
+        TYPE: "conditional_expr",
+        PLACES: 3
       }
       result.push.apply(result, trueExpression);
       result.push.apply(result, falseExpression);
@@ -422,8 +455,8 @@ LogicalORExpression
       var result = head;
       if (tail.length) {
         var op = {
-          type: "logical_or_expr",
-          places: tail.length + 1
+          TYPE: "logical_or_expr",
+          PLACES: tail.length + 1
         }
         for (var i = 0; i < tail.length; i++)
           result.push.apply(result, tail[i][3]);
@@ -438,8 +471,8 @@ LogicalANDExpression
       var result = head;
       if (tail.length) {
         var op = {
-          type: "logical_and_expr",
-          places: tail.length + 1
+          TYPE: "logical_and_expr",
+          PLACES: tail.length + 1
         }
         for (var i = 0; i < tail.length; i++)
           result.push.apply(result, tail[i][3]);
@@ -454,8 +487,8 @@ BitwiseORExpression
       var result = head;
       if (tail.length) {
         var op = {
-          type: "logical_bitor_expr",
-          places: tail.length + 1
+          TYPE: "logical_bitor_expr",
+          PLACES: tail.length + 1
         }
         for (var i = 0; i < tail.length; i++)
           result.push.apply(result, tail[i][3]);
@@ -470,8 +503,8 @@ BitwiseXORExpression
       var result = head;
       if (tail.length) {
         var op = {
-          type: "logical_bitxor_expr",
-          places: tail.length + 1
+          TYPE: "logical_bitxor_expr",
+          PLACES: tail.length + 1
         }
         for (var i = 0; i < tail.length; i++)
           result.push.apply(result, tail[i][3]);
@@ -486,8 +519,8 @@ BitwiseANDExpression
       var result = head;
       if (tail.length) {
         var op = {
-          type: "logical_bitand_expr",
-          places: tail.length + 1
+          TYPE: "logical_bitand_expr",
+          PLACES: tail.length + 1
         }
         for (var i = 0; i < tail.length; i++)
           result.push.apply(result, tail[i][3]);
@@ -504,16 +537,16 @@ EqualityExpression
         switch (tail[i][1]) {
         case "==":
           var op = {
-            type: "equal_expr",
-            places: 2
+            TYPE: "equal_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
           break;
         case "!=":
           var op = {
-            type: "non_equal_expr",
-            places: 2
+            TYPE: "non_equal_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
@@ -531,32 +564,32 @@ RelationalExpression
         switch (tail[i][1]) {
         case "<=":
           var op = {
-            type: "le_expr",
-            places: 2
+            TYPE: "le_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
           break;
         case ">=":
           var op = {
-            type: "ge_expr",
-            places: 2
+            TYPE: "ge_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
           break;
         case "<":
           var op = {
-            type: "l_expr",
-            places: 2
+            TYPE: "l_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
           break;
         case ">":
           var op = {
-            type: "g_expr",
-            places: 2
+            TYPE: "g_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
@@ -574,16 +607,16 @@ ShiftExpression
         switch (tail[i][1]) {
         case "<<":
           var op = {
-            type: "left_shift_expr",
-            places: 2
+            TYPE: "left_shift_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
           break;
         case ">>":
           var op = {
-            type: "right_shift_expr",
-            places: 2
+            TYPE: "right_shift_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
@@ -601,16 +634,16 @@ AdditiveExpression
         switch (tail[i][1]) {
         case "+":
           var op = {
-            type: "add_expr",
-            places: 2
+            TYPE: "add_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
           break;
         case "-":
           var op = {
-            type: "sub_expr",
-            places: 2
+            TYPE: "sub_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
@@ -628,24 +661,24 @@ MultiplicativeExpression
         switch (tail[i][1]) {
         case "*":
           var op = {
-            type: "mul_expr",
-            places: 2
+            TYPE: "mul_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
           break;
         case "/":
           var op = {
-            type: "div_expr",
-            places: 2
+            TYPE: "div_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
           break;
         case "%":
           var op = {
-            type: "mod_expr",
-            places: 2
+            TYPE: "mod_expr",
+            PLACES: 2
           }
           result.push.apply(result, tail[i][3]);
           result.push(op);
@@ -665,43 +698,43 @@ UnaryExpression
       switch (operator) {
         case "++":
           var op = {
-            type: "pre_inc_expr",
-            places: 1
+            TYPE: "pre_inc_expr",
+            PLACES: 1
           }
           result.push(op);
           break;
         case "--":
           var op = {
-            type: "pre_dec_expr",
-            places: 1
+            TYPE: "pre_dec_expr",
+            PLACES: 1
           }
           result.push(op);
           break;
         case "+":
           var op = {
-            type: "positive_expr",
-            places: 1
+            TYPE: "positive_expr",
+            PLACES: 1
           }
           result.push(op);
           break;
         case "-":
           var op = {
-            type: "negative_expr",
-            places: 1
+            TYPE: "negative_expr",
+            PLACES: 1
           }
           result.push(op);
           break;
         case "~":
           var op = {
-            type: "one_compl_expr",
-            places: 1
+            TYPE: "one_compl_expr",
+            PLACES: 1
           }
           result.push(op);
           break;
         case "!":
           var op = {
-            type: "logic_negative_expr",
-            places: 1
+            TYPE: "logic_negative_expr",
+            PLACES: 1
           }
           result.push(op);
           break;
@@ -715,15 +748,15 @@ PostfixExpression
       switch (operator) {
         case "++":
           var op = {
-            type: "post_inc_expr",
-            places: 1
+            TYPE: "post_inc_expr",
+            PLACES: 1
           }
           result.push(op);
           break;
         case "--":
           var op = {
-            type: "post_dec_expr",
-            places: 1
+            TYPE: "post_dec_expr",
+            PLACES: 1
           }
           result.push(op);
           break;
@@ -870,9 +903,8 @@ Keyword
       / "#line"
       / "#pragma"
       / "#warning"
+      / "#version"
       / "var"
-      / "import"
-      / "export"
     )
     !IdentifierPart
 
@@ -884,27 +916,27 @@ PPNumber "number"
 PPDecimalLiteral
   = parts:$(DecimalIntegerLiteral "." DecimalDigits? ExponentPart?) {
       return {
-        type: "float",
-        val: parseFloat(parts)
+        TYPE: "float",
+        VAL: parseFloat(parts)
       }
     }
   / parts:$("." DecimalDigits ExponentPart?) {
       return {
-        type: "float",
-        val: parseFloat(parts)
+        TYPE: "float",
+        VAL: parseFloat(parts)
       };
     }
   / parts:$(DecimalIntegerLiteral ExponentPart?) {
       return {
-        type: "int",
-        val: parseInt(parts)
+        TYPE: "int",
+        VAL: parseInt(parts)
       };
     }
 PPHexIntegerLiteral
   = "0" [xX] digits:$HexDigit+ {
       return {
-        type: "int",
-        val: parseInt("0x" + digits)
+        TYPE: "int",
+        VAL: parseInt("0x" + digits)
       };
     }
 

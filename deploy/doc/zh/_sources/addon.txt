@@ -8,9 +8,9 @@
 
 * 插件
 
-  * Local Development Server
+  * 本地开发服务器
 
-  * Running Viewer and Demos
+  * 运行浏览器和演示
 
   * 输出格式
 
@@ -33,73 +33,85 @@
   * 插件翻译
 
 
-Local Development Server
-========================
+本地开发服务器
+==============
 
-Settings for the local development server can be found in "File > User
-Preferences..." (hot keys "Ctrl-Alt-U"). Here you can change the port
-number to be used to run the development server (6687 by default), and
-also enable its launching upon Blender startup. To do this, enable
-"Run on Startup" option in the add-on settings.
-
-[图片]
-
-
-
-After changing local development server settings in it required to
-restart Blender.
-
-It is possible for the local server to process external requests. To
-do that enable the option "Enable External Requests".
-
-If you chose not to start the server automatically, you can always do
-it manually: go to the "Render" tab and press the "Start Server"
-button on the "Development Server" panel:
+本地开发服务器的设置中可以在  "File > User Preferences..."  找到 (快捷
+键 "Ctrl-Alt-U") 。在这里，您可以更改端口号被用来运行开发服务器（默认
+情况下6687），可随Blender启动开启。要做到这一点，在插件上启用 "Run on
+Startup" 选项运行。
 
 [图片]
 
 
 
-注解: If the path to the Blend4Web SDK is not specified, the local
-  development server cannot be launched. In this case the
-  corresponding message will be displayed instead of the "Start
-  Server" button.If the server is failed to run, an error message will
-  be shown describing the reason:[图片]This error can arise if the
-  server port is already used by some other application.
+在改变了本地开发服务器设置后需要重新启动Blender。
 
-Press the "SDK Index" button to open the index web page of the
-Blend4Web SDK in the browser. This page is available at
-http://localhost:6687.
+有可能为本地服务器来处理外部请求。要做到这一点启用 "Enable External
+Requests" 选项 。
+
+如果您选择不自动启动服务器，你总是可以手动启动：去 "Render" 选项卡，然
+后按 "Development Server"  面板上的  "Start Server" 按钮：
 
 [图片]
 
 
 
-As a result, the default browser for your operating system will be
-launched.
+注解: 如果本地开发服务器无法启动。在这种情况下，相应的消息将被显示，
+  而不是 "Start Server" 按钮。如果服务器无法运行，将显示一条错误消息，
+  说明了 原因：[图片]如果服务器端口已被一些其他的应用程序可能会出现此
+  错误。
 
-The "Project Manager" button can be used to open project manager.
-
-The "Fast Preview" button loads the scene that is currently open in
-Blender, into the viewer.
-
-The server can be stopped by pressing the "Stop Server" button. It
-also stops when Blender is closed.
-
-
-Running Viewer and Demos
-========================
-
-The index page contains links for launching the scene viewer and the
-demo applications. A WebGL-capable browser is required to run these
-apps.
+按 "SDK Index" 按钮，在浏览器中打开Blend4Web SDK的索引网页。本页面可在
+http://localhost:6687 访问。
 
 [图片]
 
 
 
-注解: If the SDK apps are not displayed correctly, or error messages
-  are shown, follow the instructions in the 启动时的问题 section.
+然后，对于您的操作系统的默认浏览器将启动。
+
+"Project Manager" 按钮可用于打开 项目管理器.
+
+"Fast Preview" 按钮加载当前正在Blender打开的场景到 查看器.
+
+服务器可以通过按下 "Stop Server"  按钮被停止。当Blender被关闭也停止。
+
+
+运行浏览器和演示
+================
+
+[图片]
+
+The index page contains the following links:
+
+* Project Manager;
+
+* Code Snippets, a list of demo applications. A WebGL-capable
+  browser is required to run these apps;
+
+* WebGL Report page for checking the level of WebGL support provided
+  by the web browser;
+
+* User Manual, available in both HTML and PDF form in three
+  languages;
+
+* API Reference that contains descriptions for every API module and
+  method provided with the Blend4Web engine;
+
+* Tutorials;
+
+* FAQ page where you can find answers to some of the most basic
+  questions regarding using the engine;
+
+* Community Support Forums;
+
+* Support Email (only available in PRO version).
+
+
+
+注解: 如果SDK应用程序显示不正确，或显示错误消息，请按照  启动时的问
+  题 部分 中的说明。
 
 
 输出格式
@@ -117,14 +129,12 @@ JSON
 包含所有导出的数据结构和链接到外部资源（图片，声音等等），还有一个
 ".bin" 文件包含二进制格式的模型数据阵列。
 
-If media resources are packed into the .blend file, they will be
-unpacked during the export and placed in the project's directory
-(inside the SDK directory). It should be noted that the names of such
-files will be automatically changed, which can complicate working with
-them.
+如果媒体资源被 打包到.blend文件, 他们会在导出过程中解压，并在项目的目
+录放置在隐藏的 "../tmp/" 文件夹中（SDK目录内）。应当注意的是，这样的话
+文件的名称将被自动地改变，工作的时候可能变得复杂。
 
-建议将所有资源存储在SDK目录中一个专门的文件夹，它可以被称为
-``deploy/assets/项目名`` 。
+建议将所有资源存储在SDK目录中一个专门的文件夹，例如，它可以被称为
+"projects/project_name/assets" 。
 
 注解: 按照安全因素考虑，开发服务器只能访问SDK文件夹。如果媒体数据被
   放置在 另一个文件夹，服务器将无法在部署的时候导出（即使是在Blender内
@@ -146,18 +156,16 @@ HTML文件不仅包含场景本身，而且还材质，声音Blend4Web引擎和�
 player. 像这样的文件可以在任何计算机和有支持WebGL的Web浏览器的任何移动
 设备上执行。
 
-You can't use HTML files for further development, but you also don't
-need any additional actions to run them. This format is useful for
-developing relatively simple applications of moderate size.
+不能使用HTML文件做进一步的开发，但你也并不需要任何额外的操作来运行它们
+。这种格式对开发中等规模的相对简单的应用非常有用。
 
-It should be noted, however, that HTML applications do not support
-following features:
+应当指出，不论如何，HTML应用程序不支持以下功能：
 
-   * Physics
+   * 物理
 
-   * DDS textures
+   * DDS纹理
 
-   * min50 textures
+   * min50 纹理
 
 
 导出选项
@@ -223,23 +231,17 @@ following features:
 +---------------------------------------+---------------------------------------------+
 | 错误信息                              | 原因                                        |
 +=======================================+=============================================+
-| Blend4Web initialization error! Addon | 该Blend4Web插件和该平台不兼容。             |
-| is not compatible with the PLATFORM   |                                             |
-| platform.（Blend4Web初始化错误！插件  |                                             |
-| 不是同平台平台兼容。）                |                                             |
+| Blend4Web initialization error! Add-  | 该Blend4Web插件和该平台不兼容。             |
+| on is not compatible with the         |                                             |
+| PLATFORM platform.                    |                                             |
 +---------------------------------------+---------------------------------------------+
 | Warning: Blender version mismatch.    | 警告有关可能不符合当前Blender的版本号。它建 |
 | Blender VER_REQUIRED is recommended   | 议使用VER_REQUIREDBlender版 本。当前的版本  |
-| for the Blend4Web addon. Current      | 是VER_CURRENT。                             |
-| version is VER_CURRENT.（Blend4Web    |                                             |
-| initialization error! Addon is not    |                                             |
-| compatible with the PLATFORM          |                                             |
-| platform.）                           |                                             |
+| for the Blend4Web add-on. Current     | 是VER_CURRENT。                             |
+| version is VER_CURRENT.               |                                             |
 +---------------------------------------+---------------------------------------------+
-| Incorrect addon directory name.       | Incorrect name of the addon directory.      |
-|                                       | Addon structure in the archive has been     |
-|                                       | damaged, or entirety of the archive has     |
-|                                       | been disrupted.                             |
+| Incorrect add-on directory name.      | 插件目录的不正确的名称。在存档附加结构已损  |
+|                                       | 坏，或归档的全部被打乱。                    |
 +---------------------------------------+---------------------------------------------+
 
 
@@ -259,16 +261,13 @@ following features:
 | JSON version is too old relative to   | 插件版本，与场景被导出版本相比太旧：VER_OLD |
 | B4W engine: VER_OLD, required:        | 。该引擎要求：VER_NEW。场景 将不会被加载。  |
 | VER_NEW. Reexport scene with the      | 我们建议您使用的加载项的最新版本重新导出场  |
-| latest B4W addon to fix it.（JSON版本 | 景。我们也建议 使用引擎的最新版本。         |
-| 太旧相对于B4W引擎：VER_OLD，要求：    |                                             |
-| VER_NEW。转口场景与最新B4W插件来解决  |                                             |
-| 它。）                                |                                             |
+| latest B4W add-on to fix it.          | 景。我们也建议 使用引擎的最新版本。         |
 +---------------------------------------+---------------------------------------------+
 | JSON version is a bit old relative to | 插件版本与场景的导出版本，是有点老了：      |
 | B4W engine: VER_OLD, required:        | VER_OLD。该引擎要求：VER_NEW。场 景将被载入 |
 | VER_NEW. Some compatibility issues    | 像往常一样，但是可能会出现一些错误。我们建  |
 | can occur. Reexport scene with the    | 议您使用的加载项的 最新版本重新导出场景。我 |
-| latest B4W addon to fix it.           | 们也建议使用发动机的最新版本。              |
+| latest B4W add-on to fix it.          | 们也建议使用发动机的最新版本。              |
 +---------------------------------------+---------------------------------------------+
 | B4W engine version is too old         | 相比版本的插件与该场景被导出引擎版本太旧。  |
 | relative to JSON. Can't load the      | 场景将不会被加载。我们建议您 使用引擎和插件 |
@@ -311,63 +310,17 @@ following features:
 +---------------------------------------+---------------------------------------------+
 | 错误信息                              | 原因                                        |
 +=======================================+=============================================+
-| Dupli group error; Objects from the   | 其中没有被选定为重复的OBJECT_NAME对象的     |
-| GROUP_NAME dupli group on the         | GROUP_NAME组中的对象可以被导出 。导出许可的 |
-| OBJECT_NAME object cannot be exported | 组中的至少一个对象，或删除的组的复制是必需  |
-|                                       | 的。                                        |
-+---------------------------------------+---------------------------------------------+
 | Export to different disk is forbidden | 导出到位于不同的磁盘上的目录被禁止          |
 +---------------------------------------+---------------------------------------------+
-| Incompatible objects with a shared    | Incompatible objects with a shared mesh.    |
-| mesh; The OBJECT_NAME object has both | Export of an object with both a shared mesh |
-| vertex groups and a shared mesh       | and vertex groups is not allowed.           |
-|                                       | Exceptions: export is possible if an object |
-|                                       | has the "Apply modifiers", "Export vertex   |
-|                                       | animation", "Export edited normals", "Apply |
-|                                       | Scale and Modifiers" options turned on      |
-|                                       | (because in these cases a full copying of   |
-|                                       | meshes occurs).                             |
-+---------------------------------------+---------------------------------------------+
-| Incomplete mesh; Material slot is     | 材质插槽是空的。                            |
-| empty                                 |                                             |
-+---------------------------------------+---------------------------------------------+
-| Incomplete vehicle. The NAME vehicle  | 模型的 NAME 车辆是不完整的，因为它应该包含  |
-| doesn't have any chassis or hull      | 一个 "Chassis" 或 "Hull" 元 素。            |
-+---------------------------------------+---------------------------------------------+
-| Incomplete vehicle. The NAME vehicle  | 模拟的NAME车辆是不完整的，因为它应该含有至  |
-| requires at least one bob             | 少一种 "Bob" 元件。                         |
-+---------------------------------------+---------------------------------------------+
-| Incomplete vehicle. The NAME vehicle  | 模拟的NAME车辆是不完整的，因为它应包含至少  |
-| requires at least one wheel           | 一个 "Wheel" 元件。                         |
-+---------------------------------------+---------------------------------------------+
-| Incorrect mesh; Corrupted file: Wrong | 该网格具有分配给不存在的顶点顶点组的顶点。  |
-| group indices                         |                                             |
-+---------------------------------------+---------------------------------------------+
-| Incorrect mesh; Corrupted file: Wrong | 损坏的文件：不正确的顶点坐标值。            |
-| vertice positions                     |                                             |
-+---------------------------------------+---------------------------------------------+
-| Incorrect mesh; Corrupted file: Wrong | 损坏的文件：不正确法线值。                  |
-| normals                               |                                             |
-+---------------------------------------+---------------------------------------------+
-| Incorrect mesh; Corrupted file: Wrong | 损坏的文件：不正确正切值。                  |
-| tangents                              |                                             |
-+---------------------------------------+---------------------------------------------+
-| Incorrect mesh; Corrupted file: Wrong | 损坏的文件：不正确的纹理坐标值。            |
-| texture coordinates                   |                                             |
-+---------------------------------------+---------------------------------------------+
-| Incorrect mesh; Corrupted file: Wrong | 损坏的文件：不正确的顶点组权重值。          |
-| vertex group weights                  |                                             |
-+---------------------------------------+---------------------------------------------+
-
+| Incompatible objects with a shared    | 不兼容的对象有一个共享的网格。不允许导出的  |
+| mesh; The OBJECT_NAME object has both | 对象既具有共享网格和顶点组。 例外：导出是可 |
+| vertex groups and a shared mesh       | 能的，如果一个对象具有 "Apply modifiers",   |
+|                                       | "Export vertex animation", "Export edited   |
+|                                       | normals", "Apply scale" 选项打开（因为在这  |
+|                                       | 些情况下，网格的完全复制时）。              |
 +---------------------------------------+---------------------------------------------+
 | Incorrect mesh; Corrupted file: Wrong | 损坏的文件：不正确的顶点颜色值。            |
 | vertex color values                   |                                             |
-+---------------------------------------+---------------------------------------------+
-| Incorrect vertex animation; Object    | 对象的顶点动画导出选项，但没有顶点动画。    |
-| has no vertex animation               |                                             |
-+---------------------------------------+---------------------------------------------+
-| Incorrect vertex animation; Unbaked   | 顶点动画导出是打开的网格，但ANIM_NAME动画没 |
-| "ANIM_NAME" vertex animation          | 有任何帧。                                  |
 +---------------------------------------+---------------------------------------------+
 | Loading of resources from different   | 从不同的磁盘资源的装载是被禁止的。          |
 | disk is forbidden                     |                                             |
@@ -383,33 +336,6 @@ following features:
 +---------------------------------------+---------------------------------------------+
 | No such file or directory             | 文件或目录不存在。                          |
 +---------------------------------------+---------------------------------------------+
-| Object constraint has no target       | 该 "Target Object" 为对象的约束（在 "Object |
-|                                       | Constraints" 选项卡）没有 设置。            |
-+---------------------------------------+---------------------------------------------+
-| Particle system error; Dupli group    | 粒子系统错误：没有组被选择为一个粒子。      |
-| isn't specified                       |                                             |
-+---------------------------------------+---------------------------------------------+
-| Particle system error; Dupli object   | 粒子系统错误：没有对象被选中作为一个粒子。  |
-| isn't specified                       |                                             |
-+---------------------------------------+---------------------------------------------+
-
-+---------------------------------------+---------------------------------------------+
-| Particle system error; Dupli object   | 被选择作为一个粒子的OBJECT_NAME对象无法导出 |
-| OBJECT_NAME doesn't export            | （在 "Do not export" 复选框 设置）。        |
-+---------------------------------------+---------------------------------------------+
-| Particle system error; The GROUP_NAME | 被选择作为粒子的GROUP_NAME DUPLI组包含导出  |
-| dupli group contains no valid object  | 没有有效的对象。无论这样的对 象具有 "Do not |
-| for export                            | export" 启用复选框或对象的类型不适合。支持  |
-|                                       | 的对象类型： "MESH".                        |
-+---------------------------------------+---------------------------------------------+
-| Particle system error. Unsupported    | 粒子系统错误。不支持的渲染类型类型的发射器/ |
-| render type TYPE for the EMITTER/HAIR | 发颗粒为对象名PSYS_NAME。粒 子系统中删除。  |
-| particles PSYS_NAME on object NAME.   |                                             |
-| Particle system removed.              |                                             |
-+---------------------------------------+---------------------------------------------+
-| Particle system error; Wrong dupli    | 被选择为粒子不适当类型的对象。支持的类型：  |
-| object type TYPE_NAME                 | "MESH".                                     |
-+---------------------------------------+---------------------------------------------+
 | Permission denied                     | 没有访问权限到当前目录。                    |
 +---------------------------------------+---------------------------------------------+
 | Wrong edited normals count; It        | 编辑法线的数目不匹配的网格顶点的数量。执行  |
@@ -418,10 +344,6 @@ following features:
 +---------------------------------------+---------------------------------------------+
 | Wrong overridden bounding box; Check  | 错尺寸覆盖网格的时指定 "BoundingBox": 最小  |
 | the mesh's bounding box values        | 值为大于尺寸中的至少一个最大 值。           |
-+---------------------------------------+---------------------------------------------+
-| Wrong vertex animation vertices       | 顶点动画导出被启用，但顶点在焙烤ANIM_NAME动 |
-| count; It doesn't match with the mesh | 画帧的数目不匹配网格顶点编 号。可能的解决方 |
-| vertices count for "ANIM_NAME"        | 案是“重新烘焙”的动画。                      |
 +---------------------------------------+---------------------------------------------+
 
 
@@ -444,6 +366,11 @@ following features:
 | Canvas texture ID NAME already        | 该 "Canvas" ID已经存在。                    |
 | exists. Texture NAME.                 |                                             |
 +---------------------------------------+---------------------------------------------+
+| Dupli group error for object          | 其中没有被选定为重复的OBJECT_NAME对象的     |
+| OBJECT_NAME. Objects from the         | GROUP_NAME组中的对象可以被导出 。导出许可的 |
+| GROUP_NAME dupli group on the         | 组中的至少一个对象，或删除的组的复制是必需  |
+| OBJECT_NAME object cannot be exported | 的。                                        |
++---------------------------------------+---------------------------------------------+
 | Empty canvas texture ID for texture   | "Canvas" ID是空的。                         |
 | NAME.                                 |                                             |
 +---------------------------------------+---------------------------------------------+
@@ -463,10 +390,44 @@ following features:
 | Incomplete mesh; Material settings    | 该 "Vertex Color Paint" 启用了网状材料的选  |
 | require vertex colors                 | 择，但网格没有顶点颜色层。                  |
 +---------------------------------------+---------------------------------------------+
-| Incorrect NLA script, falling back to | Incorrect NLA script, falling back to       |
-| simple sequential NLA.                | simple sequential NLA.                      |
+| Incorrect NLA script, falling back to | 不正确的 NLA 脚本。返回到简单的序列 NLA。   |
+| simple sequential NLA.                |                                             |
 +---------------------------------------+---------------------------------------------+
-| Invalid link found in node material.  | “名称”节点材料包含节点之间的不正确连接。    |
+| Incorrect vertex animation for mesh   | 对象的顶点动画导出选项，但没有顶点动画。    |
+| NAME. Object has no vertex animation. |                                             |
++---------------------------------------+---------------------------------------------+
+| Incorrect vertex animation for mesh   | 顶点动画导出是打开的网格，但ANIM_NAME动画没 |
+| NAME. Unbaked "ANIM_NAME" vertex      | 有任何帧。                                  |
+| animation.                            |                                             |
++---------------------------------------+---------------------------------------------+
+| Incorrect mesh NAME; Wrong group      | 该网格具有分配给不存在的顶点顶点组的顶点。  |
+| indices                               |                                             |
++---------------------------------------+---------------------------------------------+
+| Incorrect mesh NAME; Wrong vertex     | 损坏的文件：不正确的顶点坐标值。            |
+| positions                             |                                             |
++---------------------------------------+---------------------------------------------+
+| Incorrect mesh NAME; Wrong normals    | 损坏的文件：不正确法线值。                  |
++---------------------------------------+---------------------------------------------+
+| Incorrect mesh NAME; Wrong tangents   | 损坏的文件：不正确正切值。                  |
++---------------------------------------+---------------------------------------------+
+| Incorrect mesh NAME; Wrong texture    | 损坏的文件：不正确的纹理坐标值。            |
+| coordinates                           |                                             |
++---------------------------------------+---------------------------------------------+
+| Incorrect mesh NAME; Wrong vertex     | 损坏的文件：不正确的顶点组权重值。          |
+| group weights                         |                                             |
++---------------------------------------+---------------------------------------------+
+
++---------------------------------------+---------------------------------------------+
+| Incomplete vehicle. The NAME vehicle  | 模型的 NAME 车辆是不完整的，因为它应该包含  |
+| doesn't have any chassis or hull      | 一个 "Chassis" 或 "Hull" 元 素。            |
++---------------------------------------+---------------------------------------------+
+| Incomplete vehicle. The NAME vehicle  | 模拟的NAME车辆是不完整的，因为它应该含有至  |
+| requires at least one bob             | 少一种 "Bob" 元件。                         |
++---------------------------------------+---------------------------------------------+
+| Incomplete vehicle. The NAME vehicle  | 模拟的NAME车辆是不完整的，因为它应包含至少  |
+| requires at least one wheel           | 一个 "Wheel" 元件。                         |
++---------------------------------------+---------------------------------------------+
+| Invalid link found in node material.  | "NAME" 节点材料包含节点之间的不正确连接。   |
 | Material: "NAME".                     |                                             |
 +---------------------------------------+---------------------------------------------+
 | No image in the NAME texture.         | 纹理有没有图像。                            |
@@ -488,18 +449,22 @@ following features:
 | Object "NAME" hasn't renderable data. | 名为“NAME”的对象是失效的，比如没有多边形。  |
 | Converted to EMPTY.                   | 对象的类型已更改为空。                      |
 +---------------------------------------+---------------------------------------------+
-
+| Object: "NAME" > Constraint:          | The object "NAME" has a constraint of type  |
+| "CONSTRAINT_TYPE". Check constraint   | "CONSTRAINT_TYPE", which isn't configured   |
+| settings.                             | properly.                                   |
 +---------------------------------------+---------------------------------------------+
 | Object "NAME" has the mesh with shape | 名为“NAME”的对象具有按键形状的网格。该网具  |
 | keys. The property "Relative" of mesh | 有“相对”属性，使这是被禁止的 。             |
 | has been enabled.                     |                                             |
 +---------------------------------------+---------------------------------------------+
-| Only 2 UV textures are allowed for a  | 该引擎支持最多2 UV纹理层的每个网格。紫外线  |
-| mesh; The mesh has N UVs.             | 层为此目的数目为N.                          |
+| Object "NAME" has no data or data is  | 名为“NAME”的对象是失效的，比如没有多边形。  |
+| broken. Change object type to EMPTY.  | 对象的类型已更改为空。                      |
 +---------------------------------------+---------------------------------------------+
 | Packed media "FILE_NAME" has not been | 填充媒体文件“FILE_NAME”不能被转换为         |
 | exported to "CONVERTED_FILE_PATH"     | “CONVERTED_FILE_PATH”。请解压缩这个 文件，  |
 |                                       | 并将其转换。                                |
++---------------------------------------+---------------------------------------------+
+
 +---------------------------------------+---------------------------------------------+
 | Particle system error for "NAME"; The | 该名称顶点颜色是在指定 "from" 领域，但它没  |
 | "NAME" vertex color specified in the  | 有出现在OBJECT_NAME发射器。                 |
@@ -523,28 +488,61 @@ following features:
 | "NAME". Invalid dupli object          | OBJECT_NAME。                               |
 | "OBJECT_NAME".                        |                                             |
 +---------------------------------------+---------------------------------------------+
+| Particle system error. Unsupported    | Particle system error. Unsupported render   |
+| render type "TYPE" for the HAIR       | type TYPE for the HAIR particles PSYS_NAME  |
+| particles "NAME" on object            | on object NAME. The particle system has     |
+| "OBJECT_NAME". Particle system        | removed.                                    |
+| removed.                              |                                             |
++---------------------------------------+---------------------------------------------+
+| Particle system error. Unsupported    | Particle system error. Unsupported render   |
+| render type "TYPE" for the EMITTER    | type TYPE for the EMITTER particles         |
+| particles "NAME" on object            | PSYS_NAME on object NAME. The particle      |
+| "OBJECT_NAME". Particle system        | system has removed.                         |
+| removed.                              |                                             |
++---------------------------------------+---------------------------------------------+
+| Particle system error for "NAME".     | 粒子系统错误：没有对象被选中作为一个粒子。  |
+| Dupli object isn't specified.         |                                             |
++---------------------------------------+---------------------------------------------+
+| Particle system error for "NAME".     | Particle system error: no group is selected |
+| Dupli group isn't specified.          | as a particle.                              |
++---------------------------------------+---------------------------------------------+
+| Particle system error for "NAME".     | 被选择为粒子不适当类型的对象。支持的类型：  |
+| Wrong dupli object type "TYPE".       | "MESH".                                     |
++---------------------------------------+---------------------------------------------+
+| Particle system error for "NAME".     | The NAME object which is selected as a      |
+| Dupli object "NAME" has not been      | particle can not be exported (the "Do not   |
+| exported.                             | export" checkbox is set).                   |
++---------------------------------------+---------------------------------------------+
+| Particle system error for "NAME". The | 被选择作为粒子的GROUP_NAME DUPLI组包含导出  |
+| "GROUP_NAME" dupli group contains no  | 没有有效的对象。无论这样的对 象具有 "Do not |
+| valid object for export.              | export" 启用复选框或对象的类型不适合。支持  |
+|                                       | 的对象类型： "MESH".                        |
++---------------------------------------+---------------------------------------------+
 | Sound file is missing in the SPEAKER  | 扬声器没有附加声音。物体的类型已更改为空。  |
 | object "NAME". Converted to EMPTY.    |                                             |
++---------------------------------------+---------------------------------------------+
+| The lamp object "NAME" has            | The lamp object "NAME" has unsupported AREA |
+| unsupported AREA type. Changed to     | type. Lamp type has been changed to SUN.    |
+| SUN.                                  |                                             |
++---------------------------------------+---------------------------------------------+
+
 +---------------------------------------+---------------------------------------------+
 | The main scene NAME can not be        | 主场景名称不能被其他场景渲染。材料名称已被  |
 | rendered by another scene. Material   | 删除。                                      |
 | NAME has been removed.                |                                             |
 +---------------------------------------+---------------------------------------------+
-| The NAME action has decimal frames.   | The NAME action has decimal frames.         |
-| Converted to integer.                 | Converted to integer.                       |
+| The NAME action has decimal frames.   | 操作具有十进制的帧。转换为整数。            |
+| Converted to integer.                 |                                             |
 +---------------------------------------+---------------------------------------------+
 | The NAME armature modifier has a      | 一个骨架修改器具有一个代理对象作为骨架。    |
 | proxy object as an armature. Modifier |                                             |
 | removed.                              |                                             |
 +---------------------------------------+---------------------------------------------+
-| The NAME armature modifier has no     | 该名称 "Armature" 修正没有骨架问题，也没有  |
-| armature object or it is not          | 导出。修改删除。                            |
-| exported. Modifier removed.           |                                             |
+| The NAME armature modifier has no     | The NAME "Armature" modifier has no         |
+| armature object or it is not          | armature object or it is not exported.      |
+| exported. Modifier removed.           | Modifier removed.                           |
 +---------------------------------------+---------------------------------------------+
-
-+---------------------------------------+---------------------------------------------+
-| The NAME curve modifier has no curve  | 该名称曲线修正没有对象。修改删除。          |
-| object. Modifier removed.             |                                             |
+| 该名称曲线修正没有对象。修改删除。    | 该名称曲线修正没有对象。修改删除。          |
 +---------------------------------------+---------------------------------------------+
 | The NAME curve modifier has           | 该名称的曲线修饰有不支持的对象。修改删除。  |
 | unsupported curve object. Modifier    |                                             |
@@ -553,6 +551,11 @@ following features:
 | The NAME object has the NAME armature | Name对象既有顶点动画和不支持的电枢修改。其  |
 | modifier and a vertex animation.      | 结果是，该改性剂已被删除。                  |
 | Modifier removed.                     |                                             |
++---------------------------------------+---------------------------------------------+
+| 该名称 "Armature" 修正没有骨架问题，  | The NAME object has the NAME armature       |
+| 也没有导出。修改删除。                | modifier. The armature object in this       |
+|                                       | modifier isn't specified or belongs to a    |
+|                                       | not exported scene. Modifier removed.       |
 +---------------------------------------+---------------------------------------------+
 | The NAME LAMP node has no lamp        | 在指定的名字错了对象 "LAMP" 节点。          |
 | object. Material: NAME.               |                                             |
@@ -565,8 +568,8 @@ following features:
 | modifier which references the wrong   | 应该明确地出现在场景中。                    |
 | group. Modifier removed.              |                                             |
 +---------------------------------------+---------------------------------------------+
-| TEXTURE_TYPE isn't supported,         | 不支持TEXTURE_TYPE纹理类型为世界WORLD_NAME  |
-| WORLD_NAME                            |                                             |
+| "TEXTURE_TYPE" texture type is not    | 不支持TEXTURE_TYPE纹理类型为世界WORLD_NAME  |
+| supported for world "NAME".           |                                             |
 +---------------------------------------+---------------------------------------------+
 | Using B4W_REFRACTION node NODE_NAME   | 用不正确的透明混合属性节点材质。 "Alpha     |
 | with incorrect type of Alpha Blend.   | sort", "Alpha blend" 和 "Add" 使用的是“折射 |
@@ -575,6 +578,8 @@ following features:
 | Wind bending: not all vertex colors   | 风弯曲参数设置：所有指定的顶点颜色层应该存  |
 | exist for "NAME". Properties were set | 在。                                        |
 | to default values.                    |                                             |
++---------------------------------------+---------------------------------------------+
+
 +---------------------------------------+---------------------------------------------+
 | Wind bending: vertex colors weren't   | 风弯曲参数设置：它必须指定或者所有顶点颜色  |
 | properly assigned for "NAME".         | 层的名称 ("Main stiffness (A)", "Leaves     |
@@ -591,6 +596,16 @@ following features:
 | Wrong texture coordinates type in     | 下列坐标类型的图像纹理支持： "UV", "Normal" |
 | texture NAME. [Material: NAME.]       | 和 "Generated".                             |
 +---------------------------------------+---------------------------------------------+
+| Wrong F-Curve interpolation mode for  | The following types are supported for       |
+| ACTION_NAME. Only BEZIER, LINEAR or   | action interpolation mode: "BEZIER",        |
+| CONSTANT mode is allowed for F-Curve  | "LINEAR" and "CONSTANT".                    |
+| interpolation. Switch to BEZIER.      |                                             |
++---------------------------------------+---------------------------------------------+
+| Wrong vertex animation vertices count | 顶点动画导出被启用，但顶点在焙烤ANIM_NAME动 |
+| for mesh NAME. It doesn't match with  | 画帧的数目不匹配网格顶点编 号。可能的解决方 |
+| the mesh vertices count for           | 案是“重新烘焙”的动画。                      |
+| "ANIM_NAME".                          |                                             |
++---------------------------------------+---------------------------------------------+
 
 
 其他消息
@@ -599,8 +614,7 @@ following features:
 这些消息可以在浏览器的控制台中查看（与打开 "F12" 一样) 当一个场景被加
 载。该消息是这样的：
 
-   "B4W EXPORT WARNING: Export message which requires the user's
-   attention（B4W EXPORT警告：导出消息，这就需要用户注意）"
+   "B4W EXPORT警告：导出消息，这就需要用户注意"
 
 [图片]
 
@@ -609,6 +623,10 @@ following features:
 +---------------------------------------+---------------------------------------------+
 | 错误信息                              | 原因                                        |
 +=======================================+=============================================+
+| Material tangent shading is enabled,  | The material has the option "Tangent        |
+| but object's mesh has no UV map.      | Shading" enabled, which always requires a   |
+|                                       | UV map.                                     |
++---------------------------------------+---------------------------------------------+
 | Missing active camera or wrong active | 在场景中没有激活的("Camera" 属性在 "Scene"  |
 | camera object                         | 面板).                                      |
 +---------------------------------------+---------------------------------------------+
@@ -619,15 +637,22 @@ following features:
 | texture rendering a scene. It has     | 名称。此纹理被替换为默认的纹 理。           |
 | been replaced by the default texture. |                                             |
 +---------------------------------------+---------------------------------------------+
-| The action NAME has no fcurves.       | The action NAME has no fcurves.             |
+| The action NAME has no fcurves.       | The action with the name "NAME" has no      |
+|                                       | fcurves.                                    |
 +---------------------------------------+---------------------------------------------+
 | The "NAME" camera has unsupported     | 不支持全景相机。立体模式来代替。            |
 | PANORAMIC type. Changed to            |                                             |
 | PERSPECTIVE type."                    |                                             |
 +---------------------------------------+---------------------------------------------+
-| Unsupported texture type or texture   | There are no textures on the material or    |
-| is missing for Lens Flare material    | unsupported texture type is used for        |
-| "NAME"                                | material "NAME".                            |
+| Unsupported texture type or texture   | 不支持的纹理类型或纹理缺少镜头光晕材质      |
+| is missing for Lens Flare material    | "NAME"                                      |
+| "NAME"                                |                                             |
++---------------------------------------+---------------------------------------------+
+| Use of ENVIRONMENT_MAP as diffuse     | The ENVIRONMENT MAP texture can not be used |
+| color is not supported. Use as mirror | as diffuse color. Disable the Diffuse >     |
+| instead.                              | Color and enable the Shading > Mirror       |
+|                                       | option on the Textures > Influence panel to |
+|                                       | use this texture as mirror map.             |
 +---------------------------------------+---------------------------------------------+
 
 

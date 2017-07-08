@@ -1,4 +1,4 @@
-# Copyright (C) 2014-2016 Triumph LLC
+# Copyright (C) 2014-2017 Triumph LLC
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -66,7 +66,8 @@ class B4W_OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
         obj = context.object
         is_mesh = obj.type == "MESH" or obj.type == "FONT" \
                or obj.type == "META" or obj.type == "SURFACE"
-        return (is_mesh and context.object
+        is_empty = obj.type == "EMPTY"
+        return ((is_mesh or is_empty) and context.object
                 and context.scene.render.engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
@@ -92,9 +93,6 @@ class B4W_OBJECT_PT_levels_of_detail(ObjectButtonsPanel, Panel):
         row = col.row(align=True)
         row.operator("object.lod_add", text=_("Add"), icon='ZOOMIN')
         row.menu("OBJECT_MT_lod_tools", text="", icon='TRIA_DOWN')
-
-        row = layout.row()
-        row.prop(obj, "b4w_lod_transition", text=_("Lod Transition Ratio"))
 
 class B4W_ObjectAnimation(ObjectButtonsPanel, Panel):
     bl_label = _("Animation")
@@ -165,6 +163,13 @@ class B4W_ObjectRenderProps(ObjectButtonsPanel, Panel):
 
         layout = self.layout
 
+        row = layout.row()
+        row.prop(obj, "b4w_hidden_on_load", text=_("Hidden"))
+        row = layout.row()
+        if len(obj.children):
+            row.prop(obj, "b4w_hide_chldr_on_load", text=_("Hidden Children"))
+            row.active = obj.b4w_hidden_on_load
+
         if is_mesh:
             row = layout.row()
             row.prop(obj, "b4w_do_not_render", text=_("Do Not Render"))
@@ -178,7 +183,7 @@ class B4W_ObjectRenderProps(ObjectButtonsPanel, Panel):
             row = layout.row()
             row.active = not obj.b4w_do_not_render
             row.prop(obj, "b4w_do_not_cull", text=_("Disable Frustum Culling"))
-            row.prop(obj, "b4w_dynamic_geometry", text=_("Dynamic Geometry"))
+            row.prop(obj, "b4w_dynamic_geometry", text=_("Dynamic Geometry & Materials"))
         elif obj.type == "EMPTY":
             row = layout.row()
             row.prop(obj, "b4w_line_renderer", text=_("Line Renderer"))
@@ -237,7 +242,7 @@ class B4W_ObjectBillboard(ObjectButtonsPanel, Panel):
         row.prop(obj, "b4w_billboard_geometry", expand=True)
 
 class B4W_ObjectReflections(ObjectButtonsPanel, Panel):
-    bl_label = _("Reflections")
+    bl_label = _("Real-Time Reflections")
     bl_idname = "OBJECT_PT_b4w_reflections"
     bl_options = {'DEFAULT_CLOSED'}
 

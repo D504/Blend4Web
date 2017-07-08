@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -28,13 +27,14 @@ var m_batch  = require("__batch");
 var m_geom   = require("__geometry");
 var m_print  = require("__print");
 var m_render = require("__renderer");
+var m_tbn    = require("__tbn");
 
 /**
  * Extract the vertex array from the object.
  * @method module:geometry.extract_vertex_array
  * @param {Object3D} obj Object 3D
- * @param {String} mat_name Material name
- * @param {String} attrib_name Attribute name (a_position, a_normal, a_tangent)
+ * @param {string} mat_name Material name
+ * @param {string} attrib_name Attribute name (a_position, a_tbn, a_normal)
  * @returns {Float32Array} Vertex array
  */
 exports.extract_vertex_array = function(obj, mat_name, attrib_name) {
@@ -47,9 +47,10 @@ exports.extract_vertex_array = function(obj, mat_name, attrib_name) {
     var batch = m_batch.find_batch_material(obj, mat_name, "MAIN");
     if (batch) {
         var bufs_data = batch.bufs_data;
-        if (bufs_data && bufs_data.pointers
-                && bufs_data.pointers[attrib_name]) {
-            return m_geom.extract_array(bufs_data, attrib_name);
+        if (bufs_data && bufs_data.pointers &&
+                (attrib_name == "a_normal" && bufs_data.pointers["a_tbn"] ||
+                bufs_data.pointers[attrib_name])) {
+            return m_geom.extract_array_float(bufs_data, attrib_name);
         } else {
             m_print.error("Attribute not found:" + attrib_name);
             return null;
@@ -64,7 +65,7 @@ exports.extract_vertex_array = function(obj, mat_name, attrib_name) {
  * Extract the array of triangulated face indices from the given object.
  * @method module:geometry.extract_index_array
  * @param {Object3D} obj Object 3D
- * @param {String} mat_name Material name
+ * @param {string} mat_name Material name
  * @returns {Uint16Array|Uint32Array} Array of triangle indices
  */
 exports.extract_index_array = function(obj, mat_name) {
@@ -94,18 +95,17 @@ exports.extract_index_array = function(obj, mat_name) {
  * Update the vertex array for the given object.
  * @method module:geometry.update_vertex_array
  * @param {Object3D} obj Object 3D
- * @param {String} mat_name Material name
- * @param {String} attrib_name Attribute name (a_position, a_normal, a_tangent)
+ * @param {string} mat_name Material name
+ * @param {string} attrib_name Attribute name (a_position, a_tbn, a_normal)
  * @param {Float32Array} array The new array
  */
 exports.update_vertex_array = function(obj, mat_name, attrib_name, array) {
-    var types = ["MAIN", "SHADOW", "COLOR_ID"];
-
     if (!m_geom.has_dyn_geom(obj)) {
         m_print.error("Wrong object:", obj.name);
         return;
     }
 
+    var types = ["MAIN", "SHADOW", "COLOR_ID"];
     for (var i = 0; i < types.length; i++) {
         var type = types[i];
 
@@ -114,8 +114,9 @@ exports.update_vertex_array = function(obj, mat_name, attrib_name, array) {
         if (batch) {
             var bufs_data = batch.bufs_data;
 
-            if (bufs_data && bufs_data.pointers
-                    && bufs_data.pointers[attrib_name])
+            if (bufs_data && bufs_data.pointers &&
+                    (attrib_name == "a_normal" && bufs_data.pointers["a_tbn"] ||
+                    bufs_data.pointers[attrib_name]))
                 m_geom.update_bufs_data_array(bufs_data, attrib_name, 0, array);
         }
     }
@@ -125,16 +126,13 @@ exports.update_vertex_array = function(obj, mat_name, attrib_name, array) {
  * Override geometry for the given object.
  * @method module:geometry.override_geometry
  * @param {Object3D} obj Object 3D
- * @param {String} mat_name Material name
+ * @param {string} mat_name Material name
  * @param {Uint16Array|Uint32Array} ibo_array Array of triangle indices
  * @param {Float32Array} positions_array New vertex positions array
- * @param {Boolean} smooth_normals Enable normals smoothing
+ * @param {boolean} smooth_normals Enable normals smoothing
  */
 exports.override_geometry = function(obj, mat_name, ibo_array,
                                         positions_array, smooth_normals) {
-
-    var types = ["MAIN", "SHADOW", "COLOR_ID"];
-
     if (!m_geom.has_dyn_geom(obj)) {
         m_print.error("Wrong object:", obj.name);
         return;
@@ -151,9 +149,10 @@ exports.override_geometry = function(obj, mat_name, ibo_array,
         return;
     }
 
+    var types = ["MAIN", "SHADOW", "COLOR_ID"];
     for (var i = 0; i < types.length; i++) {
-        var type = types[i];
-        var batch = m_batch.find_batch_material(obj, mat_name, type);
+        var batch_type = types[i];
+        var batch = m_batch.find_batch_material(obj, mat_name, batch_type);
 
         if (batch) {
             var bufs_data = batch.bufs_data;
@@ -162,29 +161,38 @@ exports.override_geometry = function(obj, mat_name, ibo_array,
                 m_geom.update_bufs_data_index_array(bufs_data, batch.draw_mode,
                         ibo_array);
 
-                var new_vbo_size = 0;
+                var lengths = {};
                 for (var attr in bufs_data.pointers) {
                     var pointer = bufs_data.pointers[attr];
 
-                    new_vbo_size += positions_array.length / 3 * pointer.num_comp;
+                    var len = positions_array.length / 3 * pointer.num_comp;
+                    var type = m_geom.get_vbo_type_by_attr_name(attr);
+
+                    if (!lengths[type])
+                        lengths[type] = 0;
+                    lengths[type] += len;
                 }
 
-                bufs_data.vbo_array = new Float32Array(new_vbo_size);
-                var vbo_array = bufs_data.vbo_array;
+                var vbo_source_data = m_geom.init_vbo_source_data(lengths);
+                bufs_data.vbo_source_data = vbo_source_data;
 
-                var offset = 0;
-
+                var offsets = {}
                 for (var attr in bufs_data.pointers) {
                     var pointer = bufs_data.pointers[attr];
+                    var type = m_geom.get_vbo_type_by_attr_name(attr);
+
+                    if (!offsets[type])
+                        offsets[type] = 0;
 
                     switch (attr) {
                     case "a_position":
-                        vbo_array.set(positions_array, offset);
-                        pointer.offset = offset;
+                        m_geom.vbo_source_data_set_attr(bufs_data.vbo_source_data, 
+                                "a_position", positions_array, offsets[type]);
+                        pointer.offset = offsets[type];
                         pointer.length = positions_array.length;
-                        offset += pointer.length;
+                        offsets[type] += pointer.length;
                         break;
-                    case "a_normal":
+                    case "a_tbn":
                         var shared_indices;
 
                         if (smooth_normals)
@@ -194,33 +202,29 @@ exports.override_geometry = function(obj, mat_name, ibo_array,
                         var normals = m_geom.calc_normals(ibo_array,
                                       positions_array, shared_indices);
 
-                        vbo_array.set(normals, offset);
-                        pointer.offset = offset;
-                        pointer.length = positions_array.length;
-                        offset += pointer.length;
-                        break;
-                    case "a_tangent":
-                        pointer.offset = offset;
                         pointer.length = positions_array.length / 3 * pointer.num_comp;
+                        var tangents = new Float32Array(pointer.length);
 
-                        var new_tangent_array = new Float32Array(pointer.length);
-
-                        for (var j = 0; j < new_tangent_array.length; j +=4) {
-                            new_tangent_array[j] = 1;
-                            new_tangent_array[j + 3] = 1;
+                        for (var j = 0; j < tangents.length; j +=4) {
+                            tangents[j] = 1;
+                            tangents[j + 3] = 1;
                         }
 
-                        vbo_array.set(new_tangent_array, offset);
-                        offset += pointer.length;
+                        var a_tbn = m_tbn.from_norm_tan(normals, tangents);
+                        m_geom.vbo_source_data_set_attr(bufs_data.vbo_source_data, 
+                                "a_tbn", a_tbn, offsets[type]);
+                        pointer.offset = offsets[type];
+                        offsets[type] += pointer.length;
                         break;
                     default:
-                        pointer.offset = offset;
+                        pointer.offset = offsets[type];
                         pointer.length = positions_array.length / 3 * pointer.num_comp;
 
-                        var new_array = new Float32Array(pointer.length);
-
-                        vbo_array.set(new_array, offset);
-                        offset += pointer.length;
+                        var constructor = m_geom.get_constructor_by_type(type);
+                        var new_array = new constructor(pointer.length);
+                        m_geom.vbo_source_data_set_attr(bufs_data.vbo_source_data, 
+                                attr, new_array, offsets[type]);
+                        offsets[type] += pointer.length;
                         break;
                     }
                 }
@@ -238,11 +242,20 @@ exports.override_geometry = function(obj, mat_name, ibo_array,
     }
 }
 /**
- * Apply shape key to the object.
+ * Apply shape key to the object. If the object is supposed to be available for 
+ * selecting (for example, via the {@link module:scenes.pick_object|pick_object} 
+ * method) call the {@link module:objects.update_boundings|update_boundings} method 
+ * after applying a shape key or override object bounding volumes in Blender 
+ * beforehand so that the boundings can contain the object in its largest shape.
  * @method module:geometry.set_shape_key_value
  * @param {Object3D} obj Object 3D
- * @param {String} key_name Shape key name
- * @param {Number} value Shape key value
+ * @param {string} key_name Shape key name
+ * @param {number} value Shape key value
+ * @example var m_geom = require("geometry");
+ * var m_scenes = require("scenes");
+ *
+ * var cube = m_scenes.get_object_by_name("Cube");
+ * m_geom.set_shape_key_value(cube, "Key 1", 0.5);
  */
 exports.set_shape_key_value = function(obj, key_name, value) {
     if (!m_geom.check_shape_keys(obj)) {
@@ -263,7 +276,7 @@ exports.set_shape_key_value = function(obj, key_name, value) {
  * Check if object has got shape keys.
  * @method module:geometry.check_shape_keys
  * @param {Object3D} obj Object 3D
- * @returns {Boolean} Checking result.
+ * @returns {boolean} Checking result.
  */
 exports.check_shape_keys = function(obj) {
     return m_geom.check_shape_keys(obj);
@@ -272,13 +285,13 @@ exports.check_shape_keys = function(obj) {
  * Return all available shape keys names.
  * @method module:geometry.get_shape_keys_names
  * @param {Object3D} obj Object 3D
- * @returns {String[]} Array of animation names
+ * @returns {string[]} Array of animation names
  */
 exports.get_shape_keys_names = function(obj) {
 
     if (!m_geom.check_shape_keys(obj)) {
         m_print.error("Wrong object:", obj.name);
-        return null;
+        return [];
     }
 
     return m_geom.get_shape_keys_names(obj);
@@ -287,19 +300,19 @@ exports.get_shape_keys_names = function(obj) {
  * Return shape key current value.
  * @method module:geometry.get_shape_key_value
  * @param {Object3D} obj Object 3D
- * @param {String} key_name Shape key name
- * @returns {Number} value Shape key value
+ * @param {string} key_name Shape key name
+ * @returns {number} value Shape key value
  */
 exports.get_shape_key_value = function(obj, key_name) {
 
     if (!m_geom.check_shape_keys(obj)) {
         m_print.error("Wrong object:", obj.name);
-        return null;
+        return 0;
     }
 
     if (!m_geom.has_shape_key(obj, key_name)) {
         m_print.error("Wrong key name:", key_name);
-        return null;
+        return 0;
     }
 
     return m_geom.get_shape_key_value(obj, key_name);
@@ -309,9 +322,17 @@ exports.get_shape_key_value = function(obj, key_name) {
  * Draw a line.
  * @method module:geometry.draw_line
  * @param {Object3D} obj Line object
- * @param {Float32Array} positions Line points [X0,Y0,Z0,X1,Y1,Z1...]
- * @param {Boolean} is_split True - draw a splitted line
+ * @param {Float32Array} positions Line points [X0,Y0,Z0,X1,Y1,Z1...] in the 
+ * local space of the given line object.
+ * @param {boolean} [is_split=false] True - draw a split line
  * (points specified in pairs), false - draw continuous line
+ * @example 
+ * var m_geom = require("geometry");
+ * var m_scenes = require("scenes");
+ * 
+ * var empty = m_scenes.get_object_by_name("Empty");
+ * var points = new Float32Array([0, 0, 0, 5, 0, 0, 0, 0, 5, 0, 0, 0]); // draw a triangle
+ * m_geom.draw_line(empty, points);
  */
 exports.draw_line = function(obj, positions, is_split) {
     is_split = is_split || false;
@@ -325,7 +346,6 @@ exports.draw_line = function(obj, positions, is_split) {
 
     if (batch) {
         m_geom.draw_line(batch, positions, is_split);
-
         m_render.assign_attribute_setters(batch);
     }
 }

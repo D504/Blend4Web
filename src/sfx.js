@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2014-2016 Triumph LLC
+ * Copyright (C) 2014-2017 Triumph LLC
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -14,7 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 "use strict";
 
 /**
@@ -27,6 +26,7 @@ b4w.module["__sfx"] = function(exports, require) {
 
 var m_cfg   = require("__config");
 var m_print = require("__print");
+var m_quat  = require("__quat");
 var m_time  = require("__time");
 var m_tsr   = require("__tsr");
 var m_util  = require("__util");
@@ -48,7 +48,7 @@ var SCHED_PARAM_ANTICIPATE_TIME = 3.0;
 
 var _vec3_tmp = new Float32Array(3);
 var _vec3_tmp2 = new Float32Array(3);
-var _vec3_tmp3 = new Float32Array(3);
+var _quat_tmp = m_quat.create();
 
 // permanent vars
 var _supported_audio = [];
@@ -299,7 +299,7 @@ exports.set_active_scene = function(scene) {
 
 exports.detect_audio_container = function(extension) {
     if (!extension)
-        var extension = "ogg";
+        extension = "ogg";
 
     // only one fallback required in most cases
 
@@ -316,7 +316,7 @@ exports.detect_audio_container = function(extension) {
 
 exports.detect_video_container = function(extension) {
     if (!extension)
-        var extension = "webm";
+        extension = "webm";
 
     // only one fallback required in most cases
 
@@ -338,6 +338,9 @@ exports.update_object = function(bpy_obj, obj) {
 
     var speaker = bpy_obj["data"];
     var sfx = obj.sfx;
+
+    if (!bpy_obj["data"]["sound"])
+        return;
 
     sfx.uuid = bpy_obj["data"]["sound"]["uuid"];
     sfx.filepath = bpy_obj["data"]["sound"]["filepath"];
@@ -423,7 +426,7 @@ exports.source_type = function(obj) {
 /**
  * Updates speaker object with loaded sound data
  * @param {Object3D} obj Object 3D
- * @param {ArrayBuffer|<audio>} sound_data Sound Data
+ * @param {ArrayBuffer|HTMLAudioElement} sound_data Sound Data
  */
 exports.update_spkobj = function(obj, sound_data) {
 
@@ -509,7 +512,7 @@ exports.cleanup = function() {
 /**
  * Update speaker objects used by module
  * executed every frame
- * @param {Number} elapsed Number of float seconds since previous execution
+ * @param {number} elapsed Number of float seconds since previous execution
  */
 exports.update = function(timeline, elapsed) {
 
@@ -685,6 +688,7 @@ function play(obj, when, duration) {
 
 /**
  * Update WA processing chain (routing graph) for given speaker.
+ * uses _vec3_tmp
  */
 function update_proc_chain(obj, scene_sfx) {
 
@@ -727,7 +731,7 @@ function update_proc_chain(obj, scene_sfx) {
         m_vec3.copy(pos, sfx.last_position);
 
         var orient = _vec3_tmp;
-        m_util.quat_to_dir(quat, m_util.AXIS_MY, orient);
+        m_util.quat_to_dir(quat, m_util.AXIS_MZ, orient);
         ap.setOrientation(orient[0], orient[1], orient[2]);
 
         ap.refDistance = sfx.dist_ref;
@@ -927,8 +931,6 @@ function schedule_fades(sfx, from_time) {
     }
 
     if (sfx.fade_out && !sfx.loop) {
-        var source = sfx.source_node;
-
         // NOTE: requires longer sound, e.g. not working in case of non-loop single shot sound
         fade_gnode.gain.setValueAtTime(1, from_time + sfx.duration);
         fade_gnode.gain.linearRampToValueAtTime(0, from_time + sfx.duration +
@@ -1012,6 +1014,9 @@ function stop(sobj) {
     } else {
         var source = sfx.source_node;
 
+        // NOTE: suppress ended event in Firefox fired even after disconnect
+        source.onended = function(){};
+
         // NOTE: condition to fix issue with double stop() for loop-range speakers
         if (sfx.duration < source.buffer.duration) {
             if (sfx.fade_out && sfx.state == SPKSTATE_PLAY) {
@@ -1058,16 +1063,13 @@ function speaker_pause(obj) {
         if (audio_el)
             audio_el.pause();
     } else {
-        var source = sfx.source_node;
-        var playrate = source.playbackRate.value;
-
-        var buf_dur = source.buffer.duration;
-
         if (current_time > sfx.start_time)
             sfx.buf_offset = calc_buf_offset(sfx, current_time);
         else
             sfx.buf_offset = 0;
 
+        // NOTE: suppress ended event in Firefox fired even after disconnect
+        sfx.source_node.onended = function(){};
         sfx.source_node.stop(0);
         sfx.source_node.disconnect();
 
@@ -1115,8 +1117,6 @@ function speaker_resume(obj) {
         sfx.vp_rand_end_time = current_time;
 
         var source = sfx.source_node;
-        var playrate = source.playbackRate.value;
-        var buf_dur = source.buffer.duration;
 
         schedule_onended(sfx);
 
@@ -1217,14 +1217,14 @@ exports.listener_update_transform = function(scene, trans, quat, elapsed, upd_cn
 
     var front = _vec3_tmp;
     front[0] = 0;
-    front[1] =-1;
-    front[2] = 0;
+    front[1] = 0;
+    front[2] =-1;
     m_vec3.transformQuat(front, quat, front);
 
     var up = _vec3_tmp2;
     up[0] = 0;
-    up[1] = 0;
-    up[2] =-1;
+    up[1] = 1;
+    up[2] = 0;
     m_vec3.transformQuat(up, quat, up);
 
     var listener = _wa.listener;
@@ -1322,6 +1322,7 @@ exports.listener_stride = function() {
 
 /**
  * Update speaker position, orientation and velocity/doppler.
+ * uses _vec3_tmp _vec3_tmp2 _quat_tmp
  */
 exports.speaker_update_transform = function(obj, elapsed, upd_cnt) {
 
@@ -1330,13 +1331,13 @@ exports.speaker_update_transform = function(obj, elapsed, upd_cnt) {
     if (!(spk_is_active(obj) && sfx.behavior == "POSITIONAL"))
         return;
 
-    var pos = m_tsr.get_trans_view(obj.render.world_tsr);
-    var quat = m_tsr.get_quat_view(obj.render.world_tsr);
+    var pos = m_tsr.get_trans(obj.render.world_tsr, _vec3_tmp);
+    var quat = m_tsr.get_quat(obj.render.world_tsr, _quat_tmp);
     var panner = sfx.panner_node;
     panner.setPosition(pos[0], pos[1], pos[2]);
 
-    var orient = _vec3_tmp;
-    m_util.quat_to_dir(quat, m_util.AXIS_MY, orient);
+    var orient = _vec3_tmp2;
+    m_util.quat_to_dir(quat, m_util.AXIS_MZ, orient);
     panner.setOrientation(orient[0], orient[1], orient[2]);
 
     if (!sfx.enable_doppler)
@@ -1394,36 +1395,6 @@ function spk_is_active(obj) {
         return true;
     else
         return false;
-}
-
-
-/**
- * Calculate fallback gain according to position of the source and listener
- * @deprecated By pos_obj_fallback() deprecation
- */
-function calc_distance_gain(pos, pos_lis, dist_ref, dist_max, atten) {
-    var x = pos[0];
-    var y = pos[1];
-    var z = pos[2];
-    var x0 = pos_lis[0];
-    var y0 = pos_lis[1];
-    var z0 = pos_lis[2];
-
-    var gain;
-
-    var dist = Math.sqrt(Math.pow((x-x0), 2) +
-                         Math.pow((y-y0), 2) +
-                         Math.pow((z-z0), 2));
-
-    if (dist < dist_ref)
-        gain = 1;
-    else if (dist > dist_max)
-        gain = 0.0;
-    else
-        // inverse distance model (see OpenAl spec)
-        var gain =  dist_ref / (dist_ref + atten * (dist - dist_ref));
-
-    return gain;
 }
 
 /**
