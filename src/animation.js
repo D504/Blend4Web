@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,25 +22,25 @@
  * @namespace
  * @exports exports as animation
  */
-b4w.module["__animation"] = function(exports, require) {
+var exports = {};
 
-var m_armat     = require("__armature");
-var m_cfg       = require("__config");
-var m_lights    = require("__lights");
-var m_obj_util  = require("__obj_util");
-var m_particles = require("__particles");
-var m_phy       = require("__physics");
-var m_print     = require("__print");
-var m_quat      = require("__quat");
-var m_reformer  = require("__reformer");
-var m_scs       = require("__scenes");
-var m_sfx       = require("__sfx");
-var m_subs      = require("__subscene");
-var m_time      = require("__time");
-var m_trans     = require("__transform");
-var m_tsr       = require("__tsr");
-var m_util      = require("__util");
-var m_vec3      = require("__vec3");
+import m_armat from "./armature"
+import m_cfg from "./config"
+import m_lights from "./lights"
+import m_obj_util from "./obj_util"
+import m_particles from "./particles"
+import m_phy from "./physics"
+import m_print from "./print"
+import m_quat from "./libs/quat"
+import m_reformer from "./reformer"
+import m_scs from "./scenes"
+import m_sfx from "./sfx"
+import m_subs from "./subscene"
+import m_time from "./time"
+import m_trans from "./transform"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
 
 var cfg_ani = m_cfg.animation;
 var cfg_lim = m_cfg.context_limits;
@@ -150,7 +150,7 @@ function create_action_render() {
         params: null,
         bones: null,
         bflags: null,
-        
+
         channels_mask: new Int8Array(8)
     }
     return render;
@@ -741,12 +741,12 @@ exports.bpy_mesh_empty_is_animatable = function(bpy_obj) {
             var action = act_slot.action;
             var act_type = action._render.type;
 
-            if (act_type == OBJ_ANIM_TYPE_OBJECT || 
+            if (act_type == OBJ_ANIM_TYPE_OBJECT ||
                     act_type == OBJ_ANIM_TYPE_MATERIAL && bpy_obj["type"] == "MESH")
                 return true;
         }
 
-    if (m_particles.bpy_obj_has_particles(bpy_obj) 
+    if (m_particles.bpy_obj_has_particles(bpy_obj)
             && m_particles.bpy_obj_has_anim_particles(bpy_obj))
         return true;
 
@@ -771,7 +771,7 @@ function apply_action(obj, name_list, action, slot_num) {
     var frame_range = action["frame_range"];
 
     if (frame_range[0] > frame_range[1]) {
-        m_print.warn("Incompatible action \"" + action["name"] + 
+        m_print.warn("Incompatible action \"" + action["name"] +
                 "\" has been applied to object \"" + obj.name + "\"");
         return false;
     }
@@ -870,7 +870,7 @@ function apply_action(obj, name_list, action, slot_num) {
                 m_particles.update_start_pos(obj, trans, quats);
             }
         } else {
-            m_print.warn("Incompatible action \"" + action["name"] + 
+            m_print.warn("Incompatible action \"" + action["name"] +
                     "\" has been applied to object \"" + obj.name + "\"");
             return false;
         }
@@ -924,7 +924,7 @@ function delete_cached_anim_data_by_mat(obj, mat_name) {
 
         cache_filtered.push(cache[i], cache[i + 1], cache[i + 2]);
     }
-    
+
     obj.action_anim_cache = cache_filtered;
 }
 
@@ -1674,7 +1674,7 @@ function blend_two_anim(render, bone_pointer, slot_0, slot_1, frame_0, frame_nex
     var b_sp_trans1_frame_n = slot_1.bone_space_trans[frame_next_1];
 
     if (!render.mix_with_current) {
-        var b_sp_quats0_frame = slot_0.bone_space_quats[frame_0];    
+        var b_sp_quats0_frame = slot_0.bone_space_quats[frame_0];
         var b_sp_trans0_frame = slot_0.bone_space_trans[frame_0];
 
         var b_sp_quats0_frame_n = slot_0.bone_space_quats[frame_next_0];
@@ -2677,12 +2677,12 @@ exports.validate_action_by_name = function(obj, name) {
 
     if (action) {
         if (action._render.type == OBJ_ANIM_TYPE_NONE)
-            return false;    
+            return false;
     } else {
 
         var pdata = get_particles_data_by_name(obj, name);
         if (!pdata)
-            if (!m_obj_util.is_mesh(obj) || 
+            if (!m_obj_util.is_mesh(obj) ||
                     !get_vertex_anim_by_name(obj, name))
                 return false;
     }
@@ -2908,5 +2908,4 @@ function slot_by_anim_type(obj, anim_name) {
     return first_free_slot;
 }
 
-
-}
+export default exports;

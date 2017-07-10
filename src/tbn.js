@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,7 +22,7 @@
  * @namespace
  * @exports exports as tbn
  */
-b4w.module["__tbn"] = function(exports, require) {
+var exports = {};
 
 // offset > 2/65535 to prevent zeroes when converting to short
 var ZERO_TBN_EPSILON = 0.000031;
@@ -31,11 +31,11 @@ var INIT_ANGLE = 0.5;
 
 exports.TBN_NUM_COMP = TBN_NUM_COMP;
 
-var m_quat = require("__quat");
-var m_tsr  = require("__tsr");
-var m_vec3 = require("__vec3");
-var m_vec4 = require("__vec4");
-var m_util = require("__util");
+import m_quat from "./libs/quat"
+import m_tsr from "./tsr"
+import m_vec3 from "./libs/vec3"
+import m_vec4 from "./libs/vec4"
+import m_util from "./util"
 
 var _quat_tmp = m_quat.create();
 var _quat_tmp2 = m_quat.create();
@@ -312,4 +312,4 @@ exports.multiply_tbn_inv = function(tbn1, tbn2, dest) {
     return dest;
 }
 
-}
+export default exports;

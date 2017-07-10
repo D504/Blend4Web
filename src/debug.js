@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -23,20 +23,20 @@
  * @namespace
  * @exports exports as debug
  */
-b4w.module["__debug"] = function(exports, require) {
+var exports = {};
 
-var m_batch  = require("__batch");
-var m_compat = require("__compat");
-var m_cfg    = require("__config");
-var m_ext    = require("__extensions");
-var m_graph  = require("__graph");
-var m_obj    = require("__objects");
-var m_print  = require("__print");
-var m_scenes = require("__scenes");
-var m_subs   = require("__subscene");
-var m_tex    = require("__textures");
-var m_time   = require("__time");
-var m_util   = require("__util");
+import m_batch from "./batch"
+import m_compat from "./compat"
+import m_cfg from "./config"
+import m_ext from "./extensions"
+import m_graph from "./graph"
+import m_obj from "./objects"
+import m_print from "./print"
+import m_scenes from "./scenes"
+import m_subs from "./subscene"
+import m_tex from "./textures"
+import m_time from "./time"
+import m_util from "./util"
 
 var cfg_def = m_cfg.defaults;
 
@@ -106,7 +106,7 @@ function get_debug_view_subs() {
     return _debug_view_subs;
 }
 
-exports.fill_vbo_garbage_info = function(vbo_id, sh_pair_str, attr_name, 
+exports.fill_vbo_garbage_info = function(vbo_id, sh_pair_str, attr_name,
         byte_size, is_in_usage) {
     if (!_vbo_garbage_info[vbo_id])
         _vbo_garbage_info[vbo_id] = { shaders: sh_pair_str, attrs: {} };
@@ -154,10 +154,10 @@ exports.show_vbo_garbage_info = function() {
 
 exports.print_batches_stat = function() {
     var batches_props = {};
-    
+
     // properties that don't affect batching
     var excluded_props = [
-        "bounds_local", "bufs_data", "id", "attribute_setters", "num_vertices", 
+        "bounds_local", "bufs_data", "id", "attribute_setters", "num_vertices",
         "num_triangles", "material_names", "shader", "bpy_tex_names"
     ];
 
@@ -170,7 +170,7 @@ exports.print_batches_stat = function() {
             for (var k = 0; k < objs[i].scenes_data[j].batches.length; k++) {
 
                 var batch = m_batch.clone_batch(objs[i].scenes_data[j].batches[k]);
-                
+
                 var shader_pair = batch.shaders_info.vert + "/" + batch.shaders_info.frag;
                 batch["shaders_info.directives"] = batch.shaders_info.directives;
                 batch["shaders_info.node_elements"] = batch.shaders_info.node_elements;
@@ -269,7 +269,7 @@ exports.check_gl = function(msg) {
     var error = _gl.getError();
     if (error == _gl.NO_ERROR)
         return;
-    if (error in ERRORS) 
+    if (error in ERRORS)
         m_util.panic("GL Error: " + error + ", gl." + ERRORS[error] + " (" + msg + ")");
     else
         m_util.panic("Unknown GL error: " + error + " (" + msg + ")");
@@ -327,7 +327,7 @@ exports.check_depth_only_issue = function() {
     var w_tex = texture.w_texture;
     var w_target = texture.w_target;
 
-    _gl.framebufferTexture2D(_gl.FRAMEBUFFER, _gl.DEPTH_ATTACHMENT, w_target, 
+    _gl.framebufferTexture2D(_gl.FRAMEBUFFER, _gl.DEPTH_ATTACHMENT, w_target,
             w_tex, 0);
 
     if (_gl.checkFramebufferStatus(_gl.FRAMEBUFFER) != _gl.FRAMEBUFFER_COMPLETE) {
@@ -382,7 +382,7 @@ exports.check_multisample_issue = function() {
  * (Found on NVIDIA 8000/9000/200 series).
  */
 exports.check_ff_cubemap_out_of_memory = function() {
-    if (m_compat.check_user_agent("Firefox") 
+    if (m_compat.check_user_agent("Firefox")
             && _gl.getError() == _gl.OUT_OF_MEMORY) {
         m_print.warn("Firefox/old GPUs cubemap issue was found.");
         return true;
@@ -412,12 +412,12 @@ exports.report_shader_compiling_error = function(shader, shader_id, shader_text)
 function supply_line_numbers(text) {
 
     var lines = text.split("\n");
-    for (var i = 0; i < lines.length; i++) 
+    for (var i = 0; i < lines.length; i++)
         lines[i] = (i + 1) + " " + lines[i];
     text = lines.join("\n");
 
     return text;
-}  
+}
 
 /**
  * Prints shader text numbered lines and error.
@@ -454,7 +454,7 @@ exports.render_time_start_batch = function(batch) {
     if (!(batch.type == "MAIN" && is_debug_view_render_time_mode()))
         return;
 
-    batch.debug_render_time_queries.push(create_render_time_query());   
+    batch.debug_render_time_queries.push(create_render_time_query());
 }
 
 function create_render_time_query() {
@@ -476,7 +476,7 @@ exports.render_time_stop_subs = function(subs) {
     if (subs.do_not_debug)
         return;
 
-    var render_time = calc_render_time(subs.debug_render_time_queries, 
+    var render_time = calc_render_time(subs.debug_render_time_queries,
             subs.debug_render_time, true);
     if (render_time)
         subs.debug_render_time = render_time;
@@ -486,7 +486,7 @@ exports.render_time_stop_batch = function(batch) {
     if (!(batch.type == "MAIN" && is_debug_view_render_time_mode()))
         return;
 
-    var render_time = calc_render_time(batch.debug_render_time_queries, 
+    var render_time = calc_render_time(batch.debug_render_time_queries,
             batch.debug_render_time, true);
     if (render_time)
         batch.debug_render_time = render_time;
@@ -502,7 +502,7 @@ function is_debug_view_render_time_mode() {
  * External method for debugging purposes
  */
 exports.process_timer_queries = function(subs) {
-    var render_time = calc_render_time(subs.debug_render_time_queries, 
+    var render_time = calc_render_time(subs.debug_render_time_queries,
             subs.debug_render_time, false);
     if (render_time)
         subs.debug_render_time = render_time;
@@ -668,7 +668,7 @@ exports.plot_telemetry = function(time) {
             var id = String(msg[1]);
             if (msg.length > 3)
                 id += "_" + String(j-2);
-            
+
             if (!msg_by_id[id])
                 msg_by_id[id] = id + "\n";
 
@@ -873,7 +873,7 @@ exports.nodegraph_to_dot = function(graph, detailed_print) {
                 break;
             case "TEXTURE_COLOR":
             case "TEXTURE_NORMAL":
-                data_info = "\ntexture: " + attr.data.value.name + "\n(" 
+                data_info = "\ntexture: " + attr.data.value.name + "\n("
                         + attr.data.value.img_filepath + ")";
                 break;
             }
@@ -958,4 +958,4 @@ exports.reset = function() {
     _gl = null;
 }
 
-}
+export default exports;

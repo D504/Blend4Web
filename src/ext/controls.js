@@ -47,11 +47,11 @@
  * @local RayPayload
  * @local SensorCallback
  */
-b4w.module["controls"] = function(exports, require) {
+var exports = {};
 
-var m_ctl   = require("__controls");
-var m_phy   = require("__physics");
-var m_print = require("__print");
+import m_ctl from "../controls"
+import m_phy from "../physics"
+import m_print from "../print"
 
 /**
  * Manifold's callback. It is executed when the manifold generates a pulse.
@@ -1129,4 +1129,4 @@ exports.reset = m_ctl.reset;
  */
 exports.set_plock_smooth_factor = m_ctl.set_plock_smooth_factor;
 
-}
+export default exports;

@@ -21,13 +21,13 @@
  * Enable the "Dynamic geometry" checkbox for the objects to allow geometry modification.
  * @module geometry
  */
-b4w.module["geometry"] = function(exports, require) {
+var exports = {};
 
-var m_batch  = require("__batch");
-var m_geom   = require("__geometry");
-var m_print  = require("__print");
-var m_render = require("__renderer");
-var m_tbn    = require("__tbn");
+import m_batch from "../batch"
+import m_geom from "../geometry"
+import m_print from "../print"
+import m_render from "../renderer"
+import m_tbn from "../tbn"
 
 /**
  * Extract the vertex array from the object.
@@ -350,4 +350,4 @@ exports.draw_line = function(obj, positions, is_split) {
     }
 }
 
-}
+export default exports;

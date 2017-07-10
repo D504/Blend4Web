@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -25,29 +25,29 @@
  * @namespace
  * @exports exports as logic_nodes
  */
-b4w.module["__logic_nodes"] = function(exports, require) {
+var exports = {};
 
-var m_anim   = require("__animation");
-var m_assets = require("__assets");
-var m_cam    = require("__camera");
-var m_nla    = require("__nla");
-var m_obj    = require("__objects");
-var m_print  = require("__print");
-var m_scs    = require("__scenes");
-var m_cfg    = require("__config");
-var m_ctl    = require("__controls");
-var m_batch  = require("__batch");
-var m_geom   = require("__geometry");
-var m_mat3   = require("__mat3");
-var m_mat4   = require("__mat4");
-var m_phy    = require("__physics");
-var m_quat   = require("__quat");
-var m_sfx    = require("__sfx");
-var m_time   = require("__time");
-var m_trans  = require("__transform");
-var m_tsr    = require("__tsr");
-var m_util   = require("__util");
-var m_vec3   = require("__vec3");
+import m_anim from "./animation"
+import m_assets from "./assets"
+import m_cam from "./camera"
+import m_nla from "./nla"
+import m_obj from "./objects"
+import m_print from "./print"
+import m_scs from "./scenes"
+import m_cfg from "./config"
+import m_ctl from "./controls"
+import m_batch from "./batch"
+import m_geom from "./geometry"
+import m_mat3 from "./libs/mat3"
+import m_mat4 from "./libs/mat4"
+import m_phy from "./physics"
+import m_quat from "./libs/quat"
+import m_sfx from "./sfx"
+import m_time from "./time"
+import m_trans from "./transform"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
 
 var _vec4_tmp  = new Float32Array(4);
 var _vec3_tmp  = new Float32Array(3);
@@ -222,7 +222,7 @@ var _nodes_handlers = {
     "SET_CAMERA_MOVE_STYLE": set_camera_move_style_handler,
     "SET_CAMERA_LIMITS": set_camera_limits_handler,
     "MOVE_TO": move_to_handler,
-    "TRANSFORM_OBJECT": transform_object_handler,    
+    "TRANSFORM_OBJECT": transform_object_handler,
     "SPEAKER_PLAY": speaker_play_handler,
     "SPEAKER_STOP": speaker_stop_handler,
     "STOP_ANIM": stop_anim_handler,
@@ -787,9 +787,9 @@ function send_req_handler(node, logic, thread_state, timeline, elapsed, start_ti
                     var req = convert_variable(
                         get_var(node.vars["dst1"], logic.variables, thread_state.variables), NT_STRING);
 
-                    m_assets.enqueue([{id:url, type:m_assets.AT_JSON, url:url, 
-                            overwrite_header: header, request_method:"POST", 
-                            post_data:req, param:[node, thread_state.variables]}], 
+                    m_assets.enqueue([{id:url, type:m_assets.AT_JSON, url:url,
+                            overwrite_header: header, request_method:"POST",
+                            post_data:req, param:[node, thread_state.variables]}],
                             asset_cb, null, null, null);
             }
             break;
@@ -1392,7 +1392,7 @@ function move_to_handler(node, logic, thread_state, timeline, elapsed, start_tim
             interp_tsr_dest: new Float32Array(8)
         };
 
-        break;    
+        break;
     case RUNNING:
         var obj = node.objects["ob"];
         m_tsr.copy(node.objects["ob"].render.world_tsr, node.obj_state.dest_tsr_start)
@@ -1432,7 +1432,7 @@ function move_to_handler(node, logic, thread_state, timeline, elapsed, start_tim
             thread_state.curr_node = node.slot_idx_order;
             break;
         }
-        break;    
+        break;
     }
 }
 
@@ -1446,7 +1446,7 @@ function transform_object_handler(node, logic, thread_state, timeline, elapsed, 
         }
 
         m_trans.update_transform(obj);
-        m_phy.sync_transform(obj);       
+        m_phy.sync_transform(obj);
     }
 
 
@@ -1490,7 +1490,7 @@ function transform_object_handler(node, logic, thread_state, timeline, elapsed, 
             eul_rot[2] = node.bools["roz"] ?
                 convert_variable(get_var(node.vars['roz'], logic.variables, thread_state.variables), NT_NUMBER) * Math.PI / 180 : node.floats["roz"];
             var sc = node.bools["sc"] ? get_var(node.vars['sc'], logic.variables, thread_state.variables) : node.floats["sc"]
-            
+
             m_util.euler_to_quat(eul_rot, _vec4_tmp);
             m_tsr.set_sep(
                 tr,
@@ -1946,7 +1946,7 @@ function string_handler(node, logic, thread_state, timeline, elapsed, start_time
                 result = get_var(vars['dst1'], logic.variables, thread_state.variables);
                 set_var(vars['dst1'], logic.variables, thread_state.variables, "");
             }
-            break;        
+            break;
         case NSO_COMPARE:
             switch (node.common_usage_names["condition"]) {
             case NC_EQUAL:
@@ -2001,7 +2001,7 @@ function json_handler(node, logic, thread_state, timeline, elapsed, start_time) 
                 deep_value = deep_value[path_steps[j]];
 
                 if(deep_value === undefined || deep_value === null)
-                    break; 
+                    break;
             }
 
             deep_value = convert_b4w_type(deep_value);
@@ -2211,7 +2211,7 @@ function convert_variable(variable, type) {
         return Number(variable) ? Number(variable) : 0;
     case NT_STRING:
         return String(variable);
-    default: 
+    default:
         return null;
     }
 }
@@ -2249,4 +2249,5 @@ exports.cleanup = function() {
     _logic_custom_cb_arr = {};
     _node_ident_counters = {};
 }
-}
+
+export default exports;

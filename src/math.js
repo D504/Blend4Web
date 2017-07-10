@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -32,10 +32,10 @@
  * @namespace
  * @exports exports as math
  */
-b4w.module["__math"] = function(exports, require) {
+var exports = {};
 
-var m_mat3 = require("__mat3");
-var m_vec3 = require("__vec3");
+import m_mat3 from "./libs/mat3"
+import m_vec3 from "./libs/vec3"
 
 var _vec3_tmp = new Float32Array(3);
 var _mat3_tmp = new Float32Array(9);
@@ -430,7 +430,7 @@ function ease_out_back(t, b, c, d, s) {
 }
 exports.ease_in_out_back = ease_in_out_back;
 function ease_in_out_back(t, b, c, d, s) {
-    if (s == undefined) s = 1.70158; 
+    if (s == undefined) s = 1.70158;
     if ((t/=d/2) < 1) return c/2*(t*t*(((s*=(1.525))+1)*t - s)) + b;
     return c/2*((t-=2)*t*(((s*=(1.525))+1)*t + s) + 2) + b;
 }
@@ -456,4 +456,4 @@ function ease_in_out_bounce(t, b, c, d) {
     return ease_out_bounce (t*2-d, 0, c, d) * .5 + c*.5 + b;
 }
 
-}
+export default exports;

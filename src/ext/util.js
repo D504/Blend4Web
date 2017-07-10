@@ -20,14 +20,14 @@
  * Contains various utility methods for math, searching etc.
  * @module util
  */
-b4w.module["util"] = function(exports, require) {
+var exports = {};
 
-var m_compat   = require("__compat");
-var m_print    = require("__print");
-var m_quat     = require("__quat");
-var m_tbn      = require("__tbn");
-var m_util     = require("__util");
-var m_vec3     = require("__vec3");
+import m_compat from "../compat"
+import m_print from "../print"
+import m_quat from "../libs/quat"
+import m_tbn from "../tbn"
+import m_util from "../util"
+import m_vec3 from "../libs/vec3"
 
 /**
  * X-axis vector.
@@ -442,4 +442,4 @@ exports.gen_tbn_quats = m_tbn.get;
  */
 exports.trunc = m_util.trunc;
 
-}
+export default exports;

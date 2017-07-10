@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,14 +22,14 @@
  * @namespace
  * @exports exports as obj_util
  */
-b4w.module["__obj_util"] = function(exports, require) {
+var exports = {};
 
-var m_bounds = require("__boundings");
-var m_cfg    = require("__config");
-var m_tsr    = require("__tsr");
-var m_util   = require("__util");
-var m_vec3   = require("__vec3");
-var m_vec4   = require("__vec4");
+import m_bounds from "./boundings"
+import m_cfg from "./config"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_vec4 from "./libs/vec4"
 
 var cfg_def = m_cfg.defaults;
 
@@ -92,13 +92,13 @@ function create_render(type) {
         pivot_limits: null,
 
         enable_hover_hor_rotation: true,
-        
+
         outline_anim_settings_default: {
             outline_duration: 1,
             outline_period: 1,
             outline_relapses: 0
         },
-        
+
         cube_reflection_id: -1,
         plane_reflection_id: -1,
         reflection_plane: new Float32Array(4),
@@ -111,8 +111,8 @@ function create_render(type) {
         main_lod_offset: new Float32Array(3), // for DYNAMIC objects
         lod_dist_min: 0,
         lod_dist_max: LOD_DIST_MAX_INFINITY,
-        
-        // the maximum radius around the border of the current lod level that 
+
+        // the maximum radius around the border of the current lod level that
         // doesn't overleap over the adjacent lod levels in both directions:
         // min(curr_level_interval, prev_level_interval)
         // min(curr_level_interval, next_level_interval)
@@ -387,7 +387,7 @@ function create_object(name, type, origin_name) {
         is_meta: true,
 
         // material inheritance requires bpy object for batching
-        _bpy_obj: null, 
+        _bpy_obj: null,
 
         mat_inheritance_data: {
             // to keep the original mat names after inheritance
@@ -402,7 +402,7 @@ function create_object(name, type, origin_name) {
         is_hair_dupli: false,
         use_default_animation: false,
         is_boundings_overridden: false,
-        
+
         render: null,
         constraint: null,
         sfx: null,
@@ -424,7 +424,7 @@ function create_object(name, type, origin_name) {
 
         sensor_manifolds : null,
         sensor_manifolds_arr : [],
-        
+
         parent: null,
         parent_is_dupli: false,
         parent_bone: "",
@@ -688,19 +688,19 @@ exports.update_render_bounds_billboard = function(obj, obj_local_bb) {
 
     set_box_render_bounds(render, obj_local_bb);
     set_sph_render_bounds(render, sph_rad, [0, 0, 0]);
-    set_ell_render_bounds(render, [1, 0, 0], [0, 1, 0], [0, 0, 1], 
+    set_ell_render_bounds(render, [1, 0, 0], [0, 1, 0], [0, 0, 1],
             [sph_rad, sph_rad, sph_rad], [0, 0, 0]);
 
     if (is_dynamic(obj))
         set_local_cyl_cap_cone(render, cyl_rad, cyl_rad, bb_local);
     else
-        set_bbr_render_bounds(render, [1, 0, 0], [0, 1, 0], [0, 0, 1], 
+        set_bbr_render_bounds(render, [1, 0, 0], [0, 1, 0], [0, 0, 1],
                 [sph_rad, sph_rad, sph_rad], [0, 0, 0]);
 }
 
 exports.update_render_bounds_from_bpy = function(obj, obj_local_bb, bpy_bdata) {
     var render = obj.render;
-    
+
     var sph_rad = bpy_bdata["bs_rad"];
     var cyl_rad = bpy_bdata["bc_rad"];
     var bs_center = bpy_bdata["bs_cen"];
@@ -722,13 +722,13 @@ exports.update_render_bounds_from_bpy = function(obj, obj_local_bb, bpy_bdata) {
     var be_axis_x = obj_is_dynamic ? cov_axis_x : [1, 0, 0];
     var be_axis_y = obj_is_dynamic ? cov_axis_y : [0, 1, 0];
     var be_axis_z = obj_is_dynamic ? cov_axis_z : [0, 0, 1];
-    set_ell_render_bounds(render, be_axis_x, be_axis_y, be_axis_z, be_axes, 
+    set_ell_render_bounds(render, be_axis_x, be_axis_y, be_axis_z, be_axes,
             be_center);
 
     if (is_dynamic(obj))
         set_local_cyl_cap_cone(render, cyl_rad, cyl_rad, render.bb_local);
     else
-        set_bbr_render_bounds(render, cov_axis_x, cov_axis_y, cov_axis_z, 
+        set_bbr_render_bounds(render, cov_axis_x, cov_axis_y, cov_axis_z,
                 bbr_scale, bbr_center);
 }
 
@@ -737,7 +737,7 @@ exports.update_render_bounds_from_bpy = function(obj, obj_local_bb, bpy_bdata) {
  */
 exports.update_render_bounds_from_pos_arrays = function(obj, obj_local_bb, pos_arrays) {
     var render = obj.render;
-    
+
     var x_width = obj_local_bb.max_x - obj_local_bb.min_x;
     var y_width = obj_local_bb.max_y - obj_local_bb.min_y;
     var z_width = obj_local_bb.max_z - obj_local_bb.min_z;
@@ -765,7 +765,7 @@ exports.update_render_bounds_from_pos_arrays = function(obj, obj_local_bb, pos_a
             var y = pos[j + 1];
             var z = pos[j + 2];
 
-            var s_cen_dist = Math.sqrt((s_cen_x - x) * (s_cen_x - x) 
+            var s_cen_dist = Math.sqrt((s_cen_x - x) * (s_cen_x - x)
                     + (s_cen_y - y) * (s_cen_y - y) +
                     (s_cen_z - z) * (s_cen_z - z));
 
@@ -778,12 +778,12 @@ exports.update_render_bounds_from_pos_arrays = function(obj, obj_local_bb, pos_a
                 s_cen_y = (g_y + y) / 2;
                 s_cen_z = (g_z + z) / 2;
 
-                s_rad = Math.sqrt((s_cen_x - x) * (s_cen_x - x) 
+                s_rad = Math.sqrt((s_cen_x - x) * (s_cen_x - x)
                         + (s_cen_y - y) * (s_cen_y - y) +
                         (s_cen_z - z) * (s_cen_z - z));
             }
 
-            var c_cen_dist = Math.sqrt((c_cen_x - x) * (c_cen_x - x) 
+            var c_cen_dist = Math.sqrt((c_cen_x - x) * (c_cen_x - x)
                         + (c_cen_z - z) * (c_cen_z - z));
 
             if (c_cen_dist > c_rad) {
@@ -792,7 +792,7 @@ exports.update_render_bounds_from_pos_arrays = function(obj, obj_local_bb, pos_a
 
                 c_cen_x = (g_x + x) / 2;
                 c_cen_z = (g_z + z) / 2;
-                c_rad = Math.sqrt((c_cen_x - x) * (c_cen_x - x) 
+                c_rad = Math.sqrt((c_cen_x - x) * (c_cen_x - x)
                         + (c_cen_z - z) * (c_cen_z - z));
             }
 
@@ -801,7 +801,7 @@ exports.update_render_bounds_from_pos_arrays = function(obj, obj_local_bb, pos_a
             z /= z_width ? z_width : 1;
 
             var s_cen_tmp = Math.sqrt((tmp_s_cen[0] - x) * (tmp_s_cen[0] - x) +
-                    (tmp_s_cen[1] - y) * (tmp_s_cen[1] - y) 
+                    (tmp_s_cen[1] - y) * (tmp_s_cen[1] - y)
                     + (tmp_s_cen[2] - z) * (tmp_s_cen[2] - z));
 
             if (s_cen_tmp > tmp_rad) {
@@ -813,7 +813,7 @@ exports.update_render_bounds_from_pos_arrays = function(obj, obj_local_bb, pos_a
                 tmp_s_cen[1] = (g_y + y) / 2;
                 tmp_s_cen[2] = (g_z + z) / 2;
 
-                tmp_rad = Math.sqrt((tmp_s_cen[0] - x) * (tmp_s_cen[0] - x) 
+                tmp_rad = Math.sqrt((tmp_s_cen[0] - x) * (tmp_s_cen[0] - x)
                         + (tmp_s_cen[1] - y) * (tmp_s_cen[1] - y)
                         + (tmp_s_cen[2] - z) * (tmp_s_cen[2] - z));
             }
@@ -830,7 +830,7 @@ exports.update_render_bounds_from_pos_arrays = function(obj, obj_local_bb, pos_a
 
     set_box_render_bounds(render, obj_local_bb);
     set_sph_render_bounds(render, s_rad, [s_cen_x, s_cen_y, s_cen_z]);
-    set_ell_render_bounds(render, [1, 0, 0], [0, 1, 0], [0, 0, 1], 
+    set_ell_render_bounds(render, [1, 0, 0], [0, 1, 0], [0, 0, 1],
             [e_axis_x, e_axis_y, e_axis_z], [e_cen_x, e_cen_y, e_cen_z]);
 
     if (is_dynamic(obj))
@@ -844,31 +844,31 @@ exports.update_render_bounds_from_pos_arrays = function(obj, obj_local_bb, pos_a
         var cen_y = (render.bb_local.max_y + render.bb_local.min_y) / 2;
         var cen_z = (render.bb_local.max_z + render.bb_local.min_z) / 2;
 
-        set_bbr_render_bounds(render, [x_len, 0, 0], [0, y_len, 0], 
+        set_bbr_render_bounds(render, [x_len, 0, 0], [0, y_len, 0],
                 [0, 0, z_len], [1, 1, 1], [cen_x, cen_y, cen_z]);
     }
 }
 
 function set_box_render_bounds(render, bb_local) {
     m_bounds.copy_bb(bb_local, render.bb_local);
-    m_bounds.bounding_box_transform(render.bb_local, render.world_tsr, 
+    m_bounds.bounding_box_transform(render.bb_local, render.world_tsr,
             render.bb_world);
 }
 
 function set_sph_render_bounds(render, sph_rad, bs_center) {
     render.bs_local = m_bounds.bs_from_values(sph_rad, bs_center);
-    m_bounds.bounding_sphere_transform(render.bs_local, render.world_tsr, 
+    m_bounds.bounding_sphere_transform(render.bs_local, render.world_tsr,
             render.bs_world);
 }
 
-function set_ell_render_bounds(render, be_axis_x, be_axis_y, be_axis_z, 
+function set_ell_render_bounds(render, be_axis_x, be_axis_y, be_axis_z,
         axes_scale, be_center) {
-    render.be_local = m_bounds.be_from_values(be_axis_x, be_axis_y, be_axis_z, 
+    render.be_local = m_bounds.be_from_values(be_axis_x, be_axis_y, be_axis_z,
             be_center);
     m_vec3.scale(render.be_local.axis_x, axes_scale[0], render.be_local.axis_x);
     m_vec3.scale(render.be_local.axis_y, axes_scale[1], render.be_local.axis_y);
     m_vec3.scale(render.be_local.axis_z, axes_scale[2], render.be_local.axis_z);
-    m_bounds.bounding_ellipsoid_transform(render.be_local, render.world_tsr, 
+    m_bounds.bounding_ellipsoid_transform(render.be_local, render.world_tsr,
             render.be_world);
 }
 
@@ -878,11 +878,11 @@ function set_local_cyl_cap_cone(render, cyl_radius, cap_radius, bb_local) {
     render.bcon_local = m_bounds.bcon_from_values(cyl_radius, bb_local);
 }
 
-function set_bbr_render_bounds(render, bbr_axis_x, bbr_axis_y, bbr_axis_z, 
+function set_bbr_render_bounds(render, bbr_axis_x, bbr_axis_y, bbr_axis_z,
         axes_scale, bbr_center) {
-    render.bbr_local = m_bounds.rot_bb_from_values(bbr_center, bbr_axis_x, 
+    render.bbr_local = m_bounds.rot_bb_from_values(bbr_center, bbr_axis_x,
             bbr_axis_y, bbr_axis_z, axes_scale);
-    m_bounds.bounding_rot_box_transform(render.bbr_local, render.world_tsr, 
+    m_bounds.bounding_rot_box_transform(render.bbr_local, render.world_tsr,
             render.bbr_world);
 }
 
@@ -890,7 +890,7 @@ exports.update_world_bounds_from_batch_tsr = update_world_bounds_from_batch_tsr;
 function update_world_bounds_from_batch_tsr(batch, tsr, world_bounds) {
     m_bounds.bounding_box_transform(batch.bounds_local.bb, tsr, world_bounds.bb);
     if (batch.use_be)
-        m_bounds.bounding_ellipsoid_transform(batch.bounds_local.be, tsr, 
+        m_bounds.bounding_ellipsoid_transform(batch.bounds_local.be, tsr,
                 world_bounds.be);
     m_bounds.bounding_sphere_transform(batch.bounds_local.bs, tsr, world_bounds.bs);
 }
@@ -1061,4 +1061,4 @@ exports.is_world = function(obj) {
     return obj.type === "WORLD";
 }
 
-}
+export default exports;

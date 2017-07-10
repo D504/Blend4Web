@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,13 +22,13 @@
  * @namespace
  * @exports exports as boundings
  */
-b4w.module["__boundings"] = function(exports, require) {
+var exports = {};
 
-var m_tsr  = require("__tsr");
-var m_util = require("__util");
-var m_vec3 = require("__vec3");
-var m_math = require("__math");
-var m_mat3 = require("__mat3");
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_math from "./math"
+import m_mat3 from "./libs/mat3"
 
 var _bb_corners_cache = new Float32Array(3 * 8);
 var _vec3_tmp = new Float32Array(3);
@@ -861,7 +861,7 @@ exports.recalculate_mesh_boundings = function(bpy_mesh) {
             srad = Math.max(Math.sqrt(x * x + y * y + z * z), srad);
             crad = Math.max(Math.sqrt(x * x + y * y), crad);
         }
-        
+
         var bpy_sub_bb = submesh["boundings"]["bb"];
         var sub_bb = bb_from_coords(positions, 0, positions.length, create_bb());
         bpy_sub_bb["max_x"] = sub_bb.max_x;
@@ -1036,4 +1036,4 @@ function mec_by_3_points(bs, A, B, C) {
     return bs;
 }
 
-}
+export default exports;

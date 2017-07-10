@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -24,20 +24,20 @@
  * @namespace
  * @exports exports as reformer
  */
-b4w.module["__reformer"] = function(exports, require) {
+var exports = {};
 
-var m_bounds = require("__boundings");
-var m_cfg    = require("__config");
-var m_curve  = require("__curve");
-var m_mat4   = require("__mat4");
-var m_print  = require("__print");
-var m_quat   = require("__quat");
-var m_tbn    = require("__tbn");
-var m_util   = require("__util");
-var m_vec3   = require("__vec3");
-var m_mat3   = require("__mat3");
-var m_logn   = require("__logic_nodes");
-var m_anim   = require("__animation");
+import m_bounds from "./boundings"
+import m_cfg from "./config"
+import m_curve from "./curve"
+import m_mat4 from "./libs/mat4"
+import m_print from "./print"
+import m_quat from "./libs/quat"
+import m_tbn from "./tbn"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_mat3 from "./libs/mat3"
+import m_logn from "./logic_nodes"
+import m_anim from "./animation"
 
 var cfg_def = m_cfg.defaults;
 
@@ -67,7 +67,7 @@ function reform_node(node) {
             node["curve_mapping"] = {"curves_data": [[[0, 0], [1, 1]],
                 [[0, 0], [1, 1]], [[0, 0], [1, 1]], [[0, 0], [1, 1]]],
                 "curves_handle_types" : ["EXTRAPOLATED", "EXTRAPOLATED",
-                "EXTRAPOLATED", "EXTRAPOLATED"], "curve_extend" : 
+                "EXTRAPOLATED", "EXTRAPOLATED"], "curve_extend" :
                 [["AUTO", "AUTO"], ["AUTO", "AUTO"], ["AUTO", "AUTO"], ["AUTO", "AUTO"]]};
             report("node RGB Curves", node, "curve_mapping");
         }
@@ -77,7 +77,7 @@ function reform_node(node) {
             node["curve_mapping"] = {"curves_data": [[[0, 0], [1, 1]],
                 [[0, 0], [1, 1]], [[0, 0], [1, 1]]],
                 "curves_handle_types" : ["EXTRAPOLATED", "EXTRAPOLATED",
-                "EXTRAPOLATED"], "curve_extend" : 
+                "EXTRAPOLATED"], "curve_extend" :
                 [["AUTO", "AUTO"], ["AUTO", "AUTO"], ["AUTO", "AUTO"]]};
             report("node Vector Curves", node, "curve_mapping");
         }
@@ -979,7 +979,7 @@ exports.check_bpy_data = function(bpy_data) {
             camera["b4w_trans_velocity"] = 1;
             report("camera", camera, "b4w_trans_velocity");
         }
-        
+
         if (!("b4w_rot_velocity" in camera)) {
             camera["b4w_rot_velocity"] = 1;
             report("camera", camera, "b4w_rot_velocity");
@@ -991,7 +991,7 @@ exports.check_bpy_data = function(bpy_data) {
         }
 
         if (!("b4w_use_target_distance_limits" in camera)) {
-            camera["b4w_use_target_distance_limits"] 
+            camera["b4w_use_target_distance_limits"]
                     = camera["b4w_use_distance_limits"] || false;
             report("camera", camera, "b4w_use_target_distance_limits");
         }
@@ -1342,10 +1342,10 @@ exports.check_bpy_data = function(bpy_data) {
     for (var i = 0; i < materials.length; i++) {
         var mat = materials[i];
 
-        if (cfg_def.msaa_samples < 2 
+        if (cfg_def.msaa_samples < 2
                 && mat["game_settings"]["alpha_blend"] == "ALPHA_ANTIALIASING") {
             m_print.warn("Material \"" + mat["name"] + "\" has the "
-                    + "\"Alpha Anti-Aliasing\" transparency type, but " 
+                    + "\"Alpha Anti-Aliasing\" transparency type, but "
                     + "multisampling is disabled. Changed to \"Alpha Clip\".")
             mat["game_settings"]["alpha_blend"] = "CLIP";
         }
@@ -2255,7 +2255,7 @@ exports.check_bpy_data = function(bpy_data) {
         }
 
         if (!("b4w_cluster_data" in bpy_obj)) {
-            bpy_obj["b4w_cluster_data"] = { 
+            bpy_obj["b4w_cluster_data"] = {
                 "cluster_id": -1,
                 "cluster_center": null
             };
@@ -2329,8 +2329,8 @@ function check_strip_props(animation_data) {
 }
 
 function check_export_props(bpy_obj) {
-    var export_props = ["b4w_apply_scale", "b4w_apply_modifiers", 
-            "b4w_export_edited_normals", "b4w_loc_export_vertex_anim", 
+    var export_props = ["b4w_apply_scale", "b4w_apply_modifiers",
+            "b4w_export_edited_normals", "b4w_loc_export_vertex_anim",
             "b4w_shape_keys"];
     var prop_found = null;
     for (var i = 0; i < export_props.length; i++) {
@@ -2339,7 +2339,7 @@ function check_export_props(bpy_obj) {
                 prop_found = export_props[i];
             else {
                 bpy_obj[export_props[i]] = false;
-                m_print.warn("WARNING property \"" + export_props[i] + "\" of object \"" 
+                m_print.warn("WARNING property \"" + export_props[i] + "\" of object \""
                     + bpy_obj["name"] + "\" has been set to \"false\". Foreground property \""
                     + prop_found + "\" already exists.");
             }
@@ -2920,7 +2920,7 @@ exports.assign_logic_nodes_object_params = function(bpy_objects, bpy_world, scen
                 break;
             case "SELECT_PLAY_ANIM":
                 report_raw("Logic nodes type \"SELECT_PLAY_ANIM\" is deprecated");
-                break;    
+                break;
             case "SHOW":
                 if (!snode["bools"])
                         snode["bools"] = {};
@@ -3226,4 +3226,4 @@ exports.assign_logic_nodes_object_params = function(bpy_objects, bpy_world, scen
     }
 }
 
-}
+export default exports;

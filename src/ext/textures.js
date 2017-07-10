@@ -22,14 +22,14 @@
  * @local TexChangingFinishCallback
  * @see https://www.blend4web.com/doc/en/textures.html
  */
-b4w.module["textures"] = function(exports, require) {
+var exports = {};
 
-var m_print    = require("__print");
-var m_scenes   = require("__scenes");
-var m_textures = require("__textures");
-var m_obj_util = require("__obj_util");
-var m_util     = require("__util");
-var m_assets   = require("__assets");
+import m_print from "../print"
+import m_scenes from "../scenes"
+import m_textures from "../textures"
+import m_obj_util from "../obj_util"
+import m_util from "../util"
+import m_assets from "../assets"
 
 /**
  * Texture changing finish callback.
@@ -231,4 +231,4 @@ exports.get_texture_names = function(obj) {
         return m_textures.get_texture_names(obj);
 }
 
-}
+export default exports;

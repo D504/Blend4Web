@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -23,22 +23,22 @@
  * @namespace
  * @exports exports as camera
  */
-b4w.module["__camera"] = function(exports, require) {
+var exports = {};
 
-var m_bounds   = require("__boundings");
-var m_cont     = require("__container");
-var m_mat4     = require("__mat4");
-var m_math     = require("__math");
-var m_obj_util = require("__obj_util");
-var m_print    = require("__print");
-var m_quat     = require("__quat");
-var m_scenes   = require("__scenes");
-var m_subs     = require("__subscene");
-var m_trans    = require("__transform");
-var m_tsr      = require("__tsr");
-var m_util     = require("__util");
-var m_vec3     = require("__vec3");
-var m_vec4     = require("__vec4");
+import m_bounds from "./boundings"
+import m_cont from "./container"
+import m_mat4 from "./libs/mat4"
+import m_math from "./math"
+import m_obj_util from "./obj_util"
+import m_print from "./print"
+import m_quat from "./libs/quat"
+import m_scenes from "./scenes"
+import m_subs from "./subscene"
+import m_trans from "./transform"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_vec4 from "./libs/vec4"
 
 // constants
 var TYPE_STEREO_LEFT = 70;
@@ -124,7 +124,7 @@ exports.camera_object_to_camera = function(bpy_camobj, camobj) {
         // NOTE: expect some issues with camera sensor fit
         var fov = camobj_data["angle"];
         var near = camobj_data["clip_start"];
-            
+
         set_frustum(cam, fov, near, camobj_data["clip_end"]);
         break;
     case "ORTHO":
@@ -180,16 +180,16 @@ exports.camera_object_to_camera = function(bpy_camobj, camobj) {
         break;
     case exports.MS_TARGET_CONTROLS:
         var pos = m_tsr.get_trans_view(camobj.render.world_tsr);
-        setup_target_model(camobj, pos, camobj_data["b4w_target"], 
+        setup_target_model(camobj, pos, camobj_data["b4w_target"],
                 hor_rot_limits, vert_rot_limits, dist_limits, pivot_limits,
                 camobj_data["b4w_use_panning"]);
         break;
     case exports.MS_HOVER_CONTROLS:
         var pos = m_tsr.get_trans_view(camobj.render.world_tsr);
-        var pivot = init_hover_pivot(camobj, 
+        var pivot = init_hover_pivot(camobj,
                 bpy_camobj["data"]["b4w_hover_zero_level"], _vec3_tmp2);
-        setup_hover_model(camobj, pos, pivot, dist_limits, vert_rot_limits, 
-                hor_trans_limits, vert_trans_limits, 
+        setup_hover_model(camobj, pos, pivot, dist_limits, vert_rot_limits,
+                hor_trans_limits, vert_trans_limits,
                 camobj_data["b4w_enable_hover_hor_rotation"]);
         break;
     }
@@ -204,9 +204,9 @@ function hor_rot_limits_bpy_to_b4w(bpy_camobj, camobj) {
 
     var hor_rot_limits = null;
 
-    if ((ms == exports.MS_TARGET_CONTROLS || ms == exports.MS_EYE_CONTROLS) 
+    if ((ms == exports.MS_TARGET_CONTROLS || ms == exports.MS_EYE_CONTROLS)
             && data["b4w_use_horizontal_clamping"]) {
-        
+
         hor_rot_limits = {
             left: data["b4w_rotation_left_limit"],
             right: data["b4w_rotation_right_limit"],
@@ -230,7 +230,7 @@ function vert_rot_limits_bpy_to_b4w(bpy_camobj, camobj) {
 
     var vert_rot_limits = null;
 
-    if ((ms == exports.MS_TARGET_CONTROLS || ms == exports.MS_EYE_CONTROLS) 
+    if ((ms == exports.MS_TARGET_CONTROLS || ms == exports.MS_EYE_CONTROLS)
             && data["b4w_use_vertical_clamping"]) {
 
         vert_rot_limits = {
@@ -268,7 +268,7 @@ function dist_limits_bpy_to_b4w(bpy_camobj, camobj) {
 
     var dist_limits = null;
 
-    if (ms == exports.MS_TARGET_CONTROLS && data["b4w_use_target_distance_limits"] 
+    if (ms == exports.MS_TARGET_CONTROLS && data["b4w_use_target_distance_limits"]
             && (data["b4w_distance_min"] <= data["b4w_distance_max"]))
         // enable distance clamping only if the distance limits are correct
         dist_limits = {
@@ -314,7 +314,7 @@ function vert_trans_limits_bpy_to_b4w(bpy_camobj, camobj) {
     if (ms == exports.MS_HOVER_CONTROLS && data["b4w_use_vertical_clamping"]
             && (data["b4w_vertical_translation_min"]
             <= data["b4w_vertical_translation_max"])) {
-        
+
         vert_trans_limits = {
             min: data["b4w_vertical_translation_min"],
             max: data["b4w_vertical_translation_max"]
@@ -349,7 +349,7 @@ function setup_eye_model(camobj, pos, look_at, hor_rot_lim, vert_rot_lim) {
 }
 
 exports.setup_target_model = setup_target_model;
-function setup_target_model(camobj, pos, pivot, hor_rot_lim, vert_rot_lim, 
+function setup_target_model(camobj, pos, pivot, hor_rot_lim, vert_rot_lim,
         dist_lim, pivot_lim, use_panning) {
     var render = camobj.render;
 
@@ -366,7 +366,7 @@ function setup_target_model(camobj, pos, pivot, hor_rot_lim, vert_rot_lim,
 }
 
 exports.setup_hover_model = setup_hover_model;
-function setup_hover_model(camobj, pos, pivot, dist_lim, angle_lim, 
+function setup_hover_model(camobj, pos, pivot, dist_lim, angle_lim,
         hor_trans_lim, vert_trans_lim, hor_rotation) {
     var render = camobj.render;
 
@@ -390,7 +390,7 @@ function init_hover_pivot(camobj, zero_level, dest) {
     var render = camobj.render;
     var trans = m_tsr.get_trans_view(render.world_tsr);
     var quat = m_tsr.get_quat_view(render.world_tsr);
-    
+
     var normal_plane_oxy = _vec4_tmp;
     normal_plane_oxy.set(m_util.AXIS_Z);
     normal_plane_oxy[3] = 0;
@@ -401,13 +401,13 @@ function init_hover_pivot(camobj, zero_level, dest) {
 
     m_math.set_pline_initial_point(_pline_tmp, trans);
     m_math.set_pline_directional_vec(_pline_tmp, view_vector);
-    var res = m_util.line_plane_intersect(normal_plane_oxy, 
+    var res = m_util.line_plane_intersect(normal_plane_oxy,
             -zero_level, _pline_tmp, dest);
 
     // NOTE: It is used to check parallel line and plane
     if (!res || Math.abs(theta) < MAX_HOVER_INIT_ANGLE) {
-        m_print.warn("Active hover camera view vector and the supporting plane " 
-                + "are parallel to each other. Hover pivot will be set based on the " 
+        m_print.warn("Active hover camera view vector and the supporting plane "
+                + "are parallel to each other. Hover pivot will be set based on the "
                 + "camera position.");
         dest[0] = trans[0];
         dest[1] = 0;
@@ -422,7 +422,7 @@ function init_ortho_props(camobj) {
     var render = camobj.render;
     for (var i = 0; i < camobj.scenes_data.length; i++) {
         var main_cam = camobj.scenes_data[i].cameras[0];
-        if (main_cam.type == exports.TYPE_ORTHO)    
+        if (main_cam.type == exports.TYPE_ORTHO)
             switch (render.move_style) {
             case exports.MS_TARGET_CONTROLS:
                 var trans = m_tsr.get_trans_view(render.world_tsr);
@@ -1276,7 +1276,7 @@ exports.update_camera = function(obj) {
             for (var i = 0; i < cams.length; i++) {
                 var cam = cams[i];
 
-                if (cam.type == exports.TYPE_STEREO_LEFT || 
+                if (cam.type == exports.TYPE_STEREO_LEFT ||
                         cam.type == exports.TYPE_STEREO_RIGHT)
                     set_stereo_params(cam, m_vec3.dist(trans, render.pivot),
                             cam.stereo_eye_dist);
@@ -1287,11 +1287,11 @@ exports.update_camera = function(obj) {
         break;
 
     case exports.MS_EYE_CONTROLS:
-        // NOTE: correction was made previously in m_cons.update_constraint() 
+        // NOTE: correction was made previously in m_cons.update_constraint()
         // for constrained cameras
         if (!obj.constraint)
             correct_up(obj, render.vertical_axis);
-        break;      
+        break;
     }
 
     update_camera_upside_down(obj);
@@ -1363,7 +1363,7 @@ function update_camera_upside_down(camobj) {
 
 /**
  * uses _vec3_tmp
- */ 
+ */
 function is_upside_down(camobj) {
     var quat = m_tsr.get_quat_view(camobj.render.world_tsr);
     var y_world_cam = m_util.quat_to_dir(quat, m_util.AXIS_Y, _vec3_tmp);
@@ -1393,7 +1393,7 @@ function prepare_horizontal_limits(camobj) {
     var render = camobj.render;
     var limits = render.horizontal_limits;
 
-    if (limits && (render.move_style == exports.MS_EYE_CONTROLS 
+    if (limits && (render.move_style == exports.MS_EYE_CONTROLS
             || render.move_style == exports.MS_TARGET_CONTROLS)) {
 
         var angles = get_camera_angles(camobj, _vec2_tmp);
@@ -1481,9 +1481,9 @@ function prepare_vertical_limits(camobj) {
             break;
         case exports.MS_HOVER_CONTROLS:
             limits.up = m_util.angle_wrap_periodic(limits.up, -Math.PI, Math.PI);
-            limits.down = m_util.angle_wrap_periodic(limits.down, -Math.PI, Math.PI);  
+            limits.down = m_util.angle_wrap_periodic(limits.down, -Math.PI, Math.PI);
             limits.up = m_util.clamp(limits.up, -Math.PI / 2, 0);
-            limits.down = m_util.clamp(limits.down, -Math.PI / 2, 0);          
+            limits.down = m_util.clamp(limits.down, -Math.PI / 2, 0);
             break;
         }
     }
@@ -1512,7 +1512,7 @@ function hover_set_distance_limits(camobj, limits) {
 exports.set_distance_limits = set_distance_limits;
 function set_distance_limits(camobj, limits) {
     var render = camobj.render;
-    
+
     if (limits) {
         render.distance_limits = render.distance_limits || {};
         render.distance_limits.min = limits.min;
@@ -1577,13 +1577,13 @@ function update_ortho_scale(obj) {
             case exports.MS_HOVER_CONTROLS:
                 var trans = m_tsr.get_trans_view(render.world_tsr);
                 var dir_dist = m_vec3.distance(trans, render.hover_pivot);
-                var new_scale = dir_dist / render.init_dist * render.init_fov;  
+                var new_scale = dir_dist / render.init_dist * render.init_fov;
                 break;
             default:
                 var new_scale = cams[0].fov;
                 break;
             }
-            
+
             for (var i = 0; i < cams.length; i++) {
                 var cam = cams[i];
                 cam.fov = new_scale;
@@ -1618,7 +1618,7 @@ function clamp_limits(obj) {
                 var ret_angle = m_util.calc_returning_angle(angles[0], right, left);
 
             if (ret_angle) {
-                
+
                 if (ms == exports.MS_TARGET_CONTROLS)
                     rotate_target_angles(obj, ret_angle, 0);
                 else
@@ -1653,10 +1653,10 @@ function clamp_limits(obj) {
 
     if (ms === exports.MS_TARGET_CONTROLS && render.pivot_limits)
         target_clamp_pivot_limits(obj);
-    
-    if (ms === exports.MS_HOVER_CONTROLS) { 
+
+    if (ms === exports.MS_HOVER_CONTROLS) {
         // horizontal, vertical translation clamping
-        hover_cam_clamp_axis_limits(obj); 
+        hover_cam_clamp_axis_limits(obj);
         hover_cam_clamp_rotation(obj)
     }
 }
@@ -1671,7 +1671,7 @@ function get_delta_angles(obj, phi, theta, dest) {
 exports.rotate_target_angles = rotate_target_angles;
 function rotate_target_angles(obj, d_phi, d_theta) {
     var render = obj.render;
-    camera_rotate_point_pivot(obj, obj.render.pivot, d_phi, d_theta);        
+    camera_rotate_point_pivot(obj, obj.render.pivot, d_phi, d_theta);
 
     // NOTE: need angles after(!) rotation
     var angles = get_camera_angles(obj, _vec2_tmp2);
@@ -1897,7 +1897,7 @@ function target_clamp_pivot_limits(obj) {
         m_vec3.add(render.pivot, correction_vec, render.pivot);
 
         var trans = m_tsr.get_trans_view(render.world_tsr);
-        m_vec3.add(trans, correction_vec, trans);        
+        m_vec3.add(trans, correction_vec, trans);
     }
 }
 
@@ -1905,7 +1905,7 @@ function hover_cam_clamp_axis_limits(obj) {
     var render = obj.render;
 
     if (render.hover_horiz_trans_limits) {
-        var horiz_delta = m_util.clamp(render.hover_pivot[0], 
+        var horiz_delta = m_util.clamp(render.hover_pivot[0],
                 render.hover_horiz_trans_limits.min, render.hover_horiz_trans_limits.max)
                 - render.hover_pivot[0];
         render.hover_pivot[0] += horiz_delta;
@@ -1914,9 +1914,9 @@ function hover_cam_clamp_axis_limits(obj) {
     }
 
     if (render.hover_vert_trans_limits) {
-        var vert_delta = m_util.clamp(render.hover_pivot[1], 
-                render.hover_vert_trans_limits.min, 
-                render.hover_vert_trans_limits.max) 
+        var vert_delta = m_util.clamp(render.hover_pivot[1],
+                render.hover_vert_trans_limits.min,
+                render.hover_vert_trans_limits.max)
                 - render.hover_pivot[1];
         render.hover_pivot[1] += vert_delta;
         var trans = m_tsr.get_trans_view(render.world_tsr);
@@ -1931,7 +1931,7 @@ function hover_cam_clamp_rotation(obj) {
     var render = obj.render;
 
     var curr_angle = get_camera_angles(obj, _vec2_tmp)[1];
-    var ret_angle = m_util.calc_returning_angle(curr_angle, 
+    var ret_angle = m_util.calc_returning_angle(curr_angle,
             render.vertical_limits.up, render.vertical_limits.down);
 
     if (ret_angle)
@@ -2360,29 +2360,29 @@ exports.assign_boundings = function(camobj) {
 
 exports.is_static_camera = is_static_camera;
 function is_static_camera(obj) {
-    return m_obj_util.is_camera(obj) && obj.render 
+    return m_obj_util.is_camera(obj) && obj.render
             && obj.render.move_style == exports.MS_STATIC;
 }
 
 exports.is_target_camera = is_target_camera;
 function is_target_camera(obj) {
-    return m_obj_util.is_camera(obj) && obj.render 
+    return m_obj_util.is_camera(obj) && obj.render
             && obj.render.move_style == exports.MS_TARGET_CONTROLS;
 }
 
 exports.is_eye_camera = function(obj) {
-    return m_obj_util.is_camera(obj) && obj.render 
+    return m_obj_util.is_camera(obj) && obj.render
             && obj.render.move_style == exports.MS_EYE_CONTROLS;
 }
 
 exports.is_hover_camera = is_hover_camera;
 function is_hover_camera(obj) {
-    return m_obj_util.is_camera(obj) && obj.render 
+    return m_obj_util.is_camera(obj) && obj.render
             && obj.render.move_style == exports.MS_HOVER_CONTROLS;
 }
 
 exports.is_ortho_camera = function(obj) {
-    return m_obj_util.is_camera(obj) && obj.render 
+    return m_obj_util.is_camera(obj) && obj.render
             && obj.scenes_data[0].cameras[0].type == exports.TYPE_ORTHO;
 }
 
@@ -2608,7 +2608,7 @@ exports.get_edge = function(cam, edge_type) {
         m_util.panic("Unknown camera type");
         break;
     }
-} 
+}
 
 exports.is_ortho = is_ortho;
 function is_ortho(cam) {
@@ -2693,7 +2693,7 @@ exports.set_move_style = function(camobj, move_style) {
     case exports.MS_HOVER_CONTROLS:
         var pos = m_tsr.get_trans_view(camobj.render.world_tsr);
         var pivot = init_hover_pivot(camobj, 0, _vec3_tmp2);
-        setup_hover_model(camobj, pos, pivot, null, null, null, null, 
+        setup_hover_model(camobj, pos, pivot, null, null, null, null,
                 camobj.render.enable_hover_hor_rotation);
         break;
     case exports.MS_TARGET_CONTROLS:
@@ -2708,7 +2708,7 @@ exports.set_move_style = function(camobj, move_style) {
 
 exports.wipe_move_style = function(camobj) {
     var render = camobj.render;
-    
+
     // default STATIC camera with clean settings
     render.move_style = 0;
 
@@ -2855,4 +2855,4 @@ exports.set_proj_mat = function(camobj, proj_mat) {
     }
 }
 
-}
+export default exports;

@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,19 +22,19 @@
  * @namespace
  * @exports exports as transform
  */
-b4w.module["__transform"] = function(exports, require) {
+var exports = {};
 
-var m_bounds   = require("__boundings");
-var m_cam      = require("__camera");
-var m_cons     = require("__constraints");
-var m_lights   = require("__lights");
-var m_obj      = require("__objects");
-var m_obj_util = require("__obj_util");
-var m_scs      = require("__scenes");
-var m_sfx      = require("__sfx");
-var m_tsr      = require("__tsr");
-var m_util     = require("__util");
-var m_vec3     = require("__vec3");
+import m_bounds from "./boundings"
+import m_cam from "./camera"
+import m_cons from "./constraints"
+import m_lights from "./lights"
+import m_obj from "./objects"
+import m_obj_util from "./obj_util"
+import m_scs from "./scenes"
+import m_sfx from "./sfx"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
 
 var _vec3_tmp  = new Float32Array(3);
 var _vec3_tmp2 = new Float32Array(3);
@@ -306,7 +306,7 @@ function update_transform(obj) {
         for (var j = 0; j < batches.length; j++) {
             var batch = batches[j];
             var batch_world_bounds = scenes_data[i].batch_world_bounds[j];
-            m_obj_util.update_world_bounds_from_batch_tsr(batch, 
+            m_obj_util.update_world_bounds_from_batch_tsr(batch,
                     render.world_tsr, batch_world_bounds);
         }
     }
@@ -370,15 +370,15 @@ function update_transform(obj) {
                     m_scs.schedule_grass_map_update(scene);
                     if (sc_render.shadow_params) {
                         // camera movement only influence csm shadows
-                        if (sc_render.shadow_params.enable_csm 
+                        if (sc_render.shadow_params.enable_csm
                                 || sc_render.shadow_params.dynamic_grass_cast)
                             m_scs.schedule_shadow_update(scene);
                         var cam_scene_data = m_obj_util.get_scene_data(obj, scene);
                         var cam_main = cam_scene_data.cameras[0];
                         m_scs.update_shadow_billboard_view(cam_main, sc_render.graph);
                     }
-                    
-                    m_sfx.listener_update_transform(scene, trans, quat, _elapsed, 
+
+                    m_sfx.listener_update_transform(scene, trans, quat, _elapsed,
                             _update_counter);
                 }
                 break;
@@ -425,4 +425,4 @@ exports.obj_point_distance = function(obj, point) {
     return m_vec3.dist(trans, point);
 }
 
-}
+export default exports;

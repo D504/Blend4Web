@@ -1,0 +1,24 @@
+{
+  "name": "blend4web",
+  "version": "17.6.0",
+  "description": "*****************************\r Blend4Web: a 3D Web Framework\r *****************************",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "rollup -c -w -m inline"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/D504/Blend4Web.git"
+  },
+  "author": "",
+  "license": "GNU",
+  "bugs": {
+    "url": "https://github.com/D504/Blend4Web/issues"
+  },
+  "homepage": "https://github.com/D504/Blend4Web#readme",
+  "dependencies": {
+    "rollup": "^0.43.0",
+    "rollup-watch": "^4.0.0"
+  }
+}

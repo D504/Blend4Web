@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,15 +22,15 @@
  * @namespace
  * @exports exports as scenes
  */
-b4w.module["__prerender"] = function(exports, require) {
+var exports = {};
 
-var m_debug    = require("__debug");
-var m_geom     = require("__geometry");
-var m_obj      = require("__objects");
-var m_render   = require("__renderer");
-var m_subs     = require("__subscene");
-var m_tsr      = require("__tsr");
-var m_util     = require("__util");
+import m_debug from "./debug"
+import m_geom from "./geometry"
+import m_obj from "./objects"
+import m_render from "./renderer"
+import m_subs from "./subscene"
+import m_tsr from "./tsr"
+import m_util from "./util"
 
 var USE_FRUSTUM_CULLING = true;
 
@@ -106,7 +106,7 @@ exports.prerender_subs = function(subs) {
             break;
         default:
             // prevent bugs when blend is only one rendered
-            if (subs.type == m_subs.MAIN_OPAQUE || subs.type == m_subs.SHADOW_RECEIVE 
+            if (subs.type == m_subs.MAIN_OPAQUE || subs.type == m_subs.SHADOW_RECEIVE
                     || subs.type == m_subs.MAIN_GLOW || subs.type == m_subs.MAIN_PLANE_REFLECT
                     || subs.type == m_subs.MAIN_CUBE_REFLECT || has_render_bundles)
                 subs.do_render = true;
@@ -174,7 +174,7 @@ function prerender_bundle(bundle, subs) {
         return false;
 
     if (!(batch.do_not_cull || !bundle.world_bounds) && USE_FRUSTUM_CULLING &&
-            is_out_of_frustum(cam.frustum_planes, bundle.world_bounds.bs, 
+            is_out_of_frustum(cam.frustum_planes, bundle.world_bounds.bs,
             bundle.world_bounds.be, batch.use_be))
         return false;
 
@@ -211,14 +211,14 @@ function update_particles_buffers(batch) {
     var pointers = pbuf.pointers;
 
     var pos_offset = pointers["a_position"].offset;
-    m_geom.vbo_source_data_set_attr(pbuf.vbo_source_data, "a_position", 
+    m_geom.vbo_source_data_set_attr(pbuf.vbo_source_data, "a_position",
             pdata.positions_cache, pos_offset);
 
     var tbn_offset = pointers["a_tbn"].offset;
-    m_geom.vbo_source_data_set_attr(pbuf.vbo_source_data, "a_tbn", 
+    m_geom.vbo_source_data_set_attr(pbuf.vbo_source_data, "a_tbn",
             pdata.tbn_cache, tbn_offset);
 
     m_geom.update_gl_buffers(pbuf);
 }
 
-}
+export default exports;

@@ -45,22 +45,22 @@
  * @local VelocityParams
  * @local FrustumPlanes
  */
-b4w.module["camera"] = function(exports, require) {
+var exports = {};
 
-var m_cam      = require("__camera");
-var m_cont     = require("__container");
-var m_mat4     = require("__mat4");
-var m_math     = require("__math");
-var m_obj_util = require("__obj_util");
-var m_phy      = require("__physics");
-var m_print    = require("__print");
-var m_scs      = require("__scenes");
-var m_trans    = require("__transform");
-var m_tsr      = require("__tsr");
-var m_util     = require("__util");
-var m_vec3     = require("__vec3");
-var m_vec4     = require("__vec4");
-var m_quat     = require("__quat");
+import m_cam from "../camera"
+import m_cont from "../container"
+import m_mat4 from "../libs/mat4"
+import m_math from "../math"
+import m_obj_util from "../obj_util"
+import m_phy from "../physics"
+import m_print from "../print"
+import m_scs from "../scenes"
+import m_trans from "../transform"
+import m_tsr from "../tsr"
+import m_util from "../util"
+import m_vec3 from "../libs/vec3"
+import m_vec4 from "../libs/vec4"
+import m_quat from "../libs/quat"
 
 var _vec2_tmp = new Float32Array(2);
 var _vec3_tmp = new Float32Array(3);
@@ -2252,4 +2252,4 @@ exports.set_projection = function(camobj, matrix) {
         m_cam.set_proj_mat(camobj, matrix);
 }
 
-}
+export default exports;

@@ -20,10 +20,10 @@
  * Provides access to the 3D canvas element and its container.
  * @module container
  */
-b4w.module["container"] = function(exports, require) {
+var exports = {};
 
-var m_cont   = require("__container");
-var m_print  = require("__print");
+import m_cont from "../container"
+import m_print from "../print"
 
 /**
  * Returns the 3D canvas element.
@@ -162,4 +162,4 @@ exports.resize_to_container = function(force) {
     m_cont.resize_to_container(force);
 }
 
-}
+export default exports;

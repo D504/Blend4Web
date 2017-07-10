@@ -20,11 +20,11 @@
  * API methods to control armature objects.
  * @module armature
  */
-b4w.module["armature"] = function(exports, require) {
-var m_armat    = require("__armature");
-var m_obj_util = require("__obj_util");
-var m_trans    = require("__transform");
-var m_print    = require("__print");
+var exports = {};
+import m_armat from "../armature"
+import m_obj_util from "../obj_util"
+import m_trans from "../transform"
+import m_print from "../print"
 
 /**
  * Get translation, scale and rotation quaternion of the armature's bone,
@@ -118,4 +118,4 @@ exports.set_bone_tsr_rel = function(armobj, bone_name, tsr) {
     m_trans.update_transform(armobj);
 }
 
-}
+export default exports;

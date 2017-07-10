@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,17 +22,17 @@
  * @namespace
  * @exports exports as nla
  */
-b4w.module["__nla"] = function(exports, require) {
+var exports = {};
 
-var m_anim      = require("__animation");
-var m_obj       = require("__objects");
-var m_obj_util  = require("__obj_util");
-var m_print     = require("__print");
-var m_scs       = require("__scenes");
-var m_sfx       = require("__sfx");
-var m_tex       = require("__textures");
-var m_time      = require("__time");
-var m_util      = require("__util");
+import m_anim from "./animation"
+import m_obj from "./objects"
+import m_obj_util from "./obj_util"
+import m_print from "./print"
+import m_scs from "./scenes"
+import m_sfx from "./sfx"
+import m_tex from "./textures"
+import m_time from "./time"
+import m_util from "./util"
 
 var _nla_arr = [];
 var _start_time = -1;
@@ -190,7 +190,7 @@ exports.update_scene = function(scene, is_cyclic, data_id) {
         }
         _nla_arr.push(scene._nla);
     }
-    
+
     var nla = scene._nla;
 
     var objs = m_obj.get_scene_objs_derived(scene, "ALL", data_id);
@@ -204,7 +204,7 @@ exports.update_scene = function(scene, is_cyclic, data_id) {
                 if (sd.scene == scene && sd.obj_has_nla_on_scene)
                     nla.objects[data_id].push(obj);
             }
-            
+
             remove_inconsistent_nla(obj.nla_events, nla, obj.name);
             calc_nla_extents(obj.nla_events, nla);
         }
@@ -213,7 +213,7 @@ exports.update_scene = function(scene, is_cyclic, data_id) {
     var textures = scene._render.video_textures;
     for (var i = 0; i < textures.length; i++) {
         var texture = textures[i]._render;
-        if (texture.use_nla && (texture.video_file || texture.seq_video) 
+        if (texture.use_nla && (texture.video_file || texture.seq_video)
                 && texture.vtex_data_id == data_id) {
 
             var ev = init_event();
@@ -224,9 +224,9 @@ exports.update_scene = function(scene, is_cyclic, data_id) {
                 ev.frame_start = 0;
                 ev.frame_end = nla.frame_end;
             } else {
-                ev.frame_start = m_util.clamp(texture.frame_start, 0, 
+                ev.frame_start = m_util.clamp(texture.frame_start, 0,
                         nla.frame_end);
-                ev.frame_end = m_util.clamp(texture.frame_start 
+                ev.frame_end = m_util.clamp(texture.frame_start
                         + texture.frame_duration, 0, nla.frame_end);
             }
 
@@ -252,7 +252,7 @@ function remove_inconsistent_nla(nla_events, nla, name) {
 
         if (!ev.anim_name && ev.type == "CLIP") {
             // CLIP event is for objects only, not for video textures
-            m_print.warn("NLA: no action in strip for object \"" 
+            m_print.warn("NLA: no action in strip for object \""
                     + name + "\".");
             nla_events.splice(i, 1);
             i--;
@@ -479,7 +479,7 @@ function process_nla_objects(nla, curr_frame, elapsed) {
             // NOTE: allow single-strip speakers to play again
             for (var j = 0; j < nla_events.length; j++) {
                 var ev = nla_events[j];
-                if (ev.type == "SOUND" 
+                if (ev.type == "SOUND"
                         && curr_frame < (nla.last_frame - CF_FREEZE_EPSILON))
                     ev.scheduled = false;
             }
@@ -506,7 +506,7 @@ function process_nla_objects(nla, curr_frame, elapsed) {
 
                     break;
                 case "SOUND":
-                    if ((curr_frame < (nla.last_frame - CF_FREEZE_EPSILON) || 
+                    if ((curr_frame < (nla.last_frame - CF_FREEZE_EPSILON) ||
                             nla.last_frame < ev.frame_start) &&
                             ev.frame_start <= curr_frame && curr_frame < ev.frame_end)
                         if (!ev.scheduled) {
@@ -543,7 +543,7 @@ function process_nla_video_textures(timeline, nla, nla_frame) {
         var need_update = false;
         var need_set_frame = false;
 
-        // force update via set_frame() or rewinding the whole nla 
+        // force update via set_frame() or rewinding the whole nla
         if (nla.force_update || nla.rewinded_to_start)
             need_set_frame = true;
 
@@ -555,8 +555,8 @@ function process_nla_video_textures(timeline, nla, nla_frame) {
             if (tex.use_cyclic && video_frame_clamped == frame_start)
                 need_set_frame = true;
 
-            // if video is stopped on a wrong frame (e.g. dynamically 
-            // loaded textures) we need to set the correct one 
+            // if video is stopped on a wrong frame (e.g. dynamically
+            // loaded textures) we need to set the correct one
             if (!is_played && video_frame_native != video_frame_clamped)
                 need_set_frame = true;
 
@@ -566,7 +566,7 @@ function process_nla_video_textures(timeline, nla, nla_frame) {
             else if (need_play && is_played)
                 need_update = true;
             else if (!need_play && is_played) {
-                // NOTE: allow to play non-sequential video until it'll 
+                // NOTE: allow to play non-sequential video until it'll
                 // reach calculated frame (may be caused by lags)
                 if (tex.video_file && video_frame_native < video_frame_clamped)
                     need_update = true;
@@ -613,7 +613,7 @@ function nla_frame_to_video_frame(nla_frame, vtex) {
 function get_video_frame_clamped(nla_frame, vtex) {
     var video_frame = nla_frame_to_video_frame(nla_frame, vtex);
 
-    var frame_clamped = m_util.clamp(video_frame, vtex.frame_offset, 
+    var frame_clamped = m_util.clamp(video_frame, vtex.frame_offset,
             vtex.frame_offset + m_tex.video_get_duration(vtex) - 1);
 
     if (vtex.seq_video) {
@@ -627,7 +627,7 @@ function get_video_frame_clamped(nla_frame, vtex) {
 
 function frame_need_play_video(cf, vtex) {
     var frame = nla_frame_to_video_frame(cf, vtex);
-    return vtex.frame_offset <= frame && frame <= vtex.frame_offset 
+    return vtex.frame_offset <= frame && frame <= vtex.frame_offset
             + m_tex.video_get_duration(vtex);
 }
 
@@ -996,4 +996,4 @@ exports.get_frame_end = function() {
         return null;
 }
 
-}
+export default exports;

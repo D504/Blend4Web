@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,22 +22,22 @@
  * @namespace
  * @exports exports as physics
  */
-b4w.module["__physics"] = function(exports, require) {
+var exports = {};
 
-var m_cfg      = require("__config");
-var m_debug    = require("__debug");
-var m_ipc      = require("__ipc");
-var m_obj_util = require("__obj_util");
-var m_print    = require("__print");
-var m_quat     = require("__quat");
-var m_scs      = require("__scenes");
-var m_subs     = require("__subscene");
-var m_trans    = require("__transform");
-var m_tsr      = require("__tsr");
-var m_util     = require("__util");
-var m_vec3     = require("__vec3");
-var m_version  = require("__version");
-var m_navmesh = require("__navmesh");
+import m_cfg from "./config"
+import m_debug from "./debug"
+import m_ipc from "./ipc"
+import m_obj_util from "./obj_util"
+import m_print from "./print"
+import m_quat from "./libs/quat"
+import m_scs from "./scenes"
+import m_subs from "./subscene"
+import m_trans from "./transform"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_version from "./version"
+import m_navmesh from "./navmesh"
 
 var cfg_phy = m_cfg.physics;
 var cfg_def = m_cfg.defaults;
@@ -318,7 +318,7 @@ function process_message(worker, msg_id, msg) {
         var scene = find_scene_by_worker(worker);
         traverse_collision_tests(scene, msg.body_id_a,
                                  msg.body_id_b, msg.result,
-                                 msg.coll_point, msg.coll_norm, 
+                                 msg.coll_point, msg.coll_norm,
                                  msg.coll_dist);
         break;
     case m_ipc.IN_COLLISION_IMPULSE:
@@ -463,7 +463,7 @@ function traverse_collision_tests(scene, body_id_a, body_id_b, pair_result,
 }
 
 function calc_coll_result(test) {
-    
+
     var pair_results = test.pair_results;
 
     var result = false;
@@ -1024,7 +1024,7 @@ function add_vehicle_prop(obj_prop, obj_chassis_hull, chassis_body_id,
                 suspension_rest_length, roll_influence, radius, is_front);
         break;
     case VT_HULL:
-        m_ipc.post_msg(worker, m_ipc.OUT_ADD_BOAT_BOB, chassis_body_id, 
+        m_ipc.post_msg(worker, m_ipc.OUT_ADD_BOAT_BOB, chassis_body_id,
                 conn_point, obj_prop.bob_synchronize_pos);
         break;
     }
@@ -2265,4 +2265,4 @@ exports.has_dynamic_settings = function(obj) {
            (phy_set.physics_type == "DYNAMIC" || phy_set.physics_type == "RIGID_BODY"));
 }
 
-}
+export default exports;

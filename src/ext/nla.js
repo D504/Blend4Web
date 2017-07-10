@@ -21,12 +21,12 @@
  * @module nla
  * @local NlaFinishCallback
  */
-b4w.module["nla"] = function(exports, require) {
+var exports = {};
 
-var m_nla    = require("__nla");
-var m_time   = require("__time");
-var m_print  = require("__print");
-var m_util   = require("__util");
+import m_nla from "../nla"
+import m_time from "../time"
+import m_print from "../print"
+import m_util from "../util"
 
 /**
  * Callback executed after the NLA animation has finished.
@@ -184,4 +184,5 @@ exports.clear_callback = function() {
     }
     m_nla.clear_callback();
 }
-}
+
+export default exports;

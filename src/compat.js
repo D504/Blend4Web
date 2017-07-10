@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,13 +22,13 @@
  * @namespace
  * @exports exports as compat
  */
-b4w.module["__compat"] = function(exports, require) {
+var exports = {};
 
-var m_cfg   = require("__config");
-var m_debug = require("__debug");
-var m_ext   = require("__extensions");
-var m_print = require("__print");
-var m_render= require("__renderer");
+import m_cfg from "./config"
+import m_debug from "./debug"
+import m_ext from "./extensions"
+import m_print from "./print"
+import m_render from "./renderer"
 
 var MIN_VARYINGS_REQUIRED = 10;
 var AMD_MESA_RENDER_NAMES = ["R600", "RV610", "RV630", "RV620", "RV635", "RV670",
@@ -140,7 +140,7 @@ exports.set_hardware_defaults = function(gl, print_warnings) {
     if (!check_user_agent("Windows Phone"))
         if (check_user_agent("iPad") || check_user_agent("iPhone")) {
             warn("iOS detected, applying alpha hack, applying vertex "
-                    + "animation mix normals hack, disable smaa. Disable ssao " 
+                    + "animation mix normals hack, disable smaa. Disable ssao "
                     + "for performance. Initialize WebAudio context with empty sound. "
                     + "Applying glow hack.");
             if (!cfg_ctx.alpha)
@@ -175,7 +175,7 @@ exports.set_hardware_defaults = function(gl, print_warnings) {
     }
 
     if (check_user_agent("Chrome") && !detect_mobile() && m_cfg.is_built_in_data()) {
-        warn("Chrome (non-mobile) was detected for a single HTML-exported " 
+        warn("Chrome (non-mobile) was detected for a single HTML-exported "
                 + "file. \"Background Music\" speakers were changed to \"Background Sound\".");
         cfg_def.chrome_html_bkg_music_hack = true;
     }
@@ -233,7 +233,7 @@ exports.set_hardware_defaults = function(gl, print_warnings) {
     }
 
     if (check_user_agent("Firefox")) {
-        warn("Firefox detected, disabling workers, applying compositing hack " 
+        warn("Firefox detected, disabling workers, applying compositing hack "
                 + "for transparent node materials.");
         cfg_phy.use_workers = false;
         cfg_def.ff_compositing_hack = true;
@@ -256,9 +256,9 @@ exports.set_hardware_defaults = function(gl, print_warnings) {
         var renderer = gl.getParameter(rinfo.UNMASKED_RENDERER_WEBGL);
         var mali_4x_re = /\b4\d{2}\b/;
 
-        if (check_user_agent("Firefox") && check_user_agent("Windows") 
+        if (check_user_agent("Firefox") && check_user_agent("Windows")
                 && renderer.indexOf("AMD") > -1 && cfg_def.webgl2) {
-            warn("AMD, Windows and Firefox detected under WebGL 2, request depth" 
+            warn("AMD, Windows and Firefox detected under WebGL 2, request depth"
                     + " bits value via gl.getParameter.");
             cfg_lim.depth_bits = gl.getParameter(gl.DEPTH_BITS);
         }
@@ -317,7 +317,7 @@ exports.set_hardware_defaults = function(gl, print_warnings) {
                 cfg_def.phy_race_condition_hack = true;
             }
 
-            if (check_user_agent("Chrome") && (renderer.match(/4../) 
+            if (check_user_agent("Chrome") && (renderer.match(/4../)
                     || renderer.match(/5../))) {
                 warn("Qualcomm Adreno 4xx or 5xx detected, switch MSAA samples to 1.");
                 cfg_def.msaa_samples = 1;
@@ -464,4 +464,4 @@ function is_ie11() {
     return !(window.ActiveXObject) && "ActiveXObject" in window;
 }
 
-}
+export default exports;

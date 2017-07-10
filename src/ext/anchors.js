@@ -23,9 +23,9 @@
  * @module anchors
  * @local AnchorMoveCallback
  */
-b4w.module["anchors"] = function(exports, require) {
+var exports = {};
 
-var m_anchors = require("__anchors");
+import m_anchors from "../anchors"
 
 /**
  * The callback for the movement of the anchor.
@@ -78,4 +78,4 @@ exports.update = function() {
     m_anchors.update(true);
 }
 
-}
+export default exports;

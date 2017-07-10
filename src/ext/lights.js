@@ -22,19 +22,19 @@
  * @local LightParams
  * @see https://www.blend4web.com/doc/en/lighting.html#lighting-with-light-sources
  */
-b4w.module["lights"] = function(exports, require) {
+var exports = {};
 
 // TODO: consider use of standard translation/rotation functions from transform module
 
-var m_lights   = require("__lights");
-var m_obj      = require("__objects");
-var m_obj_util = require("__obj_util");
-var m_print    = require("__print");
-var m_scenes   = require("__scenes");
-var m_trans    = require("__transform");
-var m_tsr      = require("__tsr");
-var m_util     = require("__util");
-var m_vec3     = require("__vec3");
+import m_lights from "../lights"
+import m_obj from "../objects"
+import m_obj_util from "../obj_util"
+import m_print from "../print"
+import m_scenes from "../scenes"
+import m_trans from "../transform"
+import m_tsr from "../tsr"
+import m_util from "../util"
+import m_vec3 from "../libs/vec3"
 
 var _sun_pos        = new Float32Array(3);
 var _date           = {};
@@ -531,4 +531,4 @@ function calendar_to_julian(date) {
     return jd/100000;
 }
 
-}
+export default exports;

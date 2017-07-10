@@ -25,11 +25,11 @@
  * @local AnimType
  * @local AnimSlot
  */
-b4w.module["animation"] = function(exports, require) {
+var exports = {};
 
-var m_anim  = require("__animation");
-var m_obj_util = require("__obj_util");
-var m_print = require("__print");
+import m_anim from "../animation"
+import m_obj_util from "../obj_util"
+import m_print from "../print"
 
 
 /**
@@ -685,4 +685,4 @@ exports.mix_from_cur_pos = function(armobj, slot, time, callback) {
     m_anim.mix_from_cur_pos(armobj, slot, time, callback);
 }
 
-}
+export default exports;

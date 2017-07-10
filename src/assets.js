@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -26,15 +26,15 @@
  * @namespace
  * @exports exports as assets
  */
-b4w.module["__assets"] = function(exports, require) {
+var exports = {};
 
-var m_cfg     = require("__config");
-var m_compat  = require("__compat");
-var m_pako    = require("__pako_inflate");
-var m_print   = require("__print");
-var m_sfg     = require("__sfx");
-var m_util    = require("__util");
-var m_version = require("__version");
+import m_cfg from "./config"
+import m_compat from "./compat"
+import m_pako from "./libs/pako_inflate"
+import m_print from "./print"
+import m_sfg from "./sfx"
+import m_util from "./util"
+import m_version from "./version"
 
 var cfg_def = m_cfg.defaults;
 var cfg_ldr = m_cfg.assets;
@@ -868,4 +868,4 @@ exports.clear_cache = function() {
     _arraybuffer_sound_cache = {};
 }
 
-}
+export default exports;

@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,22 +22,22 @@
  * @namespace
  * @exports exports as constraints
  */
-b4w.module["__constraints"] = function(exports, require) {
+var exports = {};
 
 // (4) Main Engine Entitles
-var m_phy   = require("__physics");
+import m_phy from "./physics"
 
-var m_armat = require("__armature");
-var m_cam   = require("__camera");
+import m_armat from "./armature"
+import m_cam from "./camera"
 
 // (6) Config-independent utilitary modules
-var m_tsr   = require("__tsr");
+import m_tsr from "./tsr"
 
-var m_util  = require("__util");
+import m_util from "./util"
 
 // (7) Independent libs
-var m_quat  = require("__quat");
-var m_vec3  = require("__vec3");
+import m_quat from "./libs/quat"
+import m_vec3 from "./libs/vec3"
 
 
 var CONS_TYPE_STIFF_OBJ           = 1;
@@ -86,7 +86,7 @@ var _parent_y_axis = new Float32Array(3);
 /**
  * Apply stiff-to-object constraint.
  */
-exports.append_stiff_obj = function(obj, obj_parent, offset, rotation_offset, 
+exports.append_stiff_obj = function(obj, obj_parent, offset, rotation_offset,
         scale_offset) {
     var cons = init_cons(CONS_TYPE_STIFF_OBJ);
 
@@ -833,10 +833,10 @@ function clamp_orientation(obj, cons) {
     var quat_base = m_quat.multiply(p_quat, rotation_offset, _quat4_tmp);
     var base_angles = m_cam.get_camera_angles_from_quat(quat_base, _vec2_tmp);
     var curr_angles = m_cam.get_camera_angles_from_quat(quat, _vec2_tmp_2);
-    
-    var d_phi = m_util.calc_returning_angle(curr_angles[0], 
+
+    var d_phi = m_util.calc_returning_angle(curr_angles[0],
             base_angles[0] + cons.clamp_right, base_angles[0] + cons.clamp_left);
-    var d_theta = m_util.calc_returning_angle(curr_angles[1], 
+    var d_theta = m_util.calc_returning_angle(curr_angles[1],
             base_angles[1] + cons.clamp_down, base_angles[1] + cons.clamp_up);
     m_util.rotate_quat(quat, obj.render.vertical_axis, d_phi, d_theta, quat);
 }
@@ -853,7 +853,7 @@ exports.check_constraint = function(obj) {
 exports.remove = function(obj, restore_transform) {
     if (obj.constraint.obj_parent)
         remove_parent_descendant(obj.constraint.obj_parent, obj);
-    if (restore_transform) 
+    if (restore_transform)
         m_tsr.copy(obj.constraint.tsr_restore, obj.render.world_tsr);
     obj.constraint = null;
 }
@@ -871,7 +871,7 @@ exports.get_type = function(obj) {
 exports.has_child_of = function(obj) {
     var cons = obj.constraint;
 
-    if (cons && (cons.type == CONS_TYPE_CHILD_OF || 
+    if (cons && (cons.type == CONS_TYPE_CHILD_OF ||
             cons.type == CONS_TYPE_CHILD_OF_BONE))
         return true;
     else
@@ -903,7 +903,7 @@ exports.get_child_of_parent_tsr = function(obj) {
 exports.get_child_of_offset = function(obj) {
     var cons = obj.constraint;
 
-    if (cons && (cons.type == CONS_TYPE_CHILD_OF || 
+    if (cons && (cons.type == CONS_TYPE_CHILD_OF ||
             cons.type == CONS_TYPE_CHILD_OF_BONE))
         return cons.tsr_offset;
     else
@@ -962,7 +962,7 @@ exports.prepare_object_relations = function(bpy_obj, obj) {
 
     if (obj.parent) {
 
-        // disable object physics on collision compound children 
+        // disable object physics on collision compound children
         // they are just additional shapes for top level parent
         if (!obj.parent_is_dupli &&
                 obj.physics_settings.use_collision_compound &&
@@ -1060,4 +1060,4 @@ exports.prepare_object_relations = function(bpy_obj, obj) {
     }
 }
 
-}
+export default exports;

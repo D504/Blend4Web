@@ -29,15 +29,15 @@
  * @module objects
  * @local ObjectMetaTags
  */
-b4w.module["objects"] = function(exports, require) {
+var exports = {};
 
-var m_geom     = require("__geometry");
-var m_obj      = require("__objects");
-var m_batch    = require("__batch");
-var m_obj_util = require("__obj_util");
-var m_print    = require("__print");
-var m_scenes   = require("__scenes");
-var m_util     = require("__util");
+import m_geom from "../geometry"
+import m_obj from "../objects"
+import m_batch from "../batch"
+import m_obj_util from "../obj_util"
+import m_print from "../print"
+import m_scenes from "../scenes"
+import m_util from "../util"
 
 /**
  * @typedef {Object} ObjectMetaTags
@@ -481,4 +481,4 @@ exports.create_line = function(name) {
     return m_obj.create_line(name);
 }
 
-}
+export default exports;

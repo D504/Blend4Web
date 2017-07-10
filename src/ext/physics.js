@@ -28,7 +28,7 @@
  * @local NavmeshDistanceCallback
  * @local NavmeshPathOptions
  */
-b4w.module["physics"] = function(exports, require) {
+var exports = {};
 
 /**
  * Navmesh distance callback. Used to determine start and end polygon of navmesh
@@ -40,10 +40,10 @@ b4w.module["physics"] = function(exports, require) {
  * @param {number} current_max_distance Current maximum distance
  */
 
-var m_phy   = require("__physics");
-var m_print = require("__print");
-var m_util  = require("__util");
-var m_nmesh = require("__navmesh");
+import m_phy from "../physics"
+import m_print from "../print"
+import m_util from "../util"
+import m_nmesh from "../navmesh"
 
 /**
  * Collision result callback.
@@ -1064,5 +1064,5 @@ exports.navmesh_find_path = function (navmesh_obj, start_pos, dest_pos, options)
 
     return m_nmesh.navmesh_find_path(navmesh, start_pos, dest_pos, nav_options);
 }
-}
 
+export default exports;

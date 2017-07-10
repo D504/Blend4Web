@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -23,16 +23,16 @@
  * @namespace
  * @exports exports as geometry
  */
-b4w.module["__geometry"] = function(exports, require) {
+var exports = {};
 
-var m_bounds = require("__boundings");
-var m_ext    = require("__extensions");
-var m_print  = require("__print");
-var m_quat   = require("__quat");
-var m_tbn    = require("__tbn");
-var m_tsr    = require("__tsr");
-var m_util   = require("__util");
-var m_vec3   = require("__vec3");
+import m_bounds from "./boundings"
+import m_ext from "./extensions"
+import m_print from "./print"
+import m_quat from "./libs/quat"
+import m_tbn from "./tbn"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
 
 var _tbn_tmp = m_tbn.create();
 var _tbn_tmp2 = m_tbn.create();
@@ -339,7 +339,7 @@ function update_bufs_data_array(bufs_data, attrib_name, num_comp, array) {
         if (num_comp && pointer.num_comp != num_comp)
             m_util.panic("invalid num_comp for \"" + attrib_name + "\"");
 
-        vbo_source_data_set_attr(bufs_data.vbo_source_data, attrib_name, array, 
+        vbo_source_data_set_attr(bufs_data.vbo_source_data, attrib_name, array,
                 pointer.offset);
     } else {
         // append new attribute data
@@ -355,7 +355,7 @@ function update_bufs_data_array(bufs_data, attrib_name, num_comp, array) {
         new_vbo_source.set(vbo_source);
         bufs_data.vbo_source_data[index].vbo_source = new_vbo_source;
 
-        vbo_source_data_set_attr(bufs_data.vbo_source_data, attrib_name, array, 
+        vbo_source_data_set_attr(bufs_data.vbo_source_data, attrib_name, array,
                 vbo_source.length);
 
         // append new pointer
@@ -561,7 +561,7 @@ function append_inst_array_data(inst_ar_data, pointers, vbo_source_data, offsets
 
     for (var name in attrs_data) {
         var type = get_vbo_type_by_attr_name(name);
-        vbo_source_data_set_attr(vbo_source_data, name, attrs_data[name].data, 
+        vbo_source_data_set_attr(vbo_source_data, name, attrs_data[name].data,
                 offsets[type]);
 
         var pointer = init_attr_pointer();
@@ -743,7 +743,7 @@ exports.submesh_apply_particle_transform = function (submesh, transform) {
             for (var j = 0; j < cen_pos_transformed.length; j++)
                 submesh.va_frames[i]["a_position"][j] += cen_pos_transformed[j]
                         - au_center_pos[j];
-                
+
         au_center_pos.set(cen_pos_transformed);
     } else
         m_util.panic("Attribute \"au_center_pos\" is missing in particle submesh");
@@ -1165,7 +1165,7 @@ function extract_submesh(mesh, material_index, attr_names, bone_skinning_info,
                 continue;
             } else {
                 // NOTE: create new object for base shape key geometry
-                sk_frame.geometry = create_frame(bsub, base_length, 
+                sk_frame.geometry = create_frame(bsub, base_length,
                         use_tbn, use_tangent_shading, i);
                 sk_frame.init_value = 1;
             }
@@ -1300,7 +1300,7 @@ function extract_uv_layer(submesh, uv_name, mesh_name) {
 
     var from = index * layer_len;
     var to = from + layer_len;
- 
+
     return submesh["texcoord"].subarray(from, to);
 }
 
@@ -1387,7 +1387,7 @@ function extract_vcols(va_common, vc_usage, submesh_vc, bsub_color, base_length,
                 var exported_channels_count = m_util.rgb_mask_get_channels_count(mask_exported);
                 if ((color_mask & mask_exported) !== color_mask)
                     m_print.error("Wrong color extraction from "
-                        + color_name + " to " + attr_name + " for the mesh \"" 
+                        + color_name + " to " + attr_name + " for the mesh \""
                         + mesh_name +"\".");
 
                 for (var j = 0; j < base_length; j++)
@@ -2267,7 +2267,7 @@ exports.apply_shape_key = function(obj, key_name, new_value) {
         var pos_vbo_source = get_vbo_source_by_type(bd.vbo_source_data, pos_type);
 
         _gl.bindBuffer(_gl.ARRAY_BUFFER, pos_vbo);
-        apply_shape_key_pos(bd.pointers["a_position"], batches[i], pos_vbo_source, 
+        apply_shape_key_pos(bd.pointers["a_position"], batches[i], pos_vbo_source,
                 sk_data);
 
         var tbn_type = get_vbo_type_by_attr_name("a_tbn");
@@ -2295,7 +2295,7 @@ function apply_shape_key_pos(pos_pointer, batch, vbo_source, sk_data) {
             for (var j = pos_offset; j < pos_length; j++)
                 vbo_source[j] +=  value * positions[j - pos_offset];
         }
-        _gl.bufferSubData(_gl.ARRAY_BUFFER, m_util.FLOAT_SIZE * pos_offset, 
+        _gl.bufferSubData(_gl.ARRAY_BUFFER, m_util.FLOAT_SIZE * pos_offset,
                 vbo_source.subarray(pos_offset));
     }
 }
@@ -2324,7 +2324,7 @@ function apply_shape_key_tbn(tbn_pointer, batch, vbo_source, sk_data) {
             var b_tbn = m_tbn.get_item(tbn_first, tbn_ind, _tbn_tmp2);
             var r_tbn = m_tbn.multiply_tbn(delta_tbn, b_tbn, _tbn_tmp2);
 
-            // NOTE: optimization: don't check vbo type, consider a_tbn as short 
+            // NOTE: optimization: don't check vbo type, consider a_tbn as short
             vbo_source[i] = m_util.float_to_short(r_tbn[0]);
             vbo_source[i + 1] = m_util.float_to_short(r_tbn[1]);
             vbo_source[i + 2] = m_util.float_to_short(r_tbn[2]);
@@ -2611,7 +2611,7 @@ function clone_vbo_source_data(vbo_source_data) {
         var vbo_source = vbo_source_data[i].vbo_source;
         var type = vbo_source_data[i].type;
 
-        new_vbo_source_data.push({ vbo_source: new vbo_source.constructor(vbo_source), 
+        new_vbo_source_data.push({ vbo_source: new vbo_source.constructor(vbo_source),
                 type: type });
     }
 
@@ -2792,4 +2792,4 @@ function array_float_to_vbo(attr_name, source, dest) {
     return dest;
 }
 
-}
+export default exports;

@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -27,18 +27,18 @@
  * @namespace
  * @exports exports as scenegraph
  */
-b4w.module["__scenegraph"] = function(exports, require) {
+var exports = {};
 
-var m_batch  = require("__batch");
-var m_cam    = require("__camera");
-var m_cfg    = require("__config");
-var m_debug  = require("__debug");
-var m_graph  = require("__graph");
-var m_render = require("__renderer");
-var m_shaders = require("__shaders");
-var m_subs   = require("__subscene");
-var m_tex    = require("__textures");
-var m_util   = require("__util");
+import m_batch from "./batch"
+import m_cam from "./camera"
+import m_cfg from "./config"
+import m_debug from "./debug"
+import m_graph from "./graph"
+import m_render from "./renderer"
+import m_shaders from "./shaders"
+import m_subs from "./subscene"
+import m_tex from "./textures"
+import m_util from "./util"
 
 var cfg_dbg = m_cfg.debug_subs;
 var cfg_def = m_cfg.defaults;
@@ -1422,7 +1422,7 @@ exports.create_rendering_graph = function(sc_render, cam_scene_data,
                 create_slink("COLOR", "u_main", 1, 1, 1, true, true));
         m_graph.append_edge_attr(graph, subs_luminance, subs_lum_trunced,
                 slink_luminance_tr);
-        
+
         var last_subs = subs_lum_trunced;
         var subs_size = 1;
         var blur_y_subs_array = [];
@@ -2155,7 +2155,7 @@ function subs_check_multisample(subs, graph) {
         var node_out = m_graph.get_out_edge(graph, node, 0);
         var edge_attr = m_graph.get_edge_attr(graph, node, node_out, 0);
 
-        if (edge_attr.from == "COLOR" && edge_attr.to == "COLOR" 
+        if (edge_attr.from == "COLOR" && edge_attr.to == "COLOR"
                 || edge_attr.from == "DEPTH" && edge_attr.to == "DEPTH") {
             var attr_out = m_graph.get_node_attr(graph, node_out);
             has_multisample = subs_check_multisample(attr_out, graph);
@@ -2414,10 +2414,10 @@ function create_slink(from, to, size, size_mult_x, size_mult_y, update_dim,
 
 function clone_slink(slink, tex_by_link) {
 
-    var slink_new = create_slink(slink.from, slink.to, slink.size, 
-            slink.size_mult_x, slink.size_mult_y, slink.update_dim, 
+    var slink_new = create_slink(slink.from, slink.to, slink.size,
+            slink.size_mult_x, slink.size_mult_y, slink.update_dim,
             slink.apply_resolution_factors);
-    
+
     slink_new.active = slink.active;
 
     if (!tex_by_link && slink.texture)
@@ -2952,4 +2952,4 @@ function connect_render_targets_batch(graph, subs, batch, is_replacing) {
     }
 }
 
-}
+export default exports;

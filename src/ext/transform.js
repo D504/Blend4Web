@@ -21,16 +21,16 @@
  * With some exceptions specified below, make sure that the objects are dynamic.
  * @module transform
  */
-b4w.module["transform"] = function(exports, require) {
+var exports = {};
 
-var m_bounds   = require("__boundings");
-var m_obj_util = require("__obj_util");
-var m_phy      = require("__physics");
-var m_print    = require("__print");
-var m_quat     = require("__quat");
-var m_trans    = require("__transform");
-var m_tsr      = require("__tsr");
-var m_util     = require("__util");
+import m_bounds from "../boundings"
+import m_obj_util from "../obj_util"
+import m_phy from "../physics"
+import m_print from "../print"
+import m_quat from "../libs/quat"
+import m_trans from "../transform"
+import m_tsr from "../tsr"
+import m_util from "../util"
 
 var _tsr_tmp = m_tsr.create();
 var _vec3_tmp = new Float32Array(3);
@@ -761,4 +761,4 @@ exports.get_matrix_rel = function(obj, dest) {
     return dest;
 }
 
-}
+export default exports;

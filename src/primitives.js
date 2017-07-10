@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,12 +22,12 @@
  * @namespace
  * @exports exports as primitives
  */
-b4w.module["__primitives"] = function(exports, require) {
+var exports = {};
 
-var m_cfg   = require("__config");
-var m_geom  = require("__geometry");
-var m_tbn   = require("__tbn");
-var m_util  = require("__util");
+import m_cfg from "./config"
+import m_geom from "./geometry"
+import m_tbn from "./tbn"
+import m_util from "./util"
 
 var cfg_def  = m_cfg.defaults;
 
@@ -192,7 +192,7 @@ exports.generate_cascaded_grid = function(num_cascads, subdivs, detailed_dist) {
                                 var cascad_step = delta_x;
                             positions.push(x, y, cascad_step);
                             tbn_count++;
-                            last_added_ind++; 
+                            last_added_ind++;
                         }
                         indices_in_row.push(idx0);
                     } else {
@@ -203,7 +203,7 @@ exports.generate_cascaded_grid = function(num_cascads, subdivs, detailed_dist) {
                     if (i && j) {
                         // for not utmost vertices
                         if ( i == 1 ) {
-                            // 2-nd column 
+                            // 2-nd column
                             if (is_merged_vertex(i-1, j)) {
                                 if ( j > 1) {
                                     var idx1 = idx0 - 1;
@@ -395,7 +395,7 @@ exports.generate_from_triangles = function(verts) {
     return submesh;
 }
 
-exports.generate_from_quads = generate_from_quads; 
+exports.generate_from_quads = generate_from_quads;
 /**
  * Generate submesh for shadeless rendering (w/o normals).
  * verts must be CCW if you look at the front face of quad
@@ -451,7 +451,7 @@ function generate_from_quads(verts) {
  */
 exports.generate_frustum = function(corners) {
 
-    corners = m_util.vectorize(corners, []); 
+    corners = m_util.vectorize(corners, []);
 
     // TODO: implement simple method to generate frustum geometry
     var quads = [];
@@ -524,12 +524,12 @@ exports.generate_billboard = function() {
  *
  * size - sphere radius
  */
-exports.generate_uv_sphere = function(segments, rings, size, center, 
+exports.generate_uv_sphere = function(segments, rings, size, center,
         use_smooth, use_wireframe) {
     var submesh = m_geom.init_submesh("UV_SPHERE");
 
     var x, y;
-    
+
     var positions = [];
     var grid_positions = [];
     var indices = [];
@@ -552,7 +552,7 @@ exports.generate_uv_sphere = function(segments, rings, size, center,
                 zpos = (Math.abs(zpos) < edge) ? 0 : zpos;
             }
 
-            grid_positions.push(xpos + center[0], ypos + center[1], 
+            grid_positions.push(xpos + center[0], ypos + center[1],
                     zpos + center[2]);
         }
     }
@@ -565,7 +565,7 @@ exports.generate_uv_sphere = function(segments, rings, size, center,
             var v2 = extract_vec3(grid_positions, (segments+1)*y + x);
             var v3 = extract_vec3(grid_positions, (segments+1)*(y + 1) + x);
             var v4 = extract_vec3(grid_positions, (segments+1)*(y + 1) + x + 1);
-            
+
             // upper pole
             if (Math.abs(v1[1]) == (size + center[1])) {
 
@@ -574,7 +574,7 @@ exports.generate_uv_sphere = function(segments, rings, size, center,
                 add_vec3_to_array(v4, positions);
 
                 if (use_wireframe)
-                    indices.push(v_index, v_index+1, v_index+1, v_index+2, 
+                    indices.push(v_index, v_index+1, v_index+1, v_index+2,
                             v_index+2, v_index);
                 else
                     indices.push(v_index, v_index+1, v_index+2);
@@ -587,7 +587,7 @@ exports.generate_uv_sphere = function(segments, rings, size, center,
                 add_vec3_to_array(v3, positions);
 
                 if (use_wireframe)
-                    indices.push(v_index, v_index+1, v_index+1, v_index+2, 
+                    indices.push(v_index, v_index+1, v_index+1, v_index+2,
                             v_index+2, v_index);
                 else
                     indices.push(v_index, v_index+1, v_index+2);
@@ -624,10 +624,10 @@ exports.generate_uv_sphere = function(segments, rings, size, center,
         va_frame["a_tbn"] = m_tbn.create();
     } else {
 
-        var shared_indices = m_geom.calc_shared_indices(indices, 
+        var shared_indices = m_geom.calc_shared_indices(indices,
                 grid_positions, positions);
 
-        var normals = m_geom.calc_normals(indices, positions, 
+        var normals = m_geom.calc_normals(indices, positions,
                 shared_indices);
         va_frame["a_tbn"] = m_tbn.from_norm_tan(normals);
     }
@@ -674,5 +674,4 @@ exports.generate_index = function(num) {
     return submesh;
 }
 
-
-}
+export default exports;

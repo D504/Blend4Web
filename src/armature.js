@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,12 +22,13 @@
  * @namespace
  * @exports exports as armature
  */
-b4w.module["__armature"] = function(exports, require) {
-var m_util = require("__util");
-var m_tsr  = require("__tsr");
-var m_quat = require("__quat");
-var m_mat4 = require("__mat4");
-var m_vec3 = require("__vec3");
+var exports = {};
+
+import m_util from "./util"
+import m_tsr from "./tsr"
+import m_quat from "./libs/quat"
+import m_mat4 from "./libs/mat4"
+import m_vec3 from "./libs/vec3"
 
 var _tsr_tmp = m_tsr.create();
 var _tsr_tmp2 = m_tsr.create();
@@ -318,4 +319,4 @@ exports.check_bone = function(armobj, bone_name) {
     return bone_name in armobj.render.bone_pointers;
 }
 
-}
+export default exports;

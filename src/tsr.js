@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,12 +22,12 @@
  * @namespace
  * @exports exports as tsr
  */
-b4w.module["__tsr"] = function(exports, require) {
+var exports = {};
 
-var m_mat4 = require("__mat4");
-var m_quat = require("__quat");
-var m_util = require("__util");
-var m_vec3 = require("__vec3");
+import m_mat4 from "./libs/mat4"
+import m_quat from "./libs/quat"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
 
 var ZUP_SIN = Math.sin(-Math.PI/4);
 var ZUP_COS = -ZUP_SIN;
@@ -118,7 +118,7 @@ exports.identity = function(tsr) {
     return tsr;
 }
 
-exports.set_sep = set_sep; 
+exports.set_sep = set_sep;
 /**
  * Set from separate trans, scale and quat.
  */
@@ -520,7 +520,7 @@ exports.transform_dir_vec3 = function(vec, tsr, new_vec) {
  * Tranform 4 comp tangent vectors by matrix.
  * optional destination offset in values (not vectors, not bytes)
  */
-exports.transform_tangents = function(vectors, tsr, new_vectors, 
+exports.transform_tangents = function(vectors, tsr, new_vectors,
         dest_offset) {
 
     if (!dest_offset)
@@ -755,4 +755,4 @@ exports.to_zup_model = function(tsr, dest) {
     dest[7] = tsr[7];
 }
 
-}
+export default exports;

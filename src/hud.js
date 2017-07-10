@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,10 +22,10 @@
  * @namespace
  * @exports exports as hud
  */
-b4w.module["__hud"] = function(exports, require) {
+var exports = {};
 
-var m_graph = require("__graph");
-var m_subs  = require("__subscene");
+import m_graph from "./graph"
+import m_subs from "./subscene"
 
 var START_POINT_X = 30;
 var START_POINT_Y = 80;
@@ -110,7 +110,7 @@ function show_debug_info_scene(scene) {
     }
 
 
-    //print("subscenes", graph.length, "(act/pass/fict type size batches calls lights):"); 
+    //print("subscenes", graph.length, "(act/pass/fict type size batches calls lights):");
 
     var sum_bundles = 0;
     var sum_rcalls = 0;
@@ -141,7 +141,7 @@ function show_debug_info_scene(scene) {
 
         var render_time = is_active ? subs.debug_render_time : 0;
 
-        // NOTE: clear render time for non-enqueued subscenes, BTW they 
+        // NOTE: clear render time for non-enqueued subscenes, BTW they
         // shouldn't be active if they're not rendered
         if (!subs.enqueue)
             subs.debug_render_time = 0;
@@ -208,7 +208,7 @@ function spaces(n) {
 
     var s = "";
     for (var i = 0; i < n; i++) {
-        s += " ";    
+        s += " ";
     }
     return s;
 }
@@ -437,7 +437,7 @@ exports.draw_mixer_strip = function(id, is_active, slot, params, active_param,
 
     for (var i = 0; i < params.length; i++) {
         var param = params[i];
-        
+
         var is_volume = (param[0] == "VOLUME");
 
         if (is_volume)
@@ -566,4 +566,4 @@ function draw_param_bar(ctx, vertical, box, param, is_active) {
 
 }
 
-}
+export default exports;

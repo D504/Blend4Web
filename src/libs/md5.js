@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -20,7 +20,7 @@
 
 "use strict";
 
-b4w.module["__md5"] = function(exports, require) {
+var exports = {};
 
 function md5cycle(x, k) {
     var a = x[0], b = x[1], c = x[2], d = x[3];
@@ -200,5 +200,4 @@ exports.hexdigest = function(msg) {
     return hex(md51(msg));
 }
 
-
-}
+export default exports;

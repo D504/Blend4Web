@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,38 +22,38 @@
  * @namespace
  * @exports exports as scenes
  */
-b4w.module["__scenes"] = function(exports, require) {
+var exports = {};
 
-var m_batch      = require("__batch");
-var m_bounds     = require("__boundings");
-var m_cam        = require("__camera");
-var m_cfg        = require("__config");
-var m_cont       = require("__container");
-var m_debug      = require("__debug");
-var m_graph      = require("__graph");
-var m_hud        = require("__hud");
-var m_input      = require("__input");
-var m_mat4       = require("__mat4");
-var m_nodemat    = require("__nodemat");
-var m_obj        = require("__objects");
-var m_textures   = require("__textures");
-var m_obj_util   = require("__obj_util");
-var m_phy        = require("__physics");
-var m_prerender  = require("__prerender");
-var m_primitives = require("__primitives");
-var m_print      = require("__print");
-var m_quat       = require("__quat");
-var m_render     = require("__renderer");
-var m_scgraph    = require("__scenegraph");
-var m_sfx        = require("__sfx");
-var m_shaders    = require("__shaders");
-var m_subs       = require("__subscene");
-var m_tex        = require("__textures");
-var m_tsr        = require("__tsr");
-var m_util       = require("__util");
-var m_vec3       = require("__vec3");
-var m_vec4       = require("__vec4");
-var m_version    = require("__version");
+import m_batch from "./batch"
+import m_bounds from "./boundings"
+import m_cam from "./camera"
+import m_cfg from "./config"
+import m_cont from "./container"
+import m_debug from "./debug"
+import m_graph from "./graph"
+import m_hud from "./hud"
+import m_input from "./input"
+import m_mat4 from "./libs/mat4"
+import m_nodemat from "./nodemat"
+import m_obj from "./objects"
+import m_textures from "./textures"
+import m_obj_util from "./obj_util"
+import m_phy from "./physics"
+import m_prerender from "./prerender"
+import m_primitives from "./primitives"
+import m_print from "./print"
+import m_quat from "./libs/quat"
+import m_render from "./renderer"
+import m_scgraph from "./scenegraph"
+import m_sfx from "./sfx"
+import m_shaders from "./shaders"
+import m_subs from "./subscene"
+import m_tex from "./textures"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_vec4 from "./libs/vec4"
+import m_version from "./version"
 
 var cfg_dbg = m_cfg.debug_subs;
 var cfg_def = m_cfg.defaults;
@@ -67,10 +67,10 @@ var FRAME_EPS = 5;
 
 // add objects
 var OBJECT_SUBSCENE_TYPES = [m_subs.GRASS_MAP, m_subs.SHADOW_CAST, m_subs.MAIN_OPAQUE,
-    m_subs.MAIN_BLEND, m_subs.MAIN_XRAY, m_subs.MAIN_GLOW, 
+    m_subs.MAIN_BLEND, m_subs.MAIN_XRAY, m_subs.MAIN_GLOW,
     m_subs.MAIN_PLANE_REFLECT, m_subs.MAIN_CUBE_REFLECT,
     m_subs.MAIN_PLANE_REFLECT_BLEND, m_subs.MAIN_CUBE_REFLECT_BLEND,
-    m_subs.COLOR_PICKING, m_subs.COLOR_PICKING_XRAY, m_subs.SHADOW_RECEIVE, 
+    m_subs.COLOR_PICKING, m_subs.COLOR_PICKING_XRAY, m_subs.SHADOW_RECEIVE,
     m_subs.OUTLINE_MASK, m_subs.DEBUG_VIEW];
 exports.OBJECT_SUBSCENE_TYPES = OBJECT_SUBSCENE_TYPES;
 // need light update
@@ -481,7 +481,7 @@ function extract_shadow_params(bpy_scene, lamps, bpy_mesh_objs) {
     rshs.self_shadow_polygon_offset = shs["self_shadow_polygon_offset"];
     rshs.self_shadow_normal_offset  = shs["self_shadow_normal_offset"];
     rshs.enable_csm                 = shs["b4w_enable_csm"] && shadow_lamps.length == 1;
-    
+
     if (shs["b4w_enable_csm"] && shs["csm_num"] > 1 && shadow_lamps.length > 1)
         m_print.warn("Disabling Cascaded Shadow Maps because of multiple shadow casting lamps.");
 
@@ -1052,7 +1052,7 @@ function get_world_light_set(world, sky_params) {
             use_environment_light = true;
             var sts = world["texture_slots"][i];
             wls_params.sky_texture_slot = sts;
-            var tex_size = Math.min(cfg_lim.max_cube_map_texture_size, 
+            var tex_size = Math.min(cfg_lim.max_cube_map_texture_size,
                     m_tex.calc_pot_size(sts["texture"]["image"]["size"][0] / 3));
             wls_params.sky_texture_param = {
                 tex_size: tex_size,
@@ -2022,7 +2022,7 @@ function add_object_subs_shadow(subs, obj, graph, scene, copy) {
 
         var rb = m_subs.init_bundle(batch, obj_render, sc_data.batch_world_bounds[i]);
         m_subs.append_draw_data(subs, rb);
-        
+
         m_scgraph.connect_render_targets_batch(graph, subs, batch, false);
         check_batch_textures_number(batch);
     }
@@ -2147,7 +2147,7 @@ exports.update_shadow_billboard_view = function(cam_main, graph) {
     m_graph.traverse(graph, function(node, attr) {
         var subs = attr;
         if (subs.type === m_subs.SHADOW_CAST) {
-            // NOTE: inherit light camera world_tsr from main camera - used in LOD 
+            // NOTE: inherit light camera world_tsr from main camera - used in LOD
             // calculations, cylindrical billboarding shadows and dynamic grass shadows
             m_tsr.copy(cam_main.world_tsr, subs.camera.world_tsr);
             // NOTE: inherit view_tsr from main camera
@@ -2169,7 +2169,7 @@ function update_subs_shadow(subs, scene, cam_main, sh_params,
 
     var cam = subs.camera;
 
-    // NOTE: inherit light camera world_tsr from main camera - used in LOD 
+    // NOTE: inherit light camera world_tsr from main camera - used in LOD
     // calculations, cylindrical billboarding shadows and dynamic grass shadows
     m_tsr.copy(cam_main.world_tsr, cam.world_tsr);
 
@@ -2211,7 +2211,7 @@ function update_subs_shadow(subs, scene, cam_main, sh_params,
             bb_view.max_z = _shadow_cast_max_z;
 
             bb_view.min_x = center[0] - radius;
-            bb_view.min_y = center[1] - radius; 
+            bb_view.min_y = center[1] - radius;
             bb_view.min_z = _shadow_cast_min_z;
         } else {
             var bb_view = _bb_tmp;
@@ -2338,7 +2338,7 @@ function get_shadow_casters_bb(subs, main_cam_tsr, dest) {
             // trying to reproduce shader logic regarding the placing of instances
             if (batch.dynamic_grass) {
                 var main_cam_quat = m_tsr.get_quat(main_cam_tsr, _quat4_tmp);
-                var main_cam_view = m_vec3.transformQuat(m_util.AXIS_MZ, 
+                var main_cam_view = m_vec3.transformQuat(m_util.AXIS_MZ,
                         main_cam_quat, _vec3_tmp2);
 
                 var sin_alpha = - main_cam_view[0];
@@ -2350,7 +2350,7 @@ function get_shadow_casters_bb(subs, main_cam_tsr, dest) {
                 var base_y = main_camera_eye[1] - batch.grass_size * (1 - cos_alpha) / 2;
 
                 // considering the height of a grass instance
-                var bb_world = m_bounds.bounding_box_transform(batch.bounds_local.bb, 
+                var bb_world = m_bounds.bounding_box_transform(batch.bounds_local.bb,
                         render.world_tsr, _bb_tmp2);
                 var grass_height = bb_world.max_z - bb_world.min_z;
 
@@ -2361,7 +2361,7 @@ function get_shadow_casters_bb(subs, main_cam_tsr, dest) {
                 bbox.max_x = base_x + batch.grass_size;
                 bbox.max_y = base_y + batch.grass_size;
                 bbox.max_z = batch.grass_map_dim[1] + grass_height;
-            } else 
+            } else
                 var bbox = render.bb_world;
 
             if (i == 0 && j == 0)
@@ -2584,7 +2584,7 @@ exports.remove_object_bundles = function(obj, mat_name) {
     for (var i = 0; i < obj.scenes_data.length; i++) {
         var scene = obj.scenes_data[i].scene;
         var subscenes = subs_array(scene, OBJECT_SUBSCENE_TYPES);
-        
+
         for (var j = 0; j < subscenes.length; j++) {
             var draw_data = subscenes[j].draw_data;
             for (var k = 0; k < draw_data.length; k++) {
@@ -2593,8 +2593,8 @@ exports.remove_object_bundles = function(obj, mat_name) {
                     var bundle = bundles[l];
                     if (bundle.obj_render == obj.render) {
                         if (bundle.batch) {
-                            if (typeof mat_name == "undefined" 
-                                    || bundle.batch.material_names.indexOf(mat_name) != -1 
+                            if (typeof mat_name == "undefined"
+                                    || bundle.batch.material_names.indexOf(mat_name) != -1
                                     || bundle.batch.material_names.length == 0) {
                                 m_batch.clear_batch(bundle.batch);
                                 bundles.splice(l, 1);
@@ -2856,7 +2856,7 @@ exports.make_frustum_shot = function(cam, subscene, color) {
 
     var radius = render.bs_world.radius;
     render.be_world = render.be_local = m_bounds.be_from_values(
-            [radius, 0, 0], [0, radius, 0], [0, 0, radius], 
+            [radius, 0, 0], [0, radius, 0], [0, 0, radius],
             render.bs_world.center);
 
     var batch = m_batch.create_shadeless_batch(submesh, color, 0.5);
@@ -4607,4 +4607,4 @@ exports.recalculate_draw_data = function(batch) {
     }
 }
 
-}
+export default exports;

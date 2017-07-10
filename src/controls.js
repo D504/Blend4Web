@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,19 +22,19 @@
  * @namespace
  * @exports exports as controls
  */
-b4w.module["__controls"] = function(exports, require) {
+var exports = {};
 
-var m_cfg   = require("__config");
-var m_cont  = require("__container");
-var m_input = require("__input");
-var m_obj   = require("__objects");
-var m_print = require("__print");
-var m_phy   = require("__physics");
-var m_quat  = require("__quat");
-var m_time  = require("__time");
-var m_tsr   = require("__tsr");
-var m_util  = require("__util");
-var m_vec3  = require("__vec3");
+import m_cfg from "./config"
+import m_cont from "./container"
+import m_input from "./input"
+import m_obj from "./objects"
+import m_print from "./print"
+import m_phy from "./physics"
+import m_quat from "./libs/quat"
+import m_time from "./time"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
 
 var cfg_ctl = m_cfg.controls;
 var cfg_dft = m_cfg.defaults;
@@ -2192,4 +2192,4 @@ exports.set_plock_smooth_factor = function(value) {
     _smooth_factor = value;
 }
 
-}
+export default exports;

@@ -20,9 +20,9 @@
  * Version API. Allows to query various information about the current release.
  * @module version
  */
-b4w.module["version"] = function(exports, require) {
+var exports = {};
 
-var m_version = require("__version");
+import m_version from "../version"
 
 /**
  * Get the version.
@@ -63,4 +63,4 @@ exports.date = m_version.date;
  */
 exports.date_str = m_version.date_str;
 
-}
+export default exports;

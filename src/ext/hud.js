@@ -22,10 +22,10 @@
  * @see module:main.init
  * @module hud
  */
-b4w.module["hud"] = function(exports, require) {
+var exports = {};
 
-var m_hud   = require("__hud");
-var m_print = require("__print");
+import m_hud from "../hud"
+import m_print from "../print"
 
 /**
  * Draw the mixer strip.
@@ -58,4 +58,4 @@ exports.plot_array = function(header, slot, arr, arg_min, arg_max, val_min,
     m_hud.plot_array(header, slot, arr, arg_min, arg_max, val_min, val_max);
 };
 
-}
+export default exports;

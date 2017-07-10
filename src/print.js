@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,7 +22,7 @@
  * @namespace
  * @exports exports as print
  */
-b4w.module["__print"] = function(exports, require) {
+var exports = {};
 
 
 // no module requires
@@ -89,7 +89,7 @@ function error_deprecated(depr_func, new_func) {
 exports.error_deprecated_arr = function(depr_func, new_func_arr) {
     switch (new_func_arr.length > 1) {
     case true:
-        error_once(depr_func + "() is deprecated, use " 
+        error_once(depr_func + "() is deprecated, use "
                 + new_func_arr.slice(0, -1).join("(), ")
                 + "() or " + new_func_arr[new_func_arr.length - 1] + "() instead.");
         break;
@@ -176,6 +176,4 @@ exports.clear_errors_warnings = function() {
     _error_count = 0;
 }
 
-}
-
-b4w.module["print"] = b4w.module["__print"];
+export default exports;

@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -21,18 +21,18 @@
  * @namespace
  * @exports exports as container
  */
-b4w.module["__container"] = function(exports, require) {
+var exports = {};
 
-var m_anchors = require("__anchors");
-var m_cfg     = require("__config");
-var m_data    = require("__data");
-var m_hud     = require("__hud");
-var m_print   = require("__print");
-var m_scenes  = require("__scenes");
-var m_subs    = require("__subscene");
-var m_time    = require("__time");
-var m_trans   = require("__transform");
-var m_util    = require("__util");
+import m_anchors from "./anchors"
+import m_cfg from "./config"
+import m_data from "./data"
+import m_hud from "./hud"
+import m_print from "./print"
+import m_scenes from "./scenes"
+import m_subs from "./subscene"
+import m_time from "./time"
+import m_trans from "./transform"
+import m_util from "./util"
 
 var cfg_def = m_cfg.defaults;
 
@@ -155,7 +155,7 @@ function get_offset_left() {
         update_canvas_offsets();
         _offsets_updating_needed = false;
     }
-    
+
     return _viewport_layout.offset_left;
 }
 
@@ -206,7 +206,7 @@ exports.canvas_to_viewport_coords = function(canvas_x, canvas_y, dest, camera) {
 exports.viewport_to_canvas_coords = function(viewport_x, viewport_y, dest, camera) {
     if (!dest)
         dest = new Float32Array(2);
-    
+
     dest[0] = viewport_x / _viewport_layout.scale;
     dest[1] = viewport_y / _viewport_layout.scale;
 
@@ -333,4 +333,4 @@ exports.reset = function() {
     _canvas_cont = null;
 }
 
-}
+export default exports;

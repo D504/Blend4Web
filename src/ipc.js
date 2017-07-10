@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,7 +22,7 @@
  * @namespace
  * @exports exports as ipc
  */
-b4w.module["__ipc"] = function(exports, require) {
+var exports = {};
 /*
  * Use Visual Incrementing script to simplify assignment of such numbers in VIM
  * http://www.drchip.org/astronaut/vim/index.html#VISINCR
@@ -214,8 +214,12 @@ exports.create_worker = function(path, fallback) {
     if (fallback) {
         // require here because it's not availabe in workers
         // (e.g. due to obfuscation)
-        var m_util = require("__util");
-        var m_cont = require("__container");
+        // BEGIN WARNING ES6
+        //import m_util from "./util"
+        //import m_cont from "./container"
+        var m_util = {};
+        var m_cont = {};
+        // END WARNING ES6
 
 
         var web_worker_fallback = {
@@ -646,5 +650,4 @@ exports.is_fallback = function(worker) {
     return !!worker.fb_worker_ns;
 }
 
-}
-
+export default exports;

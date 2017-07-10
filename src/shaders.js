@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,13 +22,13 @@
  * @namespace
  * @exports exports as shaders
  */
-b4w.module["__shaders"] = function(exports, require) {
+var exports = {};
 
-var m_assets = require("__assets");
-var m_cfg    = require("__config");
-var m_debug  = require("__debug");
-var m_print  = require("__print");
-var m_util   = require("__util");
+import m_assets from "./assets"
+import m_cfg from "./config"
+import m_debug from "./debug"
+import m_print from "./print"
+import m_util from "./util"
 
 var cfg_def = m_cfg.defaults;
 var cfg_lim = m_cfg.context_limits;
@@ -227,7 +227,7 @@ function set_directive(shaders_info, name, value) {
         var dir = get_directive(shaders_info, value);
         if (dir)
             value = dir[1];
-    } else 
+    } else
         // NOTE: for integer values passed as is
         value = String(value);
 
@@ -239,7 +239,7 @@ function set_directive(shaders_info, name, value) {
         }
 
     if (DEBUG_INCOMPATIBLE_DIRECTIVES)
-        m_print.error("Incompatible directive '" + name + "' was set for shaders " 
+        m_print.error("Incompatible directive '" + name + "' was set for shaders "
                 + shaders_info.vert + "/" + shaders_info.frag + ".");
 }
 
@@ -263,7 +263,7 @@ function get_directive(shaders_info, name) {
 
 function get_shader_default_vars(vert_name, frag_name) {
     var pair_id = vert_name + frag_name;
-    
+
     if (!(pair_id in _vars_cache)) {
         var vert_ast = get_shader_ast(cfg_pth.shaders_path, vert_name);
         var frag_ast = get_shader_ast(cfg_pth.shaders_path, frag_name);
@@ -845,7 +845,7 @@ function combine_dir_tokens(type, shaders_info) {
     } else {
         dirs["GLSL1"] = ["1"];
         dirs["GLSL3"] = ["0"];
-        
+
         dirs["GLSL_VERSION"] = ["100"];
 
         dirs["GLSL_IN"] = (type == "vert") ? ["attribute"] : ["varying"];
@@ -921,13 +921,13 @@ function collect_vars(ast) {
 function preprocess_shader(type, ast, shaders_info) {
 
     var node_elements = shaders_info.node_elements;
-    
+
     // output GLSL lines
     var lines = [];
 
-    // set with predefined macros {"name": tokens}    
+    // set with predefined macros {"name": tokens}
     var dirs = combine_dir_tokens(type, shaders_info);
-    
+
     // NOTE: always empty: not properly implemented,
     // set with params for function-like macros {"name": params}
     var fdirs = {};
@@ -1074,8 +1074,8 @@ function preprocess_shader(type, ast, shaders_info) {
 
                         if (undefined_dirs[filename].indexOf(operand) == -1) {
                             undefined_dirs[filename].push(operand);
-                            m_print.error("Undefined directive '" + operand 
-                                    + "' in shader '" + filename 
+                            m_print.error("Undefined directive '" + operand
+                                    + "' in shader '" + filename
                                     + "'. Should it be defined with #var/#node_var or #define?");
                         }
                     }
@@ -1354,8 +1354,8 @@ function preprocess_shader(type, ast, shaders_info) {
             if (dir_name in node_dirs)
                 node_dirs[dir_name] = [nelem.dirs[i][1]];
             else if (DEBUG_INCOMPATIBLE_DIRECTIVES)
-                m_print.error("Incompatible node directive '" + dir_name 
-                        + "' was set for node " + nelem.id + " in shader " 
+                m_print.error("Incompatible node directive '" + dir_name
+                        + "' was set for node " + nelem.id + " in shader "
                         + filename + ".");
         }
 
@@ -1542,13 +1542,13 @@ function preprocess_shader(type, ast, shaders_info) {
     }
 
     function preprocess_glsl_compat_tokens(tokens, type) {
-        // using standard gl_FragColor, so the corresponding interface 
+        // using standard gl_FragColor, so the corresponding interface
         // declaration isn't needed in GLSL ES 1.0
         if (!cfg_def.webgl2 && type == "frag") {
 
             var token_str = tokens.join(" ");
 
-            // remove the last part (or the whole row) of the GLSL_OUT 
+            // remove the last part (or the whole row) of the GLSL_OUT
             // declaration if it's breaked in many rows
             if (frag_glsl_out_declaration) {
                 if (token_str.match(/[^;]*;/)) {
@@ -1562,7 +1562,7 @@ function preprocess_shader(type, ast, shaders_info) {
             token_str = token_str.replace(/GLSL_OUT [^;]*;/g, "");
 
 
-            // remove the first part of the GLSL_OUT declaration if it's breaked 
+            // remove the first part of the GLSL_OUT declaration if it's breaked
             // in many rows
             if (token_str.match(/GLSL_OUT(?:$| [^;]*)/)) {
                 token_str = token_str.replace(/GLSL_OUT(?:$| [^;]*)/, "");
@@ -1602,7 +1602,7 @@ function preprocess_shader(type, ast, shaders_info) {
                 var new_tokens = dirs[token];
             else {
                 result.push(token);
-                continue;            
+                continue;
             }
 
             if (new_tokens.length == 0 && empty_as_zero)
@@ -1824,4 +1824,4 @@ exports.reset = function() {
     _gl = null;
 }
 
-}
+export default exports;

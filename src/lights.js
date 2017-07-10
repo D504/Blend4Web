@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,11 +22,11 @@
  * @namespace
  * @exports exports as lights
  */
-b4w.module["__lights"] = function(exports, require) {
+var exports = {};
 
-var m_tsr   = require("__tsr");
-var m_util  = require("__util");
-var m_vec3  = require("__vec3");
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
 
 var _vec3_tmp = new Float32Array(3);
 
@@ -175,7 +175,7 @@ function update_color_intensity(light) {
 
 exports.update_light_transform = update_light_transform;
 /**
- * @methodOf lights 
+ * @methodOf lights
  */
 function update_light_transform(obj) {
 
@@ -202,4 +202,4 @@ function update_light_transform(obj) {
     m_vec3.copy(light.direction, light.prev_direction);
 }
 
-}
+export default exports;

@@ -23,12 +23,12 @@
  * @module sfx
  * @cc_externs AudioContext webkitAudioContext MediaElementAudioSourceNode
  */
-b4w.module["sfx"] = function(exports, require) {
+var exports = {};
 
-var m_obj_util = require("__obj_util");
-var m_scs      = require("__scenes");
-var m_sfx      = require("__sfx");
-var m_print    = require("__print");
+import m_obj_util from "../obj_util"
+import m_scs from "../scenes"
+import m_sfx from "../sfx"
+import m_print from "../print"
 
 /**
  * Play sound through the speaker.
@@ -402,5 +402,4 @@ exports.get_duration = function(obj) {
     return m_sfx.get_duration(obj);
 }
 
-}
-
+export default exports;

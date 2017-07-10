@@ -21,10 +21,10 @@
  * @module tsr
  * @see https://www.blend4web.com/doc/en/objects.html#moving-via-tsr-vectors
  */
-b4w.module["tsr"] = function(exports, require) {
+var exports = {};
 
-var m_mat4  = require("__mat4");
-var m_tsr   = require("__tsr");
+import m_mat4 from "../libs/mat4"
+import m_tsr from "../tsr"
 
 /**
  * Create a new identity TSR vector.
@@ -266,4 +266,4 @@ exports.interpolate = function(tsr, tsr2, factor, dest) {
     return dest;
 }
 
-}
+export default exports;

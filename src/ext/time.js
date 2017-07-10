@@ -20,9 +20,9 @@
  * Time API.
  * @module time
  */
-b4w.module["time"] = function(exports, require) {
+var exports = {};
 
-var m_time = require("__time");
+import m_time from "../time"
 
 /**
  * Set a new timeout.
@@ -67,5 +67,4 @@ exports.animate = m_time.animate;
  */
 exports.clear_animation = m_time.clear_animation;
 
-
-}
+export default exports;

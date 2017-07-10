@@ -20,9 +20,9 @@
  * API methods to control the {@link https://www.blend4web.com/doc/en/logic_editor.html|Logic Editor}.
  * @module logic_nodes
  */
-b4w.module["logic_nodes"] = function(exports, require) {
+var exports = {};
 
-var m_logn = require("__logic_nodes");
+import m_logn from "../logic_nodes"
 
 /**
  * Register custom callback, used in logic editor.
@@ -64,4 +64,4 @@ exports.run_entrypoint = function(scene_name, ep_name) {
     m_logn.run_ep(scene_name, ep_name);
 }
 
-}
+export default exports;

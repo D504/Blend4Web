@@ -24,17 +24,17 @@
  * @local MaterialExtParams
  * @local WaterMaterialParams
  */
-b4w.module["material"] = function(exports, require) {
+var exports = {};
 
-var m_batch    = require("__batch");
-var m_cfg      = require("__config");
-var m_geom     = require("__geometry");
-var m_obj      = require("__objects");
-var m_obj_util = require("__obj_util");
-var m_print    = require("__print");
-var m_shaders  = require("__shaders");
-var m_util     = require("__util");
-var m_scenes   = require("__scenes");
+import m_batch from "../batch"
+import m_cfg from "../config"
+import m_geom from "../geometry"
+import m_obj from "../objects"
+import m_obj_util from "../obj_util"
+import m_print from "../print"
+import m_shaders from "../shaders"
+import m_util from "../util"
+import m_scenes from "../scenes"
 
 var cfg_def = m_cfg.defaults;
 
@@ -1760,4 +1760,4 @@ exports.is_water_material = function(obj, mat_name) {
     return batch.water && !batch.has_nodes;
 }
 
-}
+export default exports;

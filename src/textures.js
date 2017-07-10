@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -23,22 +23,22 @@
  * @namespace
  * @exports exports as textures
  */
-b4w.module["__textures"] = function(exports, require) {
+var exports = {};
 
-var m_compat    = require("__compat");
-var m_cfg       = require("__config");
-var m_texcomp   = require("__texcomp");
-var m_debug     = require("__debug");
-var m_ext       = require("__extensions");
-var m_print     = require("__print");
-var m_time      = require("__time");
-var m_util      = require("__util");
-var m_ren       = require("__renderer");
-var m_objs      = require("__objects");
-var m_obj_util  = require("__obj_util");
-var m_curve     = require("__curve");
-var m_vec3      = require("__vec3");
-var m_scs       = require("__scenes");
+import m_compat from "./compat"
+import m_cfg from "./config"
+import m_texcomp from "./texcomp"
+import m_debug from "./debug"
+import m_ext from "./extensions"
+import m_print from "./print"
+import m_time from "./time"
+import m_util from "./util"
+import m_ren from "./renderer"
+import m_objs from "./objects"
+import m_obj_util from "./obj_util"
+import m_curve from "./curve"
+import m_vec3 from "./libs/vec3"
+import m_scs from "./scenes"
 
 var cfg_def = m_cfg.defaults;
 var cfg_lim = m_cfg.context_limits;
@@ -802,7 +802,7 @@ function draw_resized_image(texture, image_data, width, height, is_dds) {
         _gl.texImage2D(_gl.TEXTURE_2D, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, image_data);
     }
     _gl.bindTexture(_gl.TEXTURE_2D, null);
-    
+
     var fbuf_tmp = get_framebuffer_tmp();
     var wtex_tmp = get_wtex_tmp();
     m_ren.draw_resized_texture(texture, width, height, fbuf_tmp, wtex_tmp, "NONE");
@@ -863,7 +863,7 @@ function resize_cube_map_canvas(texture, image_data, img_dim, pot_dim) {
                       img_dim, img_dim, -pot_dim/2, -pot_dim/2, pot_dim, pot_dim);
 
         if (cfg_def.d3d9_canvas_resizing_hack)
-            _gl.texImage2D(_gl[target], 0, _gl.RGBA, pot_dim, pot_dim, 0, 
+            _gl.texImage2D(_gl[target], 0, _gl.RGBA, pot_dim, pot_dim, 0,
                     _gl.RGBA, _gl.UNSIGNED_BYTE, new Uint8Array(ctx.getImageData(
                     0, 0, pot_dim, pot_dim).data.buffer));
         else
@@ -1049,8 +1049,8 @@ function update_texture(texture, image_data, thread_id) {
                             new Uint8Array(ctx.getImageData(0, 0, width, height).data.buffer));
                 else
                     _gl.texImage2D(w_target, 0, _gl.RGBA, _gl.RGBA, _gl.UNSIGNED_BYTE, canvas);
-            
-            } else if (!cfg_def.webgl2 && (m_util.check_npot(texture.width) 
+
+            } else if (!cfg_def.webgl2 && (m_util.check_npot(texture.width)
                     || m_util.check_npot(texture.height))) {
                 draw_resized_image(texture, draw_data, width, height, false);
                 texture.need_resize = true;
@@ -1113,11 +1113,11 @@ function update_texture(texture, image_data, thread_id) {
                 resize_cube_map(texture, image_data, tex_dim, img_dim);
 
             if (m_debug.check_ff_cubemap_out_of_memory()) {
-                // NOTE: the state of the context and/or objects is undefined 
+                // NOTE: the state of the context and/or objects is undefined
                 // after the GL_OUT_OF_MEMORY error;
                 // see: https://www.opengl.org/wiki/OpenGL_Error#Side_effects
                 m_print.warn("Firefox detected, setting max cubemap size to 256, use canvas for resizing.");
-                resize_cube_map_canvas(texture, image_data, img_dim, 
+                resize_cube_map_canvas(texture, image_data, img_dim,
                         m_compat.NVIDIA_OLD_GPU_CUBEMAP_MAX_SIZE);
             }
 
@@ -2047,4 +2047,4 @@ exports.get_img_textures = function() {
     return _img_textures_cache;
 }
 
-}
+export default exports;

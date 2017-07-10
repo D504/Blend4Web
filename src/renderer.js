@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -24,22 +24,22 @@
  * @namespace
  * @exports exports as renderer
  */
-b4w.module["__renderer"] = function(exports, require) {
+var exports = {};
 
-var m_batch    = require("__batch");
-var m_cam      = require("__camera");
-var m_cfg      = require("__config");
-var m_debug    = require("__debug");
-var m_ext      = require("__extensions");
-var m_geom     = require("__geometry");
-var m_quat     = require("__quat");
-var m_subs     = require("__subscene");
-var m_textures = require("__textures");
-var m_tsr      = require("__tsr");
-var m_util     = require("__util");
-var m_ver      = require("__version");
+import m_batch from "./batch"
+import m_cam from "./camera"
+import m_cfg from "./config"
+import m_debug from "./debug"
+import m_ext from "./extensions"
+import m_geom from "./geometry"
+import m_quat from "./libs/quat"
+import m_subs from "./subscene"
+import m_textures from "./textures"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_ver from "./version"
 
-var m_vec3     = require("__vec3");
+import m_vec3 from "./libs/vec3"
 
 var USE_BACKFACE_CULLING = true;
 
@@ -618,9 +618,9 @@ exports.assign_attribute_setters = function(batch) {
             var vbo_obj = bufs_data.vbo_data[index];
 
             var sh_pair_str = batch.shaders_info.vert + " | " + batch.shaders_info.frag;
-            var byte_size = pointers[name].length * pointers[name].frames 
+            var byte_size = pointers[name].length * pointers[name].frames
                     * m_geom.get_type_size_by_attr_name(name);
-            m_debug.fill_vbo_garbage_info(vbo_obj.debug_id, sh_pair_str, name, 
+            m_debug.fill_vbo_garbage_info(vbo_obj.debug_id, sh_pair_str, name,
                     byte_size, name in attributes);
         }
 
@@ -2139,7 +2139,7 @@ exports.set_draw_methods = function() {
                         var offset = setter.base_offset + setter.frame_length * frame;
 
                         var normalized = setter.gl_type == _gl.FLOAT ? false : true;
-                        _gl.vertexAttribPointer(setter.loc, setter.num_comp, 
+                        _gl.vertexAttribPointer(setter.loc, setter.num_comp,
                                 setter.gl_type, normalized, setter.stride, offset);
                         _gl_vert_attr_div(setter.loc, setter.divisor);
                     }
@@ -2171,4 +2171,4 @@ exports.reset = function() {
     _gl_bind_vertex_array = null;
 }
 
-}
+export default exports;

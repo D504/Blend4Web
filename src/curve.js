@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -23,10 +23,10 @@
  * @namespace
  * @exports exports as curve
  */
-b4w.module["__curve"] = function(exports, require) {
+var exports = {};
 
-var m_util  = require("__util");
-var m_vec3  = require("__vec3");
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
 
 var SPLINE_POINTS = 1000;
 
@@ -40,7 +40,7 @@ exports.create_spline = function(bpy_obj) {
 
     // NOTE: only single endpoint (path) NURBS supported
     var bpy_spline = bpy_curve["splines"][0];
-    if (!(bpy_spline && bpy_spline["type"] == "NURBS" && 
+    if (!(bpy_spline && bpy_spline["type"] == "NURBS" &&
                 bpy_spline["use_endpoint_u"]))
         return null;
 
@@ -215,7 +215,7 @@ function gen_rational_basis(order, t, knot, weights, r) {
  * Calc derivatives of rational basis functions
  */
 function gen_rational_dbasis(order, t, knot, weights, rd) {
-    
+
     var num = weights.length;
 
     if (!rd)
@@ -239,7 +239,7 @@ function gen_rational_dbasis(order, t, knot, weights, rd) {
         if (sum != 0) {
             var rd1 = (d[i-1] * weights[i-1]) / sum;
             var rd2 = (n[i-1] * weights[i-1] * dsum) / (sum * sum);
-                
+
             rd[i-1] = rd1 + rd2;
         } else
             rd[i-1] = 0;
@@ -286,13 +286,13 @@ function gen_basis_d(num, order, t, knot, n, d) {
             else
                 var b1 = 0;
 
-            if (temp[i+1-1] != 0)     
+            if (temp[i+1-1] != 0)
                 var b2 = ((knot[i+k-1]-t)*temp[i+1-1])/(knot[i+k-1]-knot[i+1-1]);
             else
                 var b2 = 0;
 
             // first derivative
-            if (temp[i-1] != 0)       
+            if (temp[i-1] != 0)
                 var f1 = temp[i-1]/(knot[i+k-1-1]-knot[i-1]);
             else
                 var f1 = 0;
@@ -493,7 +493,7 @@ exports.spline_len_to_t = function(spline, len) {
 
     var max_t = spline_max_t(spline);
     if (len >= spline_length(spline))
-        return max_t; 
+        return max_t;
 
     var clen = spline.cumulative_length;
     var index = m_util.binary_search_max(clen, len, 0, clen.length-1);
@@ -666,4 +666,4 @@ exports.correct_bezpart = function(v1, v2, v3, v4) {
     }
 }
 
-}
+export default exports;

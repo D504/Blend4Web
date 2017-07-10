@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -23,18 +23,18 @@
  * @namespace
  * @exports exports as input
  */
-b4w.module["__input"] = function(exports, require) {
+var exports = {};
 
-var m_compat = require("__compat");
-var m_cont  = require("__container");
-var m_cfg   = require("__config");
-var m_mat4  = require("__mat4");
-var m_print = require("__print");
-var m_tsr   = require("__tsr");
-var m_quat  = require("__quat");
-var m_util  = require("__util");
-var m_vec3  = require("__vec3");
-var m_vec4  = require("__vec4");
+import m_compat from "./compat"
+import m_cont from "./container"
+import m_cfg from "./config"
+import m_mat4 from "./libs/mat4"
+import m_print from "./print"
+import m_tsr from "./tsr"
+import m_quat from "./libs/quat"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_vec4 from "./libs/vec4"
 
 var cfg_def = m_cfg.defaults;
 var cfg_hmdp = m_cfg.hmd_params;
@@ -466,7 +466,7 @@ function get_distort_fact_radius(distortion_coefs, radius) {
 
 function update_nonwebvr_fov(device) {
     var inner_dist  = device.inter_lens_dist / 2;
- 
+
     var inner_tang = inner_dist / device.screen_to_lens_dist;
     var inner_angle = Math.atan(inner_tang * cfg_hmdp["nonwebvr"].distor_scale);
     var outer_angle = inner_angle;
@@ -1124,7 +1124,7 @@ function get_orientation_quat(device, dest) {
             dest[1] = device.orientation[1];
             dest[2] = device.orientation[2];
             dest[3] = device.orientation[3];
-            
+
         } else if (device.webvr_sensor_devices) {
             for (var i = 0; i < device.webvr_sensor_devices.length; i++) {
                 var webvr_sensor_device = device.webvr_sensor_devices[i];
@@ -1637,4 +1637,4 @@ function check_fullscreen() {
     return false;
 }
 
-}
+export default exports;

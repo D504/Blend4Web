@@ -21,18 +21,18 @@
  * The API is used to manage content on the screen: fullscreen, HMD, HUD.
  * @module screen
  */
-b4w.module["screen"] = function(exports, require) {
+var exports = {};
 
-var m_cam   = require("__camera");
-var m_cont  = require("__container");
-var m_cfg   = require("__config");
-var m_hud   = require("__hud");
-var m_input = require("__input");
-var m_main  = require("__main");
-var m_obj_util = require("__obj_util");
-var m_print = require("__print");
-var m_scs   = require("__scenes");
-var m_vec4  = require("__vec4");
+import m_cam from "../camera"
+import m_cont from "../container"
+import m_cfg from "../config"
+import m_hud from "../hud"
+import m_input from "../input"
+import m_main from "../main"
+import m_obj_util from "../obj_util"
+import m_print from "../print"
+import m_scs from "../scenes"
+import m_vec4 from "../libs/vec4"
 
 var _vec4_tmp = m_vec4.create();
 var _vec4_tmp2 = m_vec4.create();
@@ -449,4 +449,4 @@ exports.shot = function(format, quality) {
     m_main.canvas_data_url(cb, format, quality, true);
 }
 
-}
+export default exports;

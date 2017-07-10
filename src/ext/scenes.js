@@ -30,20 +30,20 @@
  * @local SkyParams
  * @local WindParams
  */
-b4w.module["scenes"] = function(exports, require) {
+var exports = {};
 
-var m_batch    = require("__batch");
-var m_cam      = require("__camera");
-var m_cont     = require("__container");
-var m_data     = require("__data");
-var m_graph    = require("__graph");
-var m_obj      = require("__objects");
-var m_obj_util = require("__obj_util");
-var m_print    = require("__print");
-var m_scenes   = require("__scenes");
-var m_scgraph  = require("__scenegraph");
-var m_subs     = require("__subscene");
-var m_util     = require("__util");
+import m_batch from "../batch"
+import m_cam from "../camera"
+import m_cont from "../container"
+import m_data from "../data"
+import m_graph from "../graph"
+import m_obj from "../objects"
+import m_obj_util from "../obj_util"
+import m_print from "../print"
+import m_scenes from "../scenes"
+import m_scgraph from "../scenegraph"
+import m_subs from "../subscene"
+import m_util from "../util"
 
 /**
  * Color correction params.
@@ -1856,4 +1856,4 @@ exports.can_select_objects = function() {
     return Boolean(m_scenes.get_subs(scene, m_subs.COLOR_PICKING));
 }
 
-}
+export default exports;

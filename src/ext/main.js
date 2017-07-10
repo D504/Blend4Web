@@ -24,7 +24,7 @@
  * @local RenderCallback
  * @local FPSCallback
  */
-b4w.module["main"] = function(exports, require) {
+var exports = {};
 
 /**
  * Loop callback.
@@ -47,35 +47,35 @@ b4w.module["main"] = function(exports, require) {
  * @param {number} phy_fps_avg Averaged physics FPS.
  */
 
-var m_anchors   = require("__anchors");
-var m_anim      = require("__animation");
-var m_assets    = require("__assets");
-var m_cfg       = require("__config");
-var m_compat    = require("__compat");
-var m_cont      = require("__container");
-var m_ctl       = require("__controls");
-var m_data      = require("__data");
-var m_debug     = require("__debug");
-var m_ext       = require("__extensions");
-var m_geom      = require("__geometry");
-var m_input     = require("__input");
-var m_hud       = require("__hud");
-var m_nla       = require("__nla");
-var m_main      = require("__main");
+import m_anchors from "../anchors"
+import m_anim from "../animation"
+import m_assets from "../assets"
+import m_cfg from "../config"
+import m_compat from "../compat"
+import m_cont from "../container"
+import m_ctl from "../controls"
+import m_data from "../data"
+import m_debug from "../debug"
+import m_ext from "../extensions"
+import m_geom from "../geometry"
+import m_input from "../input"
+import m_hud from "../hud"
+import m_nla from "../nla"
+import m_main from "../main"
 var m_lnodes    = require("__logic_nodes")
-var m_obj       = require("__objects");
-var m_phy       = require("__physics");
-var m_print     = require("__print");
-var m_render    = require("__renderer");
-var m_scenes    = require("__scenes");
-var m_sfx       = require("__sfx");
-var m_shaders   = require("__shaders");
-var m_textures  = require("__textures");
-var m_time      = require("__time");
-var m_trans     = require("__transform");
-var m_util      = require("__util");
-var m_version   = require("__version");
-var m_particles = require("__particles");
+import m_obj from "../objects"
+import m_phy from "../physics"
+import m_print from "../print"
+import m_render from "../renderer"
+import m_scenes from "../scenes"
+import m_sfx from "../sfx"
+import m_shaders from "../shaders"
+import m_textures from "../textures"
+import m_time from "../time"
+import m_trans from "../transform"
+import m_util from "../util"
+import m_version from "../version"
+import m_particles from "../particles"
 
 var cfg_ctx = m_cfg.context;
 var cfg_def = m_cfg.defaults;
@@ -589,4 +589,4 @@ exports.get_renderer_info = function() {
     return {"vendor": vendor, "renderer": renderer};
 }
 
-}
+export default exports;

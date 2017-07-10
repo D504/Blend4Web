@@ -210,13 +210,13 @@
  * @cc_externs reflection_quality assets_pvr_available audio lod_leap_smooth_threshold
  * @cc_externs lod_smooth_transitions glow_materials srgb_type physics_use_wasm assets_gzip_available
  */
-b4w.module["config"] = function(exports, require) {
+var exports = {};
 
-var m_cfg    = require("__config");
-var m_compat = require("__compat");
-var m_debug  = require("__debug");
-var m_data   = require("__data");
-var m_print  = require("__print");
+import m_cfg from "../config"
+import m_compat from "../compat"
+import m_debug from "../debug"
+import m_data from "../data"
+import m_print from "../print"
 
 
 /**
@@ -317,4 +317,4 @@ exports.apply_quality = function(quality) {
     }
 }
 
-}
+export default exports;

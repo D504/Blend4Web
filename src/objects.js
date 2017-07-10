@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,37 +22,37 @@
  * @namespace
  * @exports exports as objects
  */
-b4w.module["__objects"] = function(exports, require) {
+var exports = {};
 
-var m_anim       = require("__animation");
-var m_batch      = require("__batch");
-var m_bounds     = require("__boundings");
-var m_cam        = require("__camera");
-var m_cfg        = require("__config");
-var m_cons       = require("__constraints");
-var m_cont       = require("__container");
-var m_geom       = require("__geometry");
-var m_lights     = require("__lights");
-var m_nla        = require("__nla");
-var m_nodemat    = require("__nodemat");
-var m_obj_util   = require("__obj_util");
-var m_particles  = require("__particles");
-var m_phy        = require("__physics");
-var m_print      = require("__print");
-var m_primitives = require("__primitives");
-var m_quat       = require("__quat");
-var m_scenes     = require("__scenes");
-var m_subs       = require("__subscene");
-var m_sfx        = require("__sfx");
-var m_tex        = require("__textures");
-var m_time       = require("__time");
-var m_trans      = require("__transform");
-var m_tsr        = require("__tsr");
-var m_util       = require("__util");
-var m_vec3       = require("__vec3");
-var m_armat      = require("__armature");
-var m_anchors    = require("__anchors");
-var m_render     = require("__renderer");
+import m_anim from "./animation"
+import m_batch from "./batch"
+import m_bounds from "./boundings"
+import m_cam from "./camera"
+import m_cfg from "./config"
+import m_cons from "./constraints"
+import m_cont from "./container"
+import m_geom from "./geometry"
+import m_lights from "./lights"
+import m_nla from "./nla"
+import m_nodemat from "./nodemat"
+import m_obj_util from "./obj_util"
+import m_particles from "./particles"
+import m_phy from "./physics"
+import m_print from "./print"
+import m_primitives from "./primitives"
+import m_quat from "./libs/quat"
+import m_scenes from "./scenes"
+import m_subs from "./subscene"
+import m_sfx from "./sfx"
+import m_tex from "./textures"
+import m_time from "./time"
+import m_trans from "./transform"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_armat from "./armature"
+import m_anchors from "./anchors"
+import m_render from "./renderer"
 
 var cfg_def = m_cfg.defaults;
 var cfg_out = m_cfg.outlining;
@@ -287,7 +287,7 @@ exports.update_object = function(bpy_obj, obj) {
             render.wind_bending_freq   = bpy_obj["b4w_wind_bending_freq"];
             render.detail_bending_freq = bpy_obj["b4w_detail_bending_freq"];
             render.detail_bending_amp  = bpy_obj["b4w_detail_bending_amp"];
-            render.branch_bending_amp  = bpy_obj["b4w_branch_bending_amp"]; 
+            render.branch_bending_amp  = bpy_obj["b4w_branch_bending_amp"];
 
             render.main_bend_col = bpy_obj["b4w_main_bend_stiffness_col"];
             var bnd_st = bpy_obj["b4w_detail_bend_colors"];
@@ -295,7 +295,7 @@ exports.update_object = function(bpy_obj, obj) {
             render.detail_bend_col.leaves_phase = bnd_st["leaves_phase_col"];
             render.detail_bend_col.overall_stiffness = bnd_st["overall_stiffness_col"];
         }
-       
+
         render.dynamic_geometry = bpy_obj["b4w_dynamic_geometry"];
 
         // for material inheritance
@@ -483,7 +483,7 @@ function attach_reflection_data(bpy_obj, obj) {
 
         if (!refl_plane_obj)
             refl_plane_obj = create_default_refl_plane(obj);
-        
+
         var refl_plane_id = null;
         for (var i = 0; i < _refl_plane_objs.length; i++) {
             var rp = _refl_plane_objs[i];
@@ -791,7 +791,7 @@ function prepare_skinning_info(bpy_obj, obj, armobj) {
         render.is_skinning = false;
         m_print.error("too many bones for \"" + bpy_obj["name"] + "\" / " +
                 render.max_bones + " bones (max " + max_bones +
-                " with blending, " + 2 * max_bones + " without blending)." 
+                " with blending, " + 2 * max_bones + " without blending)."
                 + " Skinning will be disabled.");
     } else
         render.is_skinning = true;
@@ -885,13 +885,13 @@ function copy_object(obj, new_name, deep_copy) {
     // by link
     new_obj._bpy_obj = obj._bpy_obj;
 
-    new_obj.mat_inheritance_data.original_mat_names 
+    new_obj.mat_inheritance_data.original_mat_names
             = m_obj_util.copy_bpy_object_props_by_link(obj.mat_inheritance_data.original_mat_names);
-    new_obj.mat_inheritance_data.bpy_materials 
+    new_obj.mat_inheritance_data.bpy_materials
             = m_obj_util.copy_bpy_object_props_by_link(obj.mat_inheritance_data.bpy_materials);
-    new_obj.mat_inheritance_data.is_disabled 
-            = m_obj_util.copy_bpy_object_props_by_link(obj.mat_inheritance_data.is_disabled); 
-    
+    new_obj.mat_inheritance_data.is_disabled
+            = m_obj_util.copy_bpy_object_props_by_link(obj.mat_inheritance_data.is_disabled);
+
     // NOTE: not all props are needed or supported for the copied object
     new_obj.is_dynamic = obj.is_dynamic;
     new_obj.is_hair_dupli = obj.is_hair_dupli;
@@ -908,7 +908,7 @@ function copy_object(obj, new_name, deep_copy) {
 
     copy_scene_data(obj, new_obj);
     new_obj.action_anim_cache = m_obj_util.copy_bpy_object_props_by_link(obj.action_anim_cache);
-    
+
     new_obj.parent = m_obj_util.copy_bpy_object_props_by_link(obj.parent);
     new_obj.parent_is_dupli = obj.parent_is_dupli;
     new_obj.parent_bone = obj.parent_bone;
@@ -917,7 +917,7 @@ function copy_object(obj, new_name, deep_copy) {
     new_obj.anim_behavior_def = obj.anim_behavior_def;
 
     // copied object can't be a vehicle, floater or character
-    if (obj.physics && !(obj.is_vehicle || obj.is_character 
+    if (obj.physics && !(obj.is_vehicle || obj.is_character
             || obj.is_floating)) {
         new_obj.use_obj_physics = obj.use_obj_physics;
         // NOTE: physics will be added later
@@ -1049,7 +1049,7 @@ function prepare_physics_settings(bpy_obj, obj) {
         }
 
     var fs = bpy_obj["b4w_floating_settings"];
-    if (fs) 
+    if (fs)
         obj.floating_settings = {
             name: fs["name"],
             part: fs["part"],
@@ -1174,7 +1174,7 @@ function prepare_parenting_props(bpy_obj, obj) {
 }
 
 exports.update_boundings = function(obj) {
-    
+
     var render = obj.render;
     var obj_bb = null;
 
@@ -1196,7 +1196,7 @@ exports.update_boundings = function(obj) {
         var from = batch.bufs_data.pointers["a_position"].offset;
         var to = batch.bufs_data.pointers["a_position"].length + from;
         m_batch.update_local_bounds_from_pos(batch, vbo_source.subarray(from, to));
-        m_obj_util.update_world_bounds_from_batch_tsr(batch, render.world_tsr, 
+        m_obj_util.update_world_bounds_from_batch_tsr(batch, render.world_tsr,
                 batch_world_bounds);
 
         if (batch.type == "MAIN") {
@@ -1383,11 +1383,11 @@ exports.get_object = function() {
     var obj_found = null;
     var objs = _all_objects["ALL"];
 
-    // NOTE: filter meta is needed only for get_object_by_name, the others with 
+    // NOTE: filter meta is needed only for get_object_by_name, the others with
     // the parenting relations already don't work for meta objects
     switch (arguments[0]) {
     case exports.GET_OBJECT_BY_NAME:
-        obj_found = get_object_by_name(arguments[1], objs, true, arguments[2], 
+        obj_found = get_object_by_name(arguments[1], objs, true, arguments[2],
                 arguments[3]);
         break;
     case exports.GET_OBJECT_BY_DUPLI_NAME:
@@ -1395,7 +1395,7 @@ exports.get_object = function() {
                 arguments[3]);
         break;
     case exports.GET_OBJECT_BY_DUPLI_NAME_LIST:
-        obj_found = get_object_by_dupli_name_list(arguments[1], objs, 
+        obj_found = get_object_by_dupli_name_list(arguments[1], objs,
                 arguments[2]);
         break;
     default:
@@ -1411,7 +1411,7 @@ function get_object_by_name(name, objects, use_origin_name, data_id, filter_meta
     for (var i = 0; i < objects.length; i++) {
         var obj = objects[i];
         var obj_name = (use_origin_name) ? obj.origin_name : obj.name;
-        if (obj_name == name && (obj.render.data_id == data_id 
+        if (obj_name == name && (obj.render.data_id == data_id
                 || data_id == DATA_ID_ALL) && (!filter_meta || !obj.is_meta)) {
             obj_found = obj;
 
@@ -1427,7 +1427,7 @@ function get_object_by_name(name, objects, use_origin_name, data_id, filter_meta
 function get_object_by_dupli_name(empty_name, dupli_name, objects, data_id) {
     for (var i = 0; i < objects.length; i++) {
         var obj = objects[i];
-        if (obj.origin_name == dupli_name && (obj.render.data_id == data_id 
+        if (obj.origin_name == dupli_name && (obj.render.data_id == data_id
                 || data_id == DATA_ID_ALL)) {
             var dg_parent = m_obj_util.get_dg_parent(obj);
             if (dg_parent && dg_parent.origin_name == empty_name)
@@ -1441,12 +1441,12 @@ function get_object_by_dupli_name(empty_name, dupli_name, objects, data_id) {
 function get_object_by_dupli_name_list(name_list, objects, data_id) {
     for (var i = 0; i < objects.length; i++) {
         var obj = objects[i];
-        
+
         var j = name_list.length - 1;
         var curr_obj = obj;
         var is_valid = true;
         while (j >= 0 && is_valid) {
-            is_valid = curr_obj && (curr_obj.origin_name == name_list[j] 
+            is_valid = curr_obj && (curr_obj.origin_name == name_list[j]
                     && (curr_obj.render.data_id == data_id || data_id == DATA_ID_ALL));
             if (curr_obj)
                 curr_obj = m_obj_util.get_dg_parent(curr_obj);
@@ -1650,8 +1650,8 @@ exports.update_lod_scene = function(lod_obj, scene) {
  */
 exports.update_lod_visibility = update_lod_visibility;
 function update_lod_visibility(batch, obj_render, eye) {
-    // NOTE: accessing elements from a TypedArray in this function can lead to a 
-    // serious performance drop in Chrome - may be a bug or an unclear 
+    // NOTE: accessing elements from a TypedArray in this function can lead to a
+    // serious performance drop in Chrome - may be a bug or an unclear
     // deoptimization in V8
 
     if (!obj_render.is_lod)
@@ -1664,16 +1664,16 @@ function update_lod_visibility(batch, obj_render, eye) {
             var sign = m_util.sign(lod_set.dest_coverage - lod_set.coverage);
             lod_set.coverage += sign * m_time.get_delta() / LOD_TRANSITION_TIME;
             lod_set.coverage = m_util.clamp(lod_set.coverage, 0, 1);
-        } else 
+        } else
             lod_set.coverage = lod_set.dest_coverage;
     }
 
     if (obj_render.type == "STATIC")
         var center = obj_render.lod_center;
     else {
-        // DYNAMIC objects should use bs_world, because it is constantly 
+        // DYNAMIC objects should use bs_world, because it is constantly
         // updated unlike the lod_center property
-        var center = m_vec3.add(obj_render.bs_world.center, 
+        var center = m_vec3.add(obj_render.bs_world.center,
                 obj_render.main_lod_offset, _vec3_tmp);
     }
 
@@ -1699,7 +1699,7 @@ function update_lod_visibility(batch, obj_render, eye) {
     lod_set.dest_coverage = (dist < d_min || dist > d_max) ? 0: 1;
     lod_set.cmp_logic = lod_set.dest_coverage == 0 ? -1: 1;
 
-    if (Math.abs(dist - lod_set.prev_dist) > cfg_def.lod_leap_smooth_threshold 
+    if (Math.abs(dist - lod_set.prev_dist) > cfg_def.lod_leap_smooth_threshold
             && (lod_set.coverage == 0 || lod_set.coverage == 1))
         lod_set.coverage = lod_set.dest_coverage;
 
@@ -1725,18 +1725,18 @@ function init_obj_lod_settings(obj, scene) {
 
                     if (cfg_def.lod_smooth_transitions) {
                         var sm_type = sc_render.lod_smooth_type;
-                        if (sm_type == "ALL" || sm_type == "NON-OPAQUE" 
+                        if (sm_type == "ALL" || sm_type == "NON-OPAQUE"
                                 && (batch.blend || batch.alpha_clip))
                             lod_set.use_smoothing = true;
                     }
-                    
+
                     update_lod_visibility(batch, obj_render, cam_eye);
                     lod_set.coverage = lod_set.dest_coverage;
 
                     // hysteresis interval limit depends on the lengths of the lod levels
-                    lod_set.hyst_interval_min = Math.min(sc_render.lod_hyst_interval, 
+                    lod_set.hyst_interval_min = Math.min(sc_render.lod_hyst_interval,
                             2 * LOD_HYST_INTERVAL_LIMIT_COEFF * obj_render.lod_lower_border_range);
-                    lod_set.hyst_interval_max = Math.min(sc_render.lod_hyst_interval, 
+                    lod_set.hyst_interval_max = Math.min(sc_render.lod_hyst_interval,
                             2 * LOD_HYST_INTERVAL_LIMIT_COEFF * obj_render.lod_upper_border_range);
                 }
     }
@@ -1807,8 +1807,8 @@ exports.inherit_material = function(obj_from, mat_from_name, obj_to, mat_to_name
     // prepare "to" object
     var old_link_to_obj = process_inherit_obj_before(obj_to, mat_to_name);
 
-    // prepare materials 
-    var old_bpy_mat_name = process_inherit_bpy_mat_before(obj_from, 
+    // prepare materials
+    var old_bpy_mat_name = process_inherit_bpy_mat_before(obj_from,
             mat_from_name, obj_to, mat_to_name);
 
     var curr_active_scene = m_scenes.get_active();
@@ -1856,7 +1856,7 @@ function process_inherit_obj_before(obj_to, mat_to_name) {
     for (var i = 0; i < obj_to.scenes_data.length; i++)
         for (var j = obj_to.scenes_data[i].batches.length - 1; j >= 0; j--) {
             var batch = obj_to.scenes_data[i].batches[j];
-            if (batch.material_names.length == 0 
+            if (batch.material_names.length == 0
                     || batch.material_names.indexOf(mat_to_name) != -1)
                 m_obj_util.scene_data_remove_batch(obj_to.scenes_data[i], j);
         }
@@ -1893,8 +1893,8 @@ function process_inherit_bpy_mat_before(obj_from, mat_from_name, obj_to, mat_to_
     var old_bpy_mat_name = bpy_mat_from["name"];
     bpy_mat_from["name"] = mat_to_name;
 
-    // NOTE: override materials on bpy object from the object (needed for copied 
-    // objects, that reference the same bpy objects), prevent excessive batching 
+    // NOTE: override materials on bpy object from the object (needed for copied
+    // objects, that reference the same bpy objects), prevent excessive batching
     // through deleting the corresponding materials
     for (var i = 0; i < obj_to._bpy_obj["data"]["materials"].length; i++) {
         obj_to._bpy_obj["data"]["materials"][i] = obj_to.mat_inheritance_data.bpy_materials[i];
@@ -1954,13 +1954,13 @@ function recover_batch_state(obj_to, mat_to_name, obj_from, psys_dict, main_batc
             if (batch.particles_data) {
                 var name = batch.particles_data.name;
                 if (psys_dict[name]) {
-                    var need_factor_update = batch.particles_data.count_factor 
+                    var need_factor_update = batch.particles_data.count_factor
                             != psys_dict[name].count_factor;
 
                     batch.particles_data = m_particles.clone_particles_data(psys_dict[name]);
 
                     if (need_factor_update)
-                        m_particles.set_factor(obj_to, name, 
+                        m_particles.set_factor(obj_to, name,
                                 batch.particles_data.count_factor);
                 }
             }
@@ -2057,7 +2057,7 @@ exports.generate_mesh_render_boundings = function(bpy_obj, obj) {
     if (render.billboard)
         m_obj_util.update_render_bounds_billboard(obj, bb_local);
     else
-        m_obj_util.update_render_bounds_from_bpy(obj, bb_local, 
+        m_obj_util.update_render_bounds_from_bpy(obj, bb_local,
                 bpy_obj["data"]["b4w_boundings"]);
 }
 
@@ -2127,4 +2127,4 @@ function node_id_from_name_list(name_list, prefix_offset) {
     return id;
 }
 
-}
+export default exports;

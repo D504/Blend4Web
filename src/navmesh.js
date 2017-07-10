@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -21,14 +21,14 @@
  * @namespace
  * @exports exports as navmesh
  */
-b4w.module["__navmesh"] = function(exports, require) {
+var exports = {};
 
-var m_geom  = require("__geometry");
-var m_math  = require("__math");
-var m_mat4  = require("__mat4");
-var m_util  = require("__util");
-var m_vec3  = require("__vec3");
-var m_vec4  = require("__vec4");
+import m_geom from "./geometry"
+import m_math from "./math"
+import m_mat4 from "./libs/mat4"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_vec4 from "./libs/vec4"
 
 // TODO: reduce count of tmp variables
 var _vec3_tmp = m_vec3.create();
@@ -892,4 +892,4 @@ function find_path(navmesh, start_pos, target_pos, options) {
             target_pos, vertices);
 }
 
-}
+export default exports;

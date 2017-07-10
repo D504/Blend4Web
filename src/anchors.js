@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,23 +22,23 @@
  * @namespace
  * @exports exports as scenes
  */
-b4w.module["__anchors"] = function(exports, require) {
+var exports = {};
 
-var m_batch  = require("__batch");
-var m_cam    = require("__camera");
-var m_cfg    = require("__config");
-var m_cont   = require("__container");
-var m_input  = require("__input");
-var m_obj    = require("__objects");
-var m_obj_util = require("__obj_util");
-var m_print  = require("__print");
-var m_render = require("__renderer");
-var m_scenes = require("__scenes");
-var m_subs   = require("__subscene");
-var m_time   = require("__time");
-var m_trans  = require("__transform");
-var m_tsr    = require("__tsr");
-var m_vec3   = require("__vec3");
+import m_batch from "./batch"
+import m_cam from "./camera"
+import m_cfg from "./config"
+import m_cont from "./container"
+import m_input from "./input"
+import m_obj from "./objects"
+import m_obj_util from "./obj_util"
+import m_print from "./print"
+import m_render from "./renderer"
+import m_scenes from "./scenes"
+import m_subs from "./subscene"
+import m_time from "./time"
+import m_trans from "./transform"
+import m_tsr from "./tsr"
+import m_vec3 from "./libs/vec3"
 
 var cfg_def = m_cfg.defaults;
 
@@ -86,14 +86,14 @@ exports.append = function(obj) {
         anchor.element = document.getElementById(obj.anchor.element_id);
 
         if (!anchor.element) {
-            m_print.warn("Anchor HTML element with the id '" 
+            m_print.warn("Anchor HTML element with the id '"
                     + obj.anchor.element_id + "' was not found, making it generic.");
             anchor.type = "GENERIC";
         } else {
             for (var i = 0; i < _anchors.length; i++)
-                if (_anchors[i].type == "ELEMENT" 
+                if (_anchors[i].type == "ELEMENT"
                         && _anchors[i].element_id == obj.anchor.element_id) {
-                    m_print.warn("Anchor with the id '" + obj.anchor.element_id 
+                    m_print.warn("Anchor with the id '" + obj.anchor.element_id
                             + "' already exists, making the new anchor generic.");
                     anchor.type = "GENERIC";
                 }
@@ -431,7 +431,7 @@ exports.update = function(force_update) {
 
     _anchors.sort(sort_anchors_zindex);
 
-    // NOTE: setting z-index can be very slow on iPad in case of many 
+    // NOTE: setting z-index can be very slow on iPad in case of many
     // overlapping elements
     for (var i = 0; i < _anchors.length; i++) {
         var anchor = _anchors[i];
@@ -574,16 +574,16 @@ function pick_anchor_visibility(anchor) {
     var subs_anchor = m_scenes.get_subs(m_scenes.get_main(), m_subs.ANCHOR_VISIBILITY);
     var anchor_cam = subs_anchor.camera;
 
-    var viewport_xy = m_cont.canvas_to_viewport_coords(anchor.x, anchor.y, 
+    var viewport_xy = m_cont.canvas_to_viewport_coords(anchor.x, anchor.y,
             _vec2_tmp, anchor_cam);
 
     // NOTE: very slow
-    m_render.read_pixels(anchor_cam.framebuffer, viewport_xy[0], 
+    m_render.read_pixels(anchor_cam.framebuffer, viewport_xy[0],
             anchor_cam.height - viewport_xy[1], 2, 2, _pixels);
 
     if (_pixels[5] + _pixels[6] + _pixels[9] + _pixels[10] == 4 * 255)
         return "visible";
-    else if (anchor.appearance == "out" || 
+    else if (anchor.appearance == "out" ||
             _pixels[5] + _pixels[6] + _pixels[9] + _pixels[10] == 0)
         return "covered";
     else
@@ -699,4 +699,4 @@ function is_anchor_lod_visible(obj_render, dist) {
     return false;
 }
 
-}
+export default exports;

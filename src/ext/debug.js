@@ -26,33 +26,33 @@
  * @local EqualsFunction
  * @local OKFunction
  */
-b4w.module["debug"] = function(exports, require) {
+var exports = {};
 
-var m_batch    = require("__batch");
-var m_cfg      = require("__config");
-var m_compat   = require("__compat");
-var m_ctl      = require("__controls");
-var m_cont     = require("__container");
-var m_data     = require("__data");
-var m_debug    = require("__debug");
-var m_ext      = require("__extensions");
-var m_geom     = require("__geometry");
-var m_load     = require("__loader");
-var m_obj      = require("__objects");
-var m_obj_util = require("__obj_util");
-var m_phy      = require("__physics");
-var m_print    = require("__print");
-var m_render   = require("__renderer");
-var m_scenes   = require("__scenes");
-var m_scgraph  = require("__scenegraph");
-var m_sfx      = require("__sfx");
-var m_shaders  = require("__shaders");
-var m_subs     = require("__subscene");
-var m_textures = require("__textures");
-var m_trans    = require("__transform");
-var m_tsr      = require("__tsr");
-var m_util     = require("__util");
-var m_vec3     = require("__vec3");
+import m_batch from "../batch"
+import m_cfg from "../config"
+import m_compat from "../compat"
+import m_ctl from "../controls"
+import m_cont from "../container"
+import m_data from "../data"
+import m_debug from "../debug"
+import m_ext from "../extensions"
+import m_geom from "../geometry"
+import m_load from "../loader"
+import m_obj from "../objects"
+import m_obj_util from "../obj_util"
+import m_phy from "../physics"
+import m_print from "../print"
+import m_render from "../renderer"
+import m_scenes from "../scenes"
+import m_scgraph from "../scenegraph"
+import m_sfx from "../sfx"
+import m_shaders from "../shaders"
+import m_subs from "../subscene"
+import m_textures from "../textures"
+import m_trans from "../transform"
+import m_tsr from "../tsr"
+import m_util from "../util"
+import m_vec3 from "../libs/vec3"
 
 var _tsr_tmp = m_tsr.create();
 var _vec2_tmp = new Float32Array(2);
@@ -1208,7 +1208,6 @@ exports.check_debug_result = function() {
  */
 exports.test = function(test_name, callback) {
 
-    var m_print = require("__print");
     var print_err_func = m_print.error;
     var print_err_once_func = m_print.error_once;
     var print_warn_func = m_print.warn;
@@ -1450,4 +1449,4 @@ function hide_normals() {
     _normal_line = null;
 }
 
-}
+export default exports;

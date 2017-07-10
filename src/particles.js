@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -23,17 +23,17 @@
  * @namespace
  * @exports exports as particles
  */
-b4w.module["__particles"] = function(exports, require) {
+var exports = {};
 
-var m_cfg    = require("__config");
-var m_batch  = require("__batch");
-var m_geom   = require("__geometry");
-var m_tbn    = require("__tbn");
-var m_tex    = require("__textures");
-var m_time   = require("__time");
-var m_tsr    = require("__tsr");
-var m_util   = require("__util");
-var m_vec3   = require("__vec3");
+import m_cfg from "./config"
+import m_batch from "./batch"
+import m_geom from "./geometry"
+import m_tbn from "./tbn"
+import m_tex from "./textures"
+import m_time from "./time"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
 
 var STDGRAVITY = 9.81;
 var DELAYRANDFACTOR = 10;
@@ -98,7 +98,7 @@ function init_particles_data(name, type) {
 exports.clone_particles_data = clone_particles_data;
 function clone_particles_data(particles_data) {
 
-    var particles_data_new = init_particles_data(particles_data.name, 
+    var particles_data_new = init_particles_data(particles_data.name,
             particles_data.type);
 
     particles_data_new.time = particles_data.time;
@@ -367,7 +367,7 @@ exports.generate_emitter_particles_submesh = function(batch, emitter_mesh,
 
     var is_rand_delay = psystem["settings"]["b4w_randomize_emission"];
     var cyclic = psystem["settings"]["b4w_cyclic"];
-    
+
     pdata.tilt = psystem["settings"]["billboard_tilt"];
     pdata.tilt_rand = psystem["settings"]["billboard_tilt_random"];
 
@@ -927,4 +927,4 @@ exports.cleanup = function() {
     _particles_objs_cache.length = 0;
 }
 
-}
+export default exports;

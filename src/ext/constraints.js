@@ -22,16 +22,16 @@
  * @module constraints
  * @local StiffViewportPositioning
  */
-b4w.module["constraints"] = function(exports, require) {
+var exports = {};
 
-var m_cam      = require("__camera");
-var m_cons     = require("__constraints");
-var m_obj_util = require("__obj_util");
-var m_phy      = require("__physics");
-var m_print    = require("__print");
-var m_trans    = require("__transform");
-var m_util     = require("__util");
-var m_vec3     = require("__vec3");
+import m_cam from "../camera"
+import m_cons from "../constraints"
+import m_obj_util from "../obj_util"
+import m_phy from "../physics"
+import m_print from "../print"
+import m_trans from "../transform"
+import m_util from "../util"
+import m_vec3 from "../libs/vec3"
 
 /**
  * An object that defines positioning for the stiff viewport constraint.
@@ -593,4 +593,4 @@ exports.remove = function(obj, restore_transform) {
         m_trans.update_transform(obj);
 }
 
-}
+export default exports;

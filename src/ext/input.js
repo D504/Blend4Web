@@ -39,16 +39,16 @@
  * @local GyroscopeAnglesCallback
  */
 
-b4w.module["input"] = function(exports, require) {
+var exports = {};
 
-var m_input   = require("__input");
-var m_cam     = require("__camera");
-var m_cfg     = require("__config");
-var m_cont    = require("__container");
-var m_obj_util= require("__obj_util");
-var m_print   = require("__print");
-var m_scs     = require("__scenes");
-var m_vec4    = require("__vec4");
+import m_input from "../input"
+import m_cam from "../camera"
+import m_cfg from "../config"
+import m_cont from "../container"
+import m_obj_util from "../obj_util"
+import m_print from "../print"
+import m_scs from "../scenes"
+import m_vec4 from "../libs/vec4"
 
 var _vec4_tmp = m_vec4.create();
 var _vec4_tmp2 = m_vec4.create();
@@ -1112,4 +1112,4 @@ exports.remove_click_listener = function(element, callback) {
     m_input.remove_click_listener(element, callback);
 }
 
-}
+export default exports;

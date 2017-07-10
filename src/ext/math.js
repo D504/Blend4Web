@@ -22,11 +22,11 @@
  * @module math
  * @local Plane
  */
-b4w.module["math"] = function(exports, require) {
+var exports = {};
 
-var m_vec3     = require("__vec3");
-var m_util     = require("__util");
-var m_math     = require("__math");
+import m_vec3 from "../libs/vec3"
+import m_util from "../util"
+import m_math from "../math"
 
 var _vec3_tmp = new Float32Array(3);
 
@@ -446,4 +446,4 @@ exports.ease_out_bounce = m_math.ease_out_bounce;
  */
 exports.ease_in_out_bounce = m_math.ease_in_out_bounce;
 
-}
+export default exports;

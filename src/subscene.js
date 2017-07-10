@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -27,12 +27,12 @@
  * @namespace
  * @exports exports as scenegraph
  */
-b4w.module["__subscene"] = function(exports, require) {
+var exports = {};
 
-var m_cam      = require("__camera");
-var m_cfg      = require("__config");
-var m_util     = require("__util");
-var m_bounds   = require("__boundings");
+import m_cam from "./camera"
+import m_cfg from "./config"
+import m_util from "./util"
+import m_bounds from "./boundings"
 
 var cfg_out = m_cfg.outlining;
 
@@ -58,7 +58,7 @@ var DEPTH_PACK                          = 19;
 var SSAO                                = 20;
 var SSAO_BLUR                           = 21;
 var ANTIALIASING                        = 22;
-var SMAA_BLENDING_WEIGHT_CALCULATION    = 23; 
+var SMAA_BLENDING_WEIGHT_CALCULATION    = 23;
 var SMAA_EDGE_DETECTION                 = 24;
 var SMAA_RESOLVE                        = 25;
 var SMAA_NEIGHBORHOOD_BLENDING          = 26;
@@ -186,12 +186,12 @@ function init_subs(type) {
         debug_render_calls: 0,
         debug_render_time: 0,
         debug_render_time_queries: [],
-        
+
         // properties for DEBUG_VIEW subs
         debug_view_mode: 0,
         debug_colors_seed: 0,
         debug_render_time_threshold: 1,
-        
+
         do_not_debug: false,
         time: 0,
         camera: null,
@@ -381,12 +381,12 @@ exports.clone_subs = function(subs) {
     subs_new.debug_render_calls = 0;
     subs_new.debug_render_time = 0;
     subs_new.debug_render_time_queries = [];
-    
+
     // properties for DEBUG_VIEW subs
     subs_new.debug_view_mode = subs.debug_view_mode;
     subs_new.debug_colors_seed = subs.debug_colors_seed;
     subs_new.debug_render_time_threshold = subs.debug_render_time_threshold;
-    
+
     subs_new.do_not_debug = subs.do_not_debug;
     subs_new.time = subs.time;
 
@@ -1395,7 +1395,7 @@ exports.init_bundle = function(batch, render, world_bounds) {
 function get_draw_data(draw_data, shader, alpha_antialiasing, offset_z, is_sky) {
     for (var i = 0; i < draw_data.length; i++) {
         var ddata = draw_data[i];
-        if (ddata.shader == shader && ddata.alpha_antialiasing == alpha_antialiasing 
+        if (ddata.shader == shader && ddata.alpha_antialiasing == alpha_antialiasing
                 && ddata.offset_z == offset_z && ddata.is_sky == is_sky)
             return ddata;
     }
@@ -1420,4 +1420,4 @@ function sort_fun_draw_data(a, b) {
            sort_fun(a.shader.shader_id, b.shader.shader_id);
 }
 
-}
+export default exports;

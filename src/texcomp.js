@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -45,11 +45,11 @@
  * @namespace
  * @exports exports as texcomp
  */
-b4w.module["__texcomp"] = function(exports, require) {
+var exports = {};
 
-var m_print = require("__print");
-var m_util  = require("__util");
-   
+import m_print from "./print"
+import m_util from "./util"
+
 // All values and structures referenced from:
 // http://msdn.microsoft.com/en-us/library/bb943991.aspx/
 var DDS_MAGIC = 0x20534444;
@@ -66,7 +66,7 @@ var DDSD_MIPMAPCOUNT = 0x20000;
 // var DDSCAPS_COMPLEX = 0x8;
 // var DDSCAPS_MIPMAP = 0x400000;
 // var DDSCAPS_TEXTURE = 0x1000;
-    
+
 // var DDSCAPS2_CUBEMAP = 0x200;
 // var DDSCAPS2_CUBEMAP_POSITIVEX = 0x400;
 // var DDSCAPS2_CUBEMAP_NEGATIVEX = 0x800;
@@ -246,7 +246,7 @@ function upload_dds_levels(gl, ext, arrayBuffer, loadMipmaps) {
         m_print.error("Invalid magic number in DDS header");
         return 0;
     }
-    
+
     if (!header[OFFSET_PF_FLAGS] & DDPF_FOURCC) {
         m_print.error("Unsupported format, must contain a FourCC code");
         return 0;
@@ -435,8 +435,8 @@ exports.get_width_height = function(arrayBuffer, format) {
         }
         break;
     }
-    
-    
+
+
 }
 
 /**
@@ -504,7 +504,7 @@ exports.get_compress_ratio = function(arrayBuffer, comp_method) {
  */
 function load_dds_texture_ex(gl, ext, src, texture, loadMipmaps, callback) {
     var xhr = new XMLHttpRequest();
-    
+
     xhr.open('GET', src, true);
     xhr.responseType = "arraybuffer";
     xhr.onload = function() {
@@ -556,4 +556,4 @@ function int32_to_fourcc(value) {
     );
 }
 
-}
+export default exports;

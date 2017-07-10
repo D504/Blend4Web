@@ -22,7 +22,7 @@
  * @local StageloadCallback
  * @local LoadedCallback
  */
-b4w.module["data"] = function(exports, require) {
+var exports = {};
 
 /**
  * Data loaded callback.
@@ -41,8 +41,8 @@ b4w.module["data"] = function(exports, require) {
  * @param {number} data_id Data ID
  */
 
-var m_data   = require("__data");
-var m_loader = require("__loader");
+import m_data from "../data"
+import m_loader from "../loader"
 
 /**
  * Load data from the json file exported from Blender.
@@ -115,4 +115,4 @@ exports.prefetch = m_data.prefetch;
  */
 exports.unfetch = m_data.unfetch;
 
-}
+export default exports;

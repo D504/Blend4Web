@@ -25,9 +25,9 @@
  * @local ProgressCallback
  * @local PackCallback
  */
-b4w.module["assets"] = function(exports, require) {
+var exports = {};
 
-var m_assets = require("__assets");
+import m_assets from "../assets"
 
 /**
  * An object that defines how the asset resource should be loaded.
@@ -192,5 +192,4 @@ exports.enqueue = function(assets_pack, asset_cb, pack_cb, progress_cb) {
         m_assets.enqueue(assets_pack, asset_cb, pack_cb, progress_cb);
 }
 
-}
-
+export default exports;

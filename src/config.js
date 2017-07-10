@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,10 +22,10 @@
  * @namespace
  * @exports exports as config
  */
-b4w.module["__config"] = function(exports, require) {
+var exports = {};
 
-var m_print = require("__print");
-var m_util  = require("__util");
+import m_print from "./print"
+import m_util from "./util"
 
 // profiles
 exports.P_LOW    = 1;  // maximize performance
@@ -1060,4 +1060,4 @@ exports.get_assets_path = function(name) {
     return cfg_ass_def;
 }
 
-}
+export default exports;

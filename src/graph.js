@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -23,9 +23,9 @@
  * @namespace
  * @exports exports as graph
  */
-b4w.module["__graph"] = function(exports, require) {
+var exports = {};
 
-var m_util  = require("__util");
+import m_util from "./util"
 
 var NULL_NODE    = -1;
 var NULL         = 0;
@@ -43,7 +43,7 @@ exports.TWO_WAY      = TWO_WAY;
 
 /**
  * Create graph using constructor pattern.
- * Argument params: node_or_edge1 Node [ID, ATTR] or Edge [ID1, ID2, ATTR], 
+ * Argument params: node_or_edge1 Node [ID, ATTR] or Edge [ID1, ID2, ATTR],
  * node_or_edge2 ...
  */
 exports.create = function() {
@@ -1408,4 +1408,4 @@ exports.debug_dot = function(graph, node_label_cb, edge_label_cb) {
     return dot_str;
 }
 
-}
+export default exports;

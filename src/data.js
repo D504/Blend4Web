@@ -1,16 +1,16 @@
 /**
  * Copyright (C) 2014-2017 Triumph LLC
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
@@ -22,44 +22,44 @@
  * @namespace
  * @exports exports as data
  */
-b4w.module["__data"] = function(exports, require) {
+var exports = {};
 
-var m_anchors   = require("__anchors");
-var m_anim      = require("__animation");
-var m_assets    = require("__assets");
-var m_batch     = require("__batch");
-var m_cfg       = require("__config");
-var m_cons      = require("__constraints");
-var m_ctl       = require("__controls");
-var m_texcomp   = require("__texcomp");
-var m_debug     = require("__debug");
-var m_ext       = require("__extensions");
-var m_input     = require("__input");
-var m_loader    = require("__loader");
-var m_md5       = require("__md5");
-var m_nla       = require("__nla");
-var m_lnodes    = require("__logic_nodes");
-var m_particles = require("__particles");
-var m_nodemat   = require("__nodemat");
-var m_obj       = require("__objects");
-var m_obj_util  = require("__obj_util");
-var m_phy       = require("__physics");
-var m_print     = require("__print");
-var m_quat      = require("__quat");
-var m_reformer  = require("__reformer");
-var m_render    = require("__renderer");
-var m_scenes    = require("__scenes");
-var m_sfx       = require("__sfx");
-var m_shaders   = require("__shaders");
-var m_subs      = require("__subscene");
-var m_tbn       = require("__tbn");
-var m_tex       = require("__textures");
-var m_time      = require("__time");
-var m_trans     = require("__transform");
-var m_tsr       = require("__tsr");
-var m_util      = require("__util");
-var m_vec3      = require("__vec3");
-var m_vec4      = require("__vec4");
+import m_anchors from "./anchors"
+import m_anim from "./animation"
+import m_assets from "./assets"
+import m_batch from "./batch"
+import m_cfg from "./config"
+import m_cons from "./constraints"
+import m_ctl from "./controls"
+import m_texcomp from "./texcomp"
+import m_debug from "./debug"
+import m_ext from "./extensions"
+import m_input from "./input"
+import m_loader from "./loader"
+import m_md5 from "./libs/md5"
+import m_nla from "./nla"
+import m_lnodes from "./logic_nodes"
+import m_particles from "./particles"
+import m_nodemat from "./nodemat"
+import m_obj from "./objects"
+import m_obj_util from "./obj_util"
+import m_phy from "./physics"
+import m_print from "./print"
+import m_quat from "./libs/quat"
+import m_reformer from "./reformer"
+import m_render from "./renderer"
+import m_scenes from "./scenes"
+import m_sfx from "./sfx"
+import m_shaders from "./shaders"
+import m_subs from "./subscene"
+import m_tbn from "./tbn"
+import m_tex from "./textures"
+import m_time from "./time"
+import m_trans from "./transform"
+import m_tsr from "./tsr"
+import m_util from "./util"
+import m_vec3 from "./libs/vec3"
+import m_vec4 from "./libs/vec4"
 
 var cfg_anim = m_cfg.animation;
 var cfg_def  = m_cfg.defaults;
@@ -188,11 +188,11 @@ function load_main(bpy_data, thread, stage, cb_param, cb_finish,
         // Failed to load scene main file
         if (!loaded_bpy_data) {
             if (type == m_assets.AT_JSON_ZIP) {
-                m_print.warn("Compressed file ", url, 
-                        "not found or invalid. Trying to load non-compressed", 
+                m_print.warn("Compressed file ", url,
+                        "not found or invalid. Trying to load non-compressed",
                         main_path);
-                m_assets.enqueue([{id:main_path, type:m_assets.AT_JSON, 
-                        url:main_path, is_fetch:thread.is_preloading}], 
+                m_assets.enqueue([{id:main_path, type:m_assets.AT_JSON,
+                        url:main_path, is_fetch:thread.is_preloading}],
                         asset_cb, null, progress_cb);
                 return;
             } else {
@@ -204,13 +204,13 @@ function load_main(bpy_data, thread, stage, cb_param, cb_finish,
         m_print.log("%cLOAD METADATA", "color: #616", url);
 
         check_format_version(loaded_bpy_data);
-        
+
         // copy-link its properties to initial bpy_data
         for (var prop in loaded_bpy_data)
             bpy_data[prop] = loaded_bpy_data[prop];
 
         prepare_thread_bpy(thread, bpy_data);
-        
+
         show_export_errors(bpy_data, thread);
         show_export_warnings(bpy_data, thread);
 
@@ -292,11 +292,11 @@ function load_binaries(bpy_data, thread, stage, cb_param, cb_finish,
         // Failed to load scene binary file
         if (!bin_data) {
             if (type == m_assets.AT_ARRAYBUFFER_ZIP) {
-                m_print.warn("Compressed file ", url, 
-                        "not found or invalid. Trying to load non-compressed", 
+                m_print.warn("Compressed file ", url,
+                        "not found or invalid. Trying to load non-compressed",
                         binary_path);
-                m_assets.enqueue([{id:binary_path, type:m_assets.AT_ARRAYBUFFER, 
-                        url:binary_path, is_fetch:thread.is_preloading}], 
+                m_assets.enqueue([{id:binary_path, type:m_assets.AT_ARRAYBUFFER,
+                        url:binary_path, is_fetch:thread.is_preloading}],
                         binary_cb, null, progress_cb);
                 return;
             } else {
@@ -343,29 +343,29 @@ function check_format_version(loaded_bpy_data) {
     switch (cmp) {
     case -1:
         if (ver_loaded[0] < cfg_def.min_format_version[0])
-            m_util.panic("JSON version is too old relative to B4W engine: " 
-                    + m_util.version_to_str(ver_loaded) + ", required: " 
+            m_util.panic("JSON version is too old relative to B4W engine: "
+                    + m_util.version_to_str(ver_loaded) + ", required: "
                     + m_util.version_to_str(cfg_def.min_format_version) + ". "
                     + "Reexport scene with the latest B4W addon to fix it.");
         else
             m_print.warn("JSON version is a bit old relative to B4W engine: "
-                    + m_util.version_to_str(ver_loaded) + ", required: " 
-                    + m_util.version_to_str(cfg_def.min_format_version) 
+                    + m_util.version_to_str(ver_loaded) + ", required: "
+                    + m_util.version_to_str(cfg_def.min_format_version)
                     + ". Some compatibility issues can occur. "
                     + "Reexport scene with the latest B4W addon to fix it.");
         break;
     case 1:
         if (ver_loaded[0] > cfg_def.min_format_version[0])
-            m_util.panic("B4W engine version is too old relative to JSON. " 
-                    + "Can't load the scene. Update your " 
+            m_util.panic("B4W engine version is too old relative to JSON. "
+                    + "Can't load the scene. Update your "
                     + "engine version to fix it.");
         else
-            m_print.error("B4W engine version is a bit old relative to JSON. " 
-                    + "Some compatibility issues can occur. Update " 
+            m_print.error("B4W engine version is a bit old relative to JSON. "
+                    + "Some compatibility issues can occur. Update "
                     + "your engine version to fix it.");
         break;
     }
-    
+
     cfg_def.loaded_data_version = ver_loaded;
 }
 
@@ -395,15 +395,15 @@ function check_bin_data_version(bin_data, bpy_data) {
     var headers = get_header(bin_data);
     var ver_loaded = m_util.str_to_version(bpy_data["b4w_format_version"]);
     if (headers[0] != ver_loaded[0])
-        m_util.panic("BIN version does not match to JSON version: " 
-                + m_util.version_to_str(headers) + ", required: " 
+        m_util.panic("BIN version does not match to JSON version: "
+                + m_util.version_to_str(headers) + ", required: "
                 + m_util.version_to_str(cfg_def.min_format_version)
                 + ". Couldn't load the scene. "
                 + "Reexport scene to fix it.");
     if (headers[1] != ver_loaded[1])
-        m_print.warn("BIN version does not match to JSON version: " + 
-                + m_util.version_to_str(headers) + ", required: " 
-                + m_util.version_to_str(cfg_def.min_format_version) 
+        m_print.warn("BIN version does not match to JSON version: " +
+                + m_util.version_to_str(headers) + ", required: "
+                + m_util.version_to_str(cfg_def.min_format_version)
                 + ". Some compatibility issues can occur. "
                 + "Reexport scene to fix it.");
 }
@@ -602,7 +602,7 @@ function prepare_bindata_actions(bin_data, bin_offsets, actions, is_le, b4w_offs
                 paths_to_rename.push(data_path);
             }
         }
-        
+
         for (var j = 0; j < paths_to_rename.length; j++) {
             var path_old = paths_to_rename[j];
             var path_new = path_old.replace("euler", "quaternion");
@@ -819,7 +819,7 @@ function prepare_bpy_scenes(bpy_data, thread) {
                     scene["b4w_enable_physics"] == "AUTO" && !check_scene_physics(scene))
                 continue;
 
-            if (cfg_def.phy_race_condition_hack || (thread.is_primary || 
+            if (cfg_def.phy_race_condition_hack || (thread.is_primary ||
                      (!m_phy.scene_has_physics(_primary_scene) &&
                       scene == m_scenes.find_main_scene(bpy_data))))
                 m_phy.init_scene_physics(scene);
@@ -940,7 +940,7 @@ function prepare_bpy_worlds(bpy_data, thread) {
             bpy_world._def_action_slots = m_obj.get_bpy_def_action_slots(bpy_world, true);
             bpy_world._is_dynamic = m_obj.bpy_obj_is_dynamic(bpy_world);
         } else
-            removed_worlds.push(bpy_world);            
+            removed_worlds.push(bpy_world);
     }
 
     for (var i = 0; i < removed_worlds.length; i++) {
@@ -1046,7 +1046,7 @@ function combine_scene_bpy_objects_iter(bpy_objects, type, dest) {
 }
 
 /**
- * Make bpy_obj->bpy_scene links for HAIR dupli objects which aren't reachable 
+ * Make bpy_obj->bpy_scene links for HAIR dupli objects which aren't reachable
  * from any scene.
  */
 function prepare_hair_dupli_objects(bpy_objects) {
@@ -1063,7 +1063,7 @@ function prepare_hair_dupli_objects(bpy_objects) {
                 if (pset["render_type"] == "OBJECT") {
                     var dg_obj = pset["dupli_object"];
 
-                    // dg_obj isn't presented on any scene or already processed 
+                    // dg_obj isn't presented on any scene or already processed
                     // as hair dupli object, don't filter unwanted objects (needless)
                     if (!dg_obj._scenes)
                         dg_obj._scenes = bpy_obj._scenes.slice();
@@ -1155,7 +1155,7 @@ function create_bpy_hierarchy_cache(bpy_data, thread) {
             }
         }
     }
-    
+
     // filter cached orphan objects which don't belong to any scene
     var cache = _all_objects_cache[thread.id];
     for (var i = cache.length - 1; i >= 0; i--)
@@ -1163,7 +1163,7 @@ function create_bpy_hierarchy_cache(bpy_data, thread) {
             cache.splice(i, 1);
 }
 
-function create_bpy_hierarchy_cache_iter(bpy_objects, grp_num, is_primary, 
+function create_bpy_hierarchy_cache_iter(bpy_objects, grp_num, is_primary,
         object_levels) {
 
     // initialize new group level
@@ -1187,7 +1187,7 @@ function create_bpy_hierarchy_cache_iter(bpy_objects, grp_num, is_primary,
         var dupli_group = bpy_obj["dupli_group"];
         if (dupli_group) {
             var dg_objects = dupli_group["objects"];
-            create_bpy_hierarchy_cache_iter(dg_objects, grp_num + 1, 
+            create_bpy_hierarchy_cache_iter(dg_objects, grp_num + 1,
                     is_primary, object_levels);
         }
     }
@@ -1226,7 +1226,7 @@ function process_objects(bpy_data, thread, stage, cb_param, cb_finish,
     create_world_objects_from_bpy(bpy_data, bpy_worlds, thread.id);
     var objects = m_obj.get_all_objects("ALL", thread.id);
 
-    // update new objects (after creating - for making links beetween 
+    // update new objects (after creating - for making links beetween
     // objects: parenting, duplication, ...)
     for (var i = 0; i < bpy_objects.length; i++) {
         var bpy_obj = bpy_objects[i];
@@ -1267,7 +1267,7 @@ function process_objects(bpy_data, thread, stage, cb_param, cb_finish,
 }
 
 /**
- * Create new b4w objects, append scene data, attach service & hack properties, 
+ * Create new b4w objects, append scene data, attach service & hack properties,
  * update new objects.
  */
 function create_objects_from_bpy(bpy_data, bpy_objects, data_id) {
@@ -1276,9 +1276,9 @@ function create_objects_from_bpy(bpy_data, bpy_objects, data_id) {
     for (var i = 0; i < bpy_objects.length; i++) {
         var bpy_obj = bpy_objects[i];
 
-        var obj = m_obj_util.create_object(bpy_obj["name"], bpy_obj["type"], 
+        var obj = m_obj_util.create_object(bpy_obj["name"], bpy_obj["type"],
                 bpy_obj["origin_name"]);
-        
+
         for (var j = 0; j < bpy_obj._scenes.length; j++)
             m_obj_util.append_scene_data(obj, bpy_obj._scenes[j]);
 
@@ -1313,7 +1313,7 @@ function create_world_objects_from_bpy(bpy_data, bpy_worlds, data_id) {
 
 function calc_light_index(bpy_data, data_id) {
     for (var i = 0; i < bpy_data["scenes"].length; i++) {
-        var scene = bpy_data["scenes"][i]; 
+        var scene = bpy_data["scenes"][i];
         var lamps = m_obj.get_scene_objs(scene, "LAMP", data_id);
 
         var lamp_indexes = new Array(lamps.length);
@@ -1332,7 +1332,7 @@ function calc_light_index(bpy_data, data_id) {
             return 0;
         });
 
-        // NOTE: sort lamps due to lamp limit (need to preserve most valuable), 
+        // NOTE: sort lamps due to lamp limit (need to preserve most valuable),
         // sorting mainly for iPADs
         for (var j = 0; j < lamp_indexes.length; j++) {
             var lamp = lamps[lamp_indexes[j]];
@@ -1347,18 +1347,18 @@ function calc_light_index(bpy_data, data_id) {
  */
 function process_scenes(bpy_data, thread, stage, cb_param, cb_finish,
         cb_set_rate) {
-    
+
     create_scene_props(bpy_data);
 
     for (var i = 0; i < bpy_data["scenes"].length; i++) {
 
-        // NOTE: dynamically loaded objects are considered to be already on the 
+        // NOTE: dynamically loaded objects are considered to be already on the
         // primary main scene (have different data_id)
         var scene_dst = thread.is_primary ? bpy_data["scenes"][i] : _primary_scene;
 
         // NOTE: get lamps from the primary scene for dynamically loaded scenes
-        var lamps = thread.is_primary 
-                ? m_obj.get_scene_objs(scene_dst, "LAMP", thread.id) 
+        var lamps = thread.is_primary
+                ? m_obj.get_scene_objs(scene_dst, "LAMP", thread.id)
                 : m_obj.get_scene_objs(scene_dst, "LAMP", 0);
 
         var scene_objs = m_obj.get_scene_objs(scene_dst, "ALL", thread.id);
@@ -1368,7 +1368,7 @@ function process_scenes(bpy_data, thread, stage, cb_param, cb_finish,
         var bpy_empty_objs = get_bpy_cache_scene(thread.id, scene_dst, "EMPTY");
 
         if (thread.is_primary)
-            m_scenes.append_scene(scene_dst, scene_objs, lamps, bpy_mesh_objs, 
+            m_scenes.append_scene(scene_dst, scene_objs, lamps, bpy_mesh_objs,
                     bpy_empty_objs);
 
         var has_wind = false;
@@ -1499,8 +1499,8 @@ function setup_dds_loading(bpy_data) {
     unset_images_dds(bpy_data["images"]);
 
     // check extension for dds/pvr
-    if (!(cfg_ldr.dds_available && cfg_def.compress_format == "dds" 
-            || cfg_ldr.pvr_available && cfg_def.compress_format == "pvr") 
+    if (!(cfg_ldr.dds_available && cfg_def.compress_format == "dds"
+            || cfg_ldr.pvr_available && cfg_def.compress_format == "pvr")
             || !cfg_def.use_compression)
         return;
 
@@ -1761,7 +1761,7 @@ function duplicate_objects_iter(obj_links, origin_obj, obj_ids, grp_ids, cluster
 
             var dg_obj_links = grp_new["objects"];
 
-            duplicate_objects_iter(dg_obj_links, bpy_obj, obj_ids, grp_ids, 
+            duplicate_objects_iter(dg_obj_links, bpy_obj, obj_ids, grp_ids,
                     bpy_obj["b4w_cluster_data"]);
         }
     }
@@ -2330,7 +2330,7 @@ function load_images(bpy_data, thread, stage, cb_param, cb_finish, cb_set_rate) 
                 continue;
             }
 
-            if (!(uuid in image_users)) 
+            if (!(uuid in image_users))
                 image_users[uuid] = [];
 
             for (var j = 0; j < textures.length; j++) {
@@ -2382,10 +2382,10 @@ function load_images(bpy_data, thread, stage, cb_param, cb_finish, cb_set_rate) 
                 } else
                     var comp_method = type;
 
-                if (type == m_assets.AT_VIDEO_ELEMENT 
+                if (type == m_assets.AT_VIDEO_ELEMENT
                         || type == m_assets.AT_SEQ_VIDEO_ELEMENT)
                     print_video_info(image_data, url, show_path_warning, type);
-                else 
+                else
                     print_image_info(image_data, url, show_path_warning, comp_method);
             } else {
                 var fb_asset = get_image_fallback(id, url, thread.is_preloading, image_users);
@@ -2613,7 +2613,7 @@ function video_play(scene, data_id) {
     var textures = scene._render.video_textures;
     for (var i = 0; i < textures.length; i++) {
         var vtex = textures[i]._render;
-        if (scene["b4w_use_nla"] && textures[i]["b4w_nla_video"] 
+        if (scene["b4w_use_nla"] && textures[i]["b4w_nla_video"]
                 || !textures[i]["use_auto_refresh"])
             continue;
 
@@ -2694,7 +2694,7 @@ function prepare_bpy_lods(bpy_data) {
 
     for (var i = 0; i < lods_data.lod_levels_data.length; i++) {
         var lev_data = lods_data.lod_levels_data[i];
-        
+
         for (var j = 0; j < lev_data.old_lods.length; j++) {
             var old_lod = lev_data.old_lods[j];
             var new_lod = lev_data.new_lods[j];
@@ -2702,7 +2702,7 @@ function prepare_bpy_lods(bpy_data) {
             var scene_arr = lev_data.scene_arrays[j];
             var objs_container_arr = lev_data.objs_container_arrays[j];
 
-            // The object is added to the object array and inserted into the lod_level 
+            // The object is added to the object array and inserted into the lod_level
             // instead of the original object.
             lod_level["object"] = new_lod;
             for (var k = 0; k < objs_container_arr.length; k++)
@@ -2710,11 +2710,11 @@ function prepare_bpy_lods(bpy_data) {
 
             // The original LOD objects that will be replaced by LODs should be removed.
             remove_bpy_object(old_lod, scene_arr);
-        }        
+        }
     }
 }
 
-function prepare_bpy_obj_lods(scene, container, lod_parent_bpy, dg_parent_bpy, 
+function prepare_bpy_obj_lods(scene, container, lod_parent_bpy, dg_parent_bpy,
         lods_data) {
 
     var lods_num = lod_parent_bpy["lod_levels"].length;
@@ -2828,7 +2828,7 @@ function calc_max_bones(objects) {
         else {
             m_print.warn("too many bones for \"" + obj.name + "\" / " +
                 render.max_bones + " bones (max " + gl_max_bones +
-                " with blending, " + 2 * gl_max_bones + " without blending)." 
+                " with blending, " + 2 * gl_max_bones + " without blending)."
                 + " Blending between frames will be disabled.");
             render.max_bones = upper_max_bones;
             render.frames_blending = false;
@@ -2877,7 +2877,7 @@ function prepare_lod_objects(bpy_objects) {
             render.is_lod = true;
 
             if (main_lod_render.type == "DYNAMIC" && j > 0)
-                m_vec3.subtract(main_lod_render.bs_world.center, 
+                m_vec3.subtract(main_lod_render.bs_world.center,
                         render.bs_world.center, render.main_lod_offset);
 
             render.lod_dist_min = lod_dists[j];
@@ -2885,12 +2885,12 @@ function prepare_lod_objects(bpy_objects) {
 
             var prev_level_spread = j == 0 ? 0 : lod_dists[j] - lod_dists[j - 1];
             var curr_level_spread = lod_dists[j + 1] - lod_dists[j];
-            var next_level_spread = j == lod_levels.length - 1 ? Infinity : 
+            var next_level_spread = j == lod_levels.length - 1 ? Infinity :
                     lod_dists[j + 2] - lod_dists[j + 1];
 
-            render.lod_lower_border_range = Math.min(prev_level_spread, 
+            render.lod_lower_border_range = Math.min(prev_level_spread,
                     curr_level_spread);
-            render.lod_upper_border_range = Math.min(curr_level_spread, 
+            render.lod_upper_border_range = Math.min(curr_level_spread,
                     next_level_spread);
         }
 
@@ -3259,7 +3259,7 @@ function load_shoremap(bpy_data, thread, stage, cb_param, cb_finish,
             if (shoremap_image && shoremap_image["source"] === "FILE") {
                 var uuid = shoremap_image["uuid"];
                 var dir_path = dirname(thread.filepath);
-                var image_path = m_util.normpath_preserve_protocol(dir_path + 
+                var image_path = m_util.normpath_preserve_protocol(dir_path +
                         shoremap_image["filepath"]);
 
                 if (shoremap_image._comp_method)
@@ -3574,9 +3574,9 @@ function synchronize_media(bpy_data, thread, stage, cb_param, cb_finish,
             video_play(bpy_data["scenes"][i], thread.id);
             speakers_play(bpy_data["scenes"][i], thread.id, false);
         }
-    else { 
+    else {
         video_play(_primary_scene, thread.id);
-        speakers_play(_primary_scene, thread.id, false); 
+        speakers_play(_primary_scene, thread.id, false);
     }
 
     cb_finish(thread, stage);
@@ -3591,7 +3591,7 @@ function mobile_media_start(bpy_data, thread, stage, cb_param, cb_finish,
 
     // NOTE: not all bpy data can be dropped on this stage at the moment
     drop_bpy_data(bpy_data, thread);
-    if (cfg_def.media_auto_activation && (thread.has_video_textures || 
+    if (cfg_def.media_auto_activation && (thread.has_video_textures ||
             thread.has_background_music || thread.init_wa_context)) {
         if (!_play_media_btn)
             create_media_controls(bpy_data, cb_finish, thread, stage);
@@ -3694,7 +3694,7 @@ function dirname(path) {
 
 /**
  * Stage properties.
- * priority: 
+ * priority:
  *      ASYNC_PRIORITY - stage can be executed asynchronously alongside with other stages
  *          (relevant for stages which perform http requests)
  *      SYNC_PRIORITY - such stages are executed in a strict order one-by-one
@@ -3708,17 +3708,17 @@ function dirname(path) {
  *      - a value which represents amount of time required to finish this stage
  * primary_only:
  *      - stage is executed only in the primary thread, it's omitted during the dynamic loading
- * cb_before: 
+ * cb_before:
  *      - a stage callback which is processed first during the stage execution
  *          call cb_finish as follows: cb_finish(thread, stage) to finish the stage
  *          (suitable for preparatory actions)
  * cb_loop:
- *      - a stage callback which is called multiple times within a loop; 
- *          call cb_set_rate callback as follows: cb_set_rate(thread, stage, 1) to break the loop, 
+ *      - a stage callback which is called multiple times within a loop;
+ *          call cb_set_rate callback as follows: cb_set_rate(thread, stage, 1) to break the loop,
  *          call cb_finish as follows: cb_finish(thread, stage) to finish the stage
  *          (suitable for cyclical actions which can be breaked into a separate steps;
  *          not needed for asynchronous resources(speakers, textures, ...))
- * cb_after: 
+ * cb_after:
  *      - a stage callback which is processed last during the stage execution
  *          call cb_finish as follows: cb_finish(thread, stage) to finish the stage
  *          (suitable for finishing actions)
@@ -3998,7 +3998,7 @@ exports.unload = function(data_id) {
                 m_obj.obj_switch_cleanup_flags(obj, false, false, false);
         }
 
-        // unload 
+        // unload
         objs = m_obj.get_all_objects("ALL", data_id);
         for (var i = objs.length - 1; i >= 0; i--) {
             var obj = objs[i];
@@ -4147,4 +4147,4 @@ exports.unfetch = function() {
     m_assets.clear_cache();
 }
 
-}
+export default exports;
