@@ -30,6 +30,9 @@ import m_debug from "./debug"
 import m_print from "./print"
 import m_util from "./util"
 
+import m_gpp_parser from "./libs/gpp_parser"
+import m_shader_texts from "./libs/shader_texts"
+
 var cfg_def = m_cfg.defaults;
 var cfg_lim = m_cfg.context_limits;
 var cfg_pth = m_cfg.paths;
@@ -751,7 +754,7 @@ function get_shader_ast(dir, filename) {
         return _shader_ast_cache[cache_id];
 
     if (!_shader_texts) {
-        var ast = require("shader_texts")[filename];
+        var ast = m_shader_texts[filename];
         if (!ast)
             return null;
     } else {
@@ -770,7 +773,7 @@ function get_shader_ast(dir, filename) {
  * @suppress {missingProperties}
  */
 function get_gpp_parser() {
-    return require("__gpp_parser").parser;
+    return m_gpp_parser.parser;
 }
 
 function set_shader_texts(shader_name, shader_text) {
@@ -783,30 +786,32 @@ exports.load_shaders = function() {
 
     _shaders_loaded = false;
 
-    if (!b4w.module_check("shader_texts")) {
+    // BEGIN WARNING ES6
+    // if (!b4w.module_check("shader_texts")) {
 
-        var shader_assets = [];
-        var asset_type = m_assets.AT_TEXT;
+    //     var shader_assets = [];
+    //     var asset_type = m_assets.AT_TEXT;
 
-        for (var i = 0; i < SHADERS.length; i++) {
-            var shader_path = m_util.normpath_preserve_protocol(cfg_pth.shaders_path
-                    + SHADERS[i]);
-            shader_assets.push({id:SHADERS[i], type:asset_type, url:shader_path});
-        }
+    //     for (var i = 0; i < SHADERS.length; i++) {
+    //         var shader_path = m_util.normpath_preserve_protocol(cfg_pth.shaders_path
+    //                 + SHADERS[i]);
+    //         shader_assets.push({id:SHADERS[i], type:asset_type, url:shader_path});
+    //     }
 
-        var asset_cb = function(shader_text, shader_name, type, url) {
-            set_shader_texts(shader_name, shader_text);
-        }
+    //     var asset_cb = function(shader_text, shader_name, type, url) {
+    //         set_shader_texts(shader_name, shader_text);
+    //     }
 
-        var pack_cb = function() {
-            _shaders_loaded = true;
-        }
+    //     var pack_cb = function() {
+    //         _shaders_loaded = true;
+    //     }
 
-        if (shader_assets.length)
-            m_assets.enqueue(shader_assets, asset_cb, pack_cb);
-        else
-            m_print.error("Shaders have not been found.");
-    } else
+    //     if (shader_assets.length)
+    //         m_assets.enqueue(shader_assets, asset_cb, pack_cb);
+    //     else
+    //         m_print.error("Shaders have not been found.");
+    // } else
+    // END WARNING ES6
         _shaders_loaded = true;
 }
 

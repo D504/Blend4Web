@@ -23,6 +23,9 @@
  * @exports exports as ipc
  */
 var exports = {};
+
+import m_util from "./util"
+import m_cont from "./container"
 /*
  * Use Visual Incrementing script to simplify assignment of such numbers in VIM
  * http://www.drchip.org/astronaut/vim/index.html#VISINCR
@@ -108,8 +111,12 @@ exports.OUT_SET_ANGULAR_VELOCITY         = 149;
 
 var OUT_SET_TRANSFORM = exports.OUT_SET_TRANSFORM;
 
-var _worker_listeners = b4w.worker_listeners;
-var _worker_namespaces = b4w.worker_namespaces;
+// BEGIN WARNING ES6
+// var _worker_listeners = b4w.worker_listeners;
+// var _worker_namespaces = b4w.worker_namespaces;
+var _worker_listeners = [];
+var _worker_namespaces = [];
+// END WARNING ES6
 
 var _msg_cache_IN_TRANSFORM = {
     msg_id:   IN_TRANSFORM,
@@ -215,10 +222,8 @@ exports.create_worker = function(path, fallback) {
         // require here because it's not availabe in workers
         // (e.g. due to obfuscation)
         // BEGIN WARNING ES6
-        //import m_util from "./util"
-        //import m_cont from "./container"
-        var m_util = {};
-        var m_cont = {};
+        // var m_util = {};
+        // var m_cont = {};
         // END WARNING ES6
 
 

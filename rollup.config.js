@@ -1,14 +1,15 @@
 export default {
-	entry: 'src/index.js',
-	indent: '\t',
-	plugins: [
-	],
-	sourceMap: true,
-	targets: [
-		{
-			format: 'umd',
-			moduleName: 'Blend4Web',
-			dest: 'deploy/apps/common/b4w.js'
-		}
-	]
+    entry: 'src/index.js',
+    indent: '\t',
+    plugins: [
+
+    ],
+    sourceMap: true,
+    targets: [
+        {
+            format: 'umd',
+            moduleName: 'b4w',
+            dest: 'projects/b4w.js'
+        }
+    ]
 };

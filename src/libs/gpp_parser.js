@@ -19,7 +19,7 @@
 /**
  * Auto-generated GLSL parser
  */
-b4w.module["__gpp_parser"] = function(exports, require) {
+var exports = {};
 
 exports.parser = (function() {
   /*
@@ -8632,4 +8632,4 @@ exports.parser = (function() {
   };
 })();
 
-}
+export default exports;

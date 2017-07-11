@@ -23,9 +23,9 @@
  * @namespace
  * @exports exports as storage
  */
-b4w.module["storage"] = function(exports, require) {
+var exports = {};
 
-var m_print = require("__print");
+import m_print from "../ext/print"
 
 var _prefix = "b4w";
 var _storage = null;
@@ -124,4 +124,4 @@ exports.debug = function(prefix) {
 // NOTE: initialize with default prefix for compatibility reasons
 init_storage();
 
-}
+export default exports;

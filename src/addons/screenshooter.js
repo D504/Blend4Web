@@ -20,10 +20,10 @@
  * Screen shooter add-on.
  * @module screenshooter
  */
-b4w.module["screenshooter"] = function(exports, require) {
+var exports = {};
 
-var m_screen = require("screen");
-var m_print  = require("print");
+import m_screen from "../ext/screen"
+import m_print from "../ext/print"
 
 /**
  * Take a screenshot and download as screenshot.png image.
@@ -33,7 +33,7 @@ var m_print  = require("print");
  * @param {number} [quality=1.0] Number between 0 and 1 for types: "image/jpeg",
  * "image/webp"
  * @example
- * var m_scrn = require("screenshooter");
+ * import m_scrn from "../ext/screenshooter"
  * m_scrn.shot();
  * @deprecated Use {@link module:screen.shot} instead
  */
@@ -42,4 +42,4 @@ exports.shot = function(format, quality) {
     m_screen.shot(format, quality);
 }
 
-};
+export default exports;

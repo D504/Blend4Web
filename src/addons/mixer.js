@@ -22,13 +22,13 @@
  * channel and volume fader and compressor to the master section.
  * @module mixer
  */
-b4w.module["mixer"] = function(exports, require) {
+var exports = {};
 
-var m_ctl    = require("controls");
-var m_scenes = require("scenes");
-var m_screen = require("screen");
-var m_sfx    = require("sfx");
-var m_util   = require("__util");
+import m_ctl from "../ext/controls"
+import m_scenes from "../ext/scenes"
+import m_screen from "../ext/screen"
+import m_sfx from "../ext/sfx"
+import m_util from "../ext/util"
 
 var TIMER_SLOW_PERIOD = 0.15;
 var TIMER_FAST_PERIOD = 0.05;
@@ -552,5 +552,4 @@ function active_strip_range() {
     return [strip_low, strip_high];
 }
 
-
-}
+export default exports;

@@ -21,9 +21,9 @@
  * Provides API to create various types of standard preloaders.
  * @module preloader
  */
-b4w.module["preloader"] = function(exports, require) {
+var exports = {};
 
-var m_cont = require("container");
+import m_cont from "../ext/container"
 
 var PL_CONT_BG_COLOR    = "#484848";
 var PL_BAR_BG_COLOR     = "#5276cf";
@@ -402,4 +402,4 @@ exports.update_preloader = function(percentage) {
     }
 }
 
-}
+export default exports;

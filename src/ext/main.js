@@ -62,7 +62,7 @@ import m_input from "../input"
 import m_hud from "../hud"
 import m_nla from "../nla"
 import m_main from "../main"
-var m_lnodes    = require("__logic_nodes")
+import m_lnodes from "../logic_nodes"
 import m_obj from "../objects"
 import m_phy from "../physics"
 import m_print from "../print"

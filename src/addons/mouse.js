@@ -28,16 +28,16 @@
  * @local PointerlockMouseMoveCallback
  * @local RotationCallback
  */
-b4w.module["mouse"] = function(exports, require) {
+var exports = {};
 
-var m_cam   = require("camera");
-var m_cont  = require("container");
-var m_ctl   = require("controls");
-var m_phy   = require("physics");
-var m_print = require("print");
-var m_scs   = require("scenes");
-var m_util  = require("util");
-var m_main  = require("main");
+import m_cam from "../ext/camera"
+import m_cont from "../ext/container"
+import m_ctl from "../ext/controls"
+import m_phy from "../ext/physics"
+import m_print from "../ext/print"
+import m_scs from "../ext/scenes"
+import m_util from "../ext/util"
+import m_main from "../ext/main"
 
 var FPS_MOUSE_MULT = 0.0004;
 var DRAG_MOUSE_DELTA_MULT = 2;
@@ -478,4 +478,4 @@ exports.get_plock_smooth_factor = function() {
     return _smooth_factor;
 }
 
-};
+export default exports;

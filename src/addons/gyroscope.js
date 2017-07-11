@@ -23,14 +23,14 @@
  * @module gyroscope
  */
 
-b4w.module["gyroscope"] = function(exports, require) {
+var exports = {};
 
-var m_cam        = require("camera");
-var m_ctl        = require("controls");
-var m_scenes     = require("scenes");
-var m_trans      = require("transform");
-var m_util       = require("util");
-var m_vec3       = require("vec3");
+import m_cam from "../ext/camera"
+import m_ctl from "../ext/controls"
+import m_scenes from "../ext/scenes"
+import m_trans from "../ext/transform"
+import m_util from "../ext/util"
+import m_vec3 from "../libs/vec3"
 
 var _begin_angles = new Float32Array(3);
 var _curr_angles = new Float32Array(3);
@@ -136,4 +136,4 @@ exports.disable_camera_rotation = function() {
     m_ctl.remove_sensor_manifold(cam_obj, "CAMERA_ROTATE_GYRO");
 }
 
-};
+export default exports;

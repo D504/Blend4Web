@@ -26,17 +26,17 @@
  * @local MoveCameraToPointCallback
  * @local RotateCameraCallback
  */
-b4w.module["camera_anim"] = function(exports, require) {
+var exports = {};
 
-var m_cam   = require("camera");
-var m_ctl   = require("controls");
-var m_print = require("print");
-var m_scs   = require("scenes");
-var m_time  = require("time");
-var m_trans = require("transform");
-var m_tsr   = require("tsr");
-var m_util  = require("util");
-var m_vec3  = require("vec3");
+import m_cam from "../ext/camera"
+import m_ctl from "../ext/controls"
+import m_print from "../ext/print"
+import m_scs from "../ext/scenes"
+import m_time from "../ext/time"
+import m_trans from "../ext/transform"
+import m_tsr from "../ext/tsr"
+import m_util from "../ext/util"
+import m_vec3 from "../libs/vec3"
 
 var ROTATION_OFFSET = 0.2;
 var ROTATION_LIMITS_EPS = 1E-6;
@@ -592,4 +592,4 @@ exports.is_rotating = function() {
     return _is_camera_rotating;
 }
 
-}
+export default exports;

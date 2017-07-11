@@ -20,12 +20,12 @@
  * Gamepads configurator add-on.
  * @module gp_conf
  */
-b4w.module["gp_conf"] = function(exports, require) {
+var exports = {};
 
-var m_cont      = require("container");
-var m_ctrl      = require("controls");
-var m_input     = require("input");
-var m_storage   = require("storage");
+import m_cont from "../ext/container"
+import m_ctrl from "../ext/controls"
+import m_input from "../ext/input"
+import m_storage from "./storage"
 
 var SVG_BASE64 = "url('data:image/svg+xml;base64,";
 var BLUE_COLOR = "#5276cf";
@@ -1224,4 +1224,4 @@ function zoom_main_div() {
         _main_element.style.zoom = "1";
 }
 
-};
+export default exports;

@@ -23,17 +23,17 @@
  * @module hmd
  */
 
-b4w.module["hmd"] = function(exports, require) {
+var exports = {};
 
-var m_cam    = require("camera");
-var m_ctl    = require("controls");
-var m_input  = require("input");
-var m_quat   = require("quat");
-var m_scenes = require("scenes");
-var m_screen = require("screen");
-var m_trans  = require("transform");
-var m_util   = require("util");
-var m_vec3   = require("vec3");
+import m_cam from "../ext/camera"
+import m_ctl from "../ext/controls"
+import m_input from "../ext/input"
+import m_quat from "../libs/quat"
+import m_scenes from "../ext/scenes"
+import m_screen from "../ext/screen"
+import m_trans from "../ext/transform"
+import m_util from "../ext/util"
+import m_vec3 from "../libs/vec3"
 
 var _last_cam_quat = m_quat.create();
 var _yaw_cam_angle = 0;
@@ -129,8 +129,8 @@ exports.check_browser_support = function() {
  * @param {Object3D} [gamepad_1] Object presenting controller.
  * @param {Object3D} [gamepad_2] Object presenting controller.
  * @example
- * var m_hmd = require("hmd");
- * var m_scenes = require("scenes");
+ * import m_hmd from "../ext/hmd"
+ * import m_scenes from "../ext/scenes"
  *
  * var gamepad_1 = m_scenes.get_object_by_name("my_gamepad_1");
  * var gamepad_2 = m_scenes.get_object_by_name("my_gamepad_2");
@@ -179,7 +179,7 @@ exports.enable_controllers = function(gamepad_1, gamepad_2) {
  * Disable VR controllers.
  * @method module:hmd.disable_controllers
  * @example
- * var m_hmd = require("hmd");
+ * import m_hmd from "../ext/hmd"
  *
  * m_hmd.disable_controllers();
  */
@@ -334,7 +334,7 @@ exports.disable_hmd = function() {
  * @method module:hmd.set_rotate_quat
  * @param {Quat} quat Initial rotation quaternion.
  * @example
- * var m_hmd = require("hmd");
+ * import m_hmd from "../ext/hmd"
  *
  * m_hmd.set_rotate_quat([0,0,0,1]);
  */
@@ -347,8 +347,8 @@ exports.set_rotate_quat = function(quat) {
  * @param {Quat} dest Initial rotation quaternion.
  * @return {Quat} dest.
  * @example
- * var m_hmd = require("hmd");
- * var m_quat = require("quat");
+ * import m_hmd from "../ext/hmd"
+ * import m_quat from "../libs/quat"
  * var _quat_tmp = m_quat.create();
  *
  * var quat = m_hmd.get_rotate_quat(_quat_tmp);
@@ -362,7 +362,7 @@ exports.get_rotate_quat = function(dest) {
  * @method module:hmd.set_position
  * @param {Vec3} position Initial position.
  * @example
- * var m_hmd = require("hmd");
+ * import m_hmd from "../ext/hmd"
  *
  * m_hmd.set_position([0,0,0]);
  */
@@ -375,8 +375,8 @@ exports.set_position = function(position) {
  * @param {Vec3} dest Initial position.
  * @return {Vec3} dest.
  * @example
- * var m_hmd = require("hmd");
- * var m_vec3 = require("vec3");
+ * import m_hmd from "../ext/hmd"
+ * import m_vec3 from "../libs/vec3"
  * var _vec3_tmp = m_vec3.create();
  *
  * var pos = m_hmd.get_position(_vec3_tmp);
@@ -386,4 +386,4 @@ exports.get_position = function(dest) {
     return dest;
 }
 
-};
+export default exports;

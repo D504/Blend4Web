@@ -26,7 +26,7 @@
  * @local CharMotionCallback
  */
 
-b4w.module["fps"] = function(exports, require) {
+var exports = {};
 
 /**
  * Function which is called when the given ID state is changed.
@@ -56,20 +56,20 @@ b4w.module["fps"] = function(exports, require) {
  * @param {number} y rotation around Y-axis in radians
  */
 
-var m_cam   = require("camera");
-var m_ctl   = require("controls");
-var m_phy   = require("physics");
-var m_scs   = require("scenes");
-var m_util  = require("util");
-var m_main  = require("main");
-var m_cont  = require("container");
-var m_input = require("input");
-var m_screen = require("screen");
-var m_trans = require("transform");
-var m_const = require("constraints");
-var m_vec3  = require("vec3");
-var m_hmd   = require("hmd");
-var m_print = require("__print");
+import m_cam from "../ext/camera"
+import m_ctl from "../ext/controls"
+import m_phy from "../ext/physics"
+import m_scs from "../ext/scenes"
+import m_util from "../ext/util"
+import m_main from "../ext/main"
+import m_cont from "../ext/container"
+import m_input from "../ext/input"
+import m_screen from "../ext/screen"
+import m_trans from "../ext/transform"
+import m_const from "../ext/constraints"
+import m_vec3 from "../libs/vec3"
+import m_hmd from "./hmd"
+import m_print from "../ext/print"
 
 var AT_PRESSED = 1;
 var AT_RELEASED = 2;
@@ -739,9 +739,9 @@ exports.AT_CONTINUOUS = AT_CONTINUOUS;
  * @param {number} action_type Type of action
  * @param {Array} action_controls Array of sensor types
  * @param {Function} action_cb Function which applies logic
- * @example var m_ctl = require("controls");
- * var m_fps = require("fps");
- * var m_input = require("input");
+ * @example import m_ctl from "../ext/controls"
+ * import m_fps from "../ext/fps"
+ * import m_input from "../ext/input"
  *
  * var action_cb = function(value) {
  *     console.log(value);
@@ -867,7 +867,7 @@ function bind_action(action_type, action_controls, action_cb) {
  * @cc_externs report_init_failure pause_invisible key_pause_enabled
  * @cc_externs jump_sens fly_sens rotation_cb lock_camera
  * @cc_externs move_dir_cd motion_cb
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * var character = m_scene.get_first_character();
  *
@@ -922,7 +922,7 @@ exports.enable_fps_controls = function(options) {
  * @method module:fps.disable_fps_controls
  * @param {Object3D} [character=The result of the {@link module:scenes.get_first_character|get_first_character()} method call] Character
  * @param {HTMLElement} [elem=Canvas container element] HTML element to add event listeners to
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * m_fps.disable_fps_controls();
  */
@@ -944,7 +944,7 @@ exports.disable_fps_controls = function(character, elem) {
  * @method module:fps.set_state_change_cb
  * @param {number} state_id State ID
  * @param {ChangeStateCallback} callback Callback function
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * var state_changing_cb = function(old_state_id, new_state_id) {
  *     console.log(old_state_id, new_state_id);  
@@ -960,7 +960,7 @@ exports.set_state_change_cb = function(state_id, callback) {
  * Set character's camera smooth behavior
  * @method module:fps.set_cam_smooth_factor
  * @param {number} value Smooth factor
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * m_fps.set_cam_smooth_factor(0.2);
  */
@@ -971,7 +971,7 @@ exports.set_cam_smooth_factor = function(value) {
 /**
  * Set character's camera smooth behavior
  * @method module:fps.get_cam_smooth_factor
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * var smooth_factor = m_fps.get_cam_smooth_factor();
  */
@@ -982,7 +982,7 @@ exports.get_cam_smooth_factor = function() {
  * Set character's camera mouse sensitivity
  * @method module:fps.set_cam_sensitivity
  * @param {number} value Sensitivity
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * m_fps.set_cam_sensitivity(80);
  */
@@ -993,7 +993,7 @@ function set_cam_sensitivity(value) {
 /**
  * Get character's camera mouse sensitivity
  * @method module:fps.get_cam_sensitivity
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * var sens = m_fps.get_cam_sensitivity();
  */
@@ -1005,7 +1005,7 @@ function get_cam_sensitivity() {
  * Set pointerlock callback function, which is called when pointerlock is enabled
  * @method module:fps.set_plock_enable_cb
  * @param {PlockCallback} callback Callback function
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  * var cb = function(element) {
  *     console.log("pointerlock is enabled");  
  * }
@@ -1019,7 +1019,7 @@ exports.set_plock_enable_cb = function(callback) {
  * Set pointerlock callback function, which is called when pointerlock is disabled
  * @method module:fps.set_plock_disable_cb
  * @param {PlockCallback} callback Callback function
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * var cb = function(element) {
  *     console.log("pointerlock is disabled");  
@@ -1034,7 +1034,7 @@ exports.set_plock_disable_cb = function(callback) {
  * Get character's current state.
  * @method module:fps.get_character_state
  * @returns {CharacterState} Character's current state
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * var curr_state = m_fps.get_character_state();
  *
@@ -1048,7 +1048,7 @@ exports.get_character_state = function() {
  * Add new character's state.
  * @method module:fps.add_new_state
  * @returns {CharacterState} Character's new state
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * var new_state = m_fps.add_new_state();
  */
@@ -1061,7 +1061,7 @@ exports.add_new_state = function() {
  * @param {CharacterState} new_state Character's new state
  * @param {CharacterState[]} enabled_transitions Enabled transitions to another states
  * @param {ChangeStateCallback} change_state_cb Callback function
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * var new_state = m_fps.add_new_state();
  * var state_changing_cb = function(old_state_id, new_state_id) {
@@ -1080,7 +1080,7 @@ exports.add_state = function(new_state, enabled_transitions, change_state_cb) {
  * Switch character's state.
  * @method module:fps.switch_state
  * @param {CharacterState} state Character's state
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * m_fps.switch_state(m_fps.CS_WALK);
  */
@@ -1091,7 +1091,7 @@ exports.switch_state = function(state) {
 /**
  * Lock character's state changing.
  * @method module:fps.lock_character
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * m_fps.lock_character();
  */
@@ -1102,7 +1102,7 @@ exports.lock_character = function() {
 /**
  * Unlock character's state changing.
  * @method module:fps.unlock_character
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * m_fps.unlock_character();
  */
@@ -1113,7 +1113,7 @@ exports.unlock_character = function() {
 /**
  * Check if character's state changing is locked.
  * @method module:fps.is_character_locked
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * if (m_fps.is_character_locked())
  *     console.log("character is locked");
@@ -1126,7 +1126,7 @@ exports.is_character_locked = function() {
  * Set character rotation callback.
  * @method module:fps.set_rotation_cb
  * @param {CharRotationCallback} rotation_cb Character's rotation callback
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * m_fps.set_rotation_cb(function(char, rot_x, rot_y) {});
  */
@@ -1139,7 +1139,7 @@ exports.set_rotation_cb = function(rotation_cb) {
 /**
  * Freeze character's movements.
  * @method module:fps.freeze_movements
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * m_fps.freeze_movements();
  */
@@ -1149,7 +1149,7 @@ exports.freeze_movements = function() {
 /**
  * Unfreeze character's movements.
  * @method module:fps.unfreeze_movements
- * @example var m_fps = require("fps");
+ * @example import m_fps from "../ext/fps"
  *
  * m_fps.unfreeze_movements();
  */
@@ -1157,4 +1157,4 @@ exports.unfreeze_movements = function() {
     _is_freezed = false;
 }
 
-};
+export default exports;

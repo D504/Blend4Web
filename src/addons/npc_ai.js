@@ -22,18 +22,18 @@
  * @module npc_ai
  * @local GraphActions
  */
-b4w.module["npc_ai"] = function(exports, require) {
+var exports = {};
 
-var m_anim  = require("animation");
-var m_ctl   = require("controls");
-var m_quat  = require("quat");
-var m_scs   = require("scenes");
-var m_time  = require("time");
-var m_trans = require("transform");
-var m_vec3  = require("vec3");
-var m_phy   = require("physics");
-var m_print = require("print");
-var m_util  = require("util");
+import m_anim from "../ext/animation"
+import m_ctl from "../ext/controls"
+import m_quat from "../libs/quat"
+import m_scs from "../ext/scenes"
+import m_time from "../ext/time"
+import m_trans from "../ext/transform"
+import m_vec3 from "../libs/vec3"
+import m_phy from "../ext/physics"
+import m_print from "../ext/print"
+import m_util from "../ext/util"
 
 var _ev_tracks = [];
 
@@ -864,4 +864,4 @@ function dest_anim_correction(ev_track, dest, l_to_p, new_dir) {
     }
 }
 
-}
+export default exports;

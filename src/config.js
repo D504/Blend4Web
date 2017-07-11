@@ -268,6 +268,7 @@ exports.paths = {
     built_in_data_module : "built_in_data",
 
     js_src_search_paths: [
+        "b4w.js",
         "b4w.min.js",
         "b4w.full.min.js",
         "b4w.simple.min.js",
@@ -968,7 +969,10 @@ exports.reset_limits = function() {
 
 exports.is_built_in_data = is_built_in_data;
 function is_built_in_data() {
-    return b4w.module_check(exports.paths.built_in_data_module);
+    // BEGIN WARNING ES6
+    // return b4w.module_check(exports.paths.built_in_data_module);
+    return false;
+    // END WARNING ES6
 }
 
 function is_wasm_enabled() {

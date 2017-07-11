@@ -24,25 +24,24 @@
  * @local AnimFinishCallback
  * @local QueueObject
  */
+var exports = {};
 
-b4w.module["app"] = function(exports, require) {
-
-var m_cam   = require("camera");
-var m_cfg   = require("config");
-var m_cons  = require("constraints");
-var m_cont  = require("container");
-var m_ctl   = require("controls");
-var m_data  = require("data");
-var m_dbg   = require("debug");
-var m_input = require("input");
-var m_main  = require("main");
-var m_phy   = require("physics");
-var m_print = require("print");
-var m_screen = require("screen");
-var m_scs   = require("scenes");
-var m_trans = require("transform");
-var m_util  = require("util");
-var m_vec3  = require("vec3");
+import m_cam from "../ext/camera"
+import m_cfg from "../ext/config"
+import m_cons from "../ext/constraints"
+import m_cont from "../ext/container"
+import m_ctl from "../ext/controls"
+import m_data from "../ext/data"
+import m_dbg from "../ext/debug"
+import m_input from "../ext/input"
+import m_main from "../ext/main"
+import m_phy from "../ext/physics"
+import m_print from "../ext/print"
+import m_screen from "../ext/screen"
+import m_scs from "../ext/scenes"
+import m_trans from "../ext/transform"
+import m_util from "../ext/util"
+import m_vec3 from "../libs/vec3"
 
 // Constants used for the target camera
 var TARGET_KEY_ZOOM_POW1     = 1.0;
@@ -591,7 +590,7 @@ function get_dest_zoom(obj, value, velocity_zoom, dest_value, dev_fact,
  * even when the mouse is leaving the HTML element
  * @param {boolean} [disable_gamepad_controls=false] Disable gamepad controls
  * @example 
- * var m_app = require("app");
+ * import m_app from "../ext/app"
  * m_app.enable_camera_controls();
  */
 
@@ -1263,7 +1262,7 @@ function enable_cam_controls_resetting(cam) {
  * Disable controls for the active camera.
  * @method module:app.disable_camera_controls
  * @example 
- * var m_app = require("app");
+ * import m_app from "../ext/app"
  * m_app.disable_camera_controls();
  */
 exports.disable_camera_controls = disable_camera_controls;
@@ -1700,4 +1699,4 @@ exports.get_camera_smooth_factor = function() {
     return _smooth_factor;
 }
 
-}
+export default exports;
